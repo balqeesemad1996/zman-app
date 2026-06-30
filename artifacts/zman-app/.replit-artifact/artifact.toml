@@ -1,0 +1,41 @@
+kind = "web"
+  previewPath = "/"
+  title = "Zman - نظام إدارة الورش"
+  version = "1.0.0"
+  id = "artifacts/zman-app"
+  router = "path"
+
+  [[integratedSkills]]
+  name = "react-vite"
+  version = "1.0.0"
+
+  [[services]]
+  name = "web"
+  paths = [ "/" ]
+  localPort = 20082
+
+  [services.development]
+  run = "pnpm --filter @workspace/zman-app run dev"
+
+  [services.production]
+
+  [services.production.build]
+  args = ["pnpm", "--filter", "@workspace/zman-app", "run", "build"]
+
+  [services.production.build.env]
+  NODE_ENV = "production"
+
+  [services.production.run]
+  args = ["pnpm", "--filter", "@workspace/zman-app", "run", "start"]
+
+  [services.production.run.env]
+  PORT = "20082"
+  NODE_ENV = "production"
+
+  [services.production.health.startup]
+  path = "/login"
+
+  [services.env]
+  PORT = "20082"
+  BASE_PATH = "/"
+  

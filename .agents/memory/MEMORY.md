@@ -1,0 +1,2 @@
+- [Next.js on Replit](nextjs-replit-install.md) — pnpm can't download Next.js tarballs (Replit firewall blocks 15.x); use `--registry https://registry.npmjs.org` flag to bypass.
+- [Zman Next.js architecture](zman-architecture.md) — financial safety rules: transactions, optimistic concurrency, idempotent convertOrderToSale, httpOnly cookies, additive migrations only.
