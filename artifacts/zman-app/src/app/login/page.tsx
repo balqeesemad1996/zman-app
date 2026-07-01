@@ -41,7 +41,7 @@ export default function LoginPage() {
           <div className="w-12 h-12 bg-info/10 rounded-full flex items-center justify-center text-info mb-1">
             <ShieldCheck className="w-6 h-6" />
           </div>
-          <h2 className="text-xl font-bold text-ink">نظام Zman لإدارة الورش</h2>
+          <h2 className="text-xl font-bold text-ink">Zman Greens JO</h2>
           <p className="text-xs text-ink-2 leading-relaxed">
             الرجاء إدخال رمز الدخول للوصول إلى لوحة التحكم والبيانات المالية.
           </p>
