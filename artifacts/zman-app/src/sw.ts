@@ -8,7 +8,7 @@ declare const self: ServiceWorkerGlobalScope & {
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,
   precacheOptions: {
-    concurrency: 10,
+    concurrency: 4,
   },
   navigationPreload: true,
   runtimeCaching: defaultCache,

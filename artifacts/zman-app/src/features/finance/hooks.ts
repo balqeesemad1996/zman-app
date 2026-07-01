@@ -91,6 +91,7 @@ export function useCreatePurchase() {
     onSuccess: (res) => {
       if (res.status === "ok") {
         queryClient.invalidateQueries({ queryKey: financeKeys.purchases() });
+        queryClient.invalidateQueries({ queryKey: ["reports"] });
       }
     },
   });
@@ -114,6 +115,7 @@ export function useUpdatePurchase() {
         queryClient.invalidateQueries({
           queryKey: financeKeys.purchaseDetail(variables.id),
         });
+        queryClient.invalidateQueries({ queryKey: ["reports"] });
       }
     },
   });
@@ -127,6 +129,7 @@ export function useDeletePurchase() {
     onSuccess: (res) => {
       if (res.status === "ok") {
         queryClient.invalidateQueries({ queryKey: financeKeys.purchases() });
+        queryClient.invalidateQueries({ queryKey: ["reports"] });
       }
     },
   });
@@ -176,6 +179,7 @@ export function useCreateExpense() {
     onSuccess: (res) => {
       if (res.status === "ok") {
         queryClient.invalidateQueries({ queryKey: financeKeys.expenses() });
+        queryClient.invalidateQueries({ queryKey: ["reports"] });
       }
     },
   });
@@ -199,6 +203,7 @@ export function useUpdateExpense() {
         queryClient.invalidateQueries({
           queryKey: financeKeys.expenseDetail(variables.id),
         });
+        queryClient.invalidateQueries({ queryKey: ["reports"] });
       }
     },
   });
@@ -212,6 +217,7 @@ export function useDeleteExpense() {
     onSuccess: (res) => {
       if (res.status === "ok") {
         queryClient.invalidateQueries({ queryKey: financeKeys.expenses() });
+        queryClient.invalidateQueries({ queryKey: ["reports"] });
       }
     },
   });
@@ -252,6 +258,7 @@ export function useCreateSale() {
     onSuccess: (res) => {
       if (res.status === "ok") {
         queryClient.invalidateQueries({ queryKey: financeKeys.sales() });
+        queryClient.invalidateQueries({ queryKey: ["reports"] });
       }
     },
   });
@@ -275,6 +282,7 @@ export function useUpdateSale() {
         queryClient.invalidateQueries({
           queryKey: financeKeys.saleDetail(variables.id),
         });
+        queryClient.invalidateQueries({ queryKey: ["reports"] });
       }
     },
   });
@@ -288,6 +296,7 @@ export function useDeleteSale() {
     onSuccess: (res) => {
       if (res.status === "ok") {
         queryClient.invalidateQueries({ queryKey: financeKeys.sales() });
+        queryClient.invalidateQueries({ queryKey: ["reports"] });
       }
     },
   });
@@ -307,6 +316,7 @@ export function useConvertOrderToSale() {
       if (res.status === "ok") {
         queryClient.invalidateQueries({ queryKey: financeKeys.sales() });
         queryClient.invalidateQueries({ queryKey: ["orders"] }); // إبطال كاش الطلبات لتحديث الحالة
+        queryClient.invalidateQueries({ queryKey: ["reports"] });
       }
     },
   });

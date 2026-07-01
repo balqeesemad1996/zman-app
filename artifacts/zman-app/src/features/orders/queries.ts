@@ -118,18 +118,19 @@ export async function getOrderDatesForMonth(
  * جلب تفاصيل طلب واحد مع مكوناته الفرعية (§1.2)
  */
 export async function getOrder(id: string) {
-  const [row] = await db
-    .select()
-    .from(order)
-    .where(and(eq(order.id, id), isNull(order.deletedAt)))
-    .limit(1);
+  const [[row], components] = await Promise.all([
+    db
+      .select()
+      .from(order)
+      .where(and(eq(order.id, id), isNull(order.deletedAt)))
+      .limit(1),
+    db
+      .select()
+      .from(orderComponent)
+      .where(eq(orderComponent.orderId, id)),
+  ]);
 
   if (!row) return null;
-
-  const components = await db
-    .select()
-    .from(orderComponent)
-    .where(eq(orderComponent.orderId, id));
 
   return {
     ...row,

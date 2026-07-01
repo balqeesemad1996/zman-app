@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { navItems, mainNavItems, moreNavItems } from "@/config/nav";
 import { InstallButton } from "@/components/pwa/InstallButton";
 import { cn } from "@/lib/utils";
+import { useAppShell } from "@/providers/app-shell-context";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -14,10 +15,21 @@ interface AppShellProps {
   action?: React.ReactNode;
 }
 
-export function AppShell({ children, title, action }: AppShellProps) {
+export function AppShell({ children, title: propTitle, action: propAction }: AppShellProps) {
   const pathname = usePathname();
   const [isOnline, setIsOnline] = useState(true);
   const [isMoreOpen, setIsMoreOpen] = useState(false);
+
+  let context: ReturnType<typeof useAppShell> | null = null;
+  try {
+    context = useAppShell();
+  } catch {
+    // خارج Provider (مثل صفحات الخطأ أو الدخول)
+  }
+
+  const title = propTitle !== undefined ? propTitle : context ? context.title : "Zman";
+  const action = propAction !== undefined ? propAction : context ? context.action : null;
+
 
   useEffect(() => {
     setIsOnline(navigator.onLine);
@@ -186,6 +198,7 @@ export function AppShell({ children, title, action }: AppShellProps) {
                   <Link
                     key={item.href}
                     href={item.href}
+                    prefetch={false}
                     onClick={() => setIsMoreOpen(false)}
                     className={cn(
                       "flex items-center gap-3 px-5 min-h-[48px] text-sm transition-colors",

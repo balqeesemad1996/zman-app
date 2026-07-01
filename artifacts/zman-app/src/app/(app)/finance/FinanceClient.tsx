@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTransition } from "react";
 import { AppShell } from "@/components/layout/AppShell";
+import { AppShellHeader } from "@/providers/app-shell-context";
 import { SkeletonList } from "@/components/shared/SkeletonList";
 
 // استيراد تبويبات المالية ديناميكياً لتقسيم الحزم البرمجية (§12.1)
@@ -74,7 +75,8 @@ export default function FinanceClient() {
   };
 
   return (
-    <AppShell title="الحسابات المالية">
+    <>
+      <AppShellHeader title="الحسابات المالية" />
       <div className="flex-1 flex flex-col gap-6">
         {/* أزرار التنقل بين التبويبات الثلاثة */}
         <div className="flex bg-canvas p-1.5 rounded-lg border border-hairline">
@@ -106,6 +108,6 @@ export default function FinanceClient() {
           {activeTab === "sales" && <SalesTab />}
         </div>
       </div>
-    </AppShell>
+    </>
   );
 }

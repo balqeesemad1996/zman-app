@@ -30,18 +30,20 @@ export async function downloadReport(
 
     if (type === "pnl") {
       // 1. P&L Report
-      const [salesRes] = await db
-        .select({ total: sum(sale.amountCents) })
-        .from(sale)
-        .where(isNull(sale.deletedAt));
-      const [purchasesRes] = await db
-        .select({ total: sum(purchase.totalCents) })
-        .from(purchase)
-        .where(isNull(purchase.deletedAt));
-      const [expensesRes] = await db
-        .select({ total: sum(expense.amountCents) })
-        .from(expense)
-        .where(isNull(expense.deletedAt));
+      const [[salesRes], [purchasesRes], [expensesRes]] = await Promise.all([
+        db
+          .select({ total: sum(sale.amountCents) })
+          .from(sale)
+          .where(isNull(sale.deletedAt)),
+        db
+          .select({ total: sum(purchase.totalCents) })
+          .from(purchase)
+          .where(isNull(purchase.deletedAt)),
+        db
+          .select({ total: sum(expense.amountCents) })
+          .from(expense)
+          .where(isNull(expense.deletedAt)),
+      ]);
 
       const salesCents = Number(salesRes?.total) || 0;
       const purchasesCents = Number(purchasesRes?.total) || 0;

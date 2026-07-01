@@ -2,42 +2,47 @@
 
 import { Edit3, Plus, Search, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
+import { AppShellHeader } from "@/providers/app-shell-context";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { MoneyInput } from "@/components/shared/MoneyInput";
 import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
 import {
-  createSnippet,
-  deleteSnippet,
-  getSnippets,
-  updateSnippet,
-} from "@/features/snippets/actions";
-import type { Snippet } from "@/features/snippets/db";
+  createCatalogComponent,
+  deleteCatalogComponent,
+  getCatalogComponents,
+  updateCatalogComponent,
+} from "@/features/catalog/actions";
+import type { CatalogComponent } from "@/features/catalog/db";
 
-const CATEGORIES = ["عام", "رسائل العملاء", "الوصف", "الشروط", "أخرى"];
+const UNITS = ["قطعة", "متر", "غرام", "علبة", "كيلو", "لتر", "ورقة"];
 
 interface FormValues {
-  title: string;
-  body: string;
-  category: string;
+  name: string;
+  defaultCostCents: number;
+  unit: string;
+  notes: string;
 }
 
-export default function SnippetsClient() {
-  const [items, setItems] = useState<Snippet[]>([]);
+export default function CatalogClient() {
+  const [items, setItems] = useState<CatalogComponent[]>([]);
   const [search, setSearch] = useState("");
-  const [editing, setEditing] = useState<Snippet | null>(null);
+  const [editing, setEditing] = useState<CatalogComponent | null>(null);
   const [creating, setCreating] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const [copied, setCopied] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
-  const fetchItems = useCallback((q?: string) => {
-    startTransition(async () => {
-      const result = await getSnippets(q);
-      setItems(result);
-    });
-  }, []);
+  const fetchItems = useCallback(
+    (q?: string) => {
+      startTransition(async () => {
+        const result = await getCatalogComponents(q);
+        setItems(result);
+      });
+    },
+    [],
+  );
 
   useEffect(() => {
     fetchItems();
@@ -49,25 +54,9 @@ export default function SnippetsClient() {
     fetchItems(q);
   };
 
-  const handleCopy = async (text: string, id: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(id);
-      setTimeout(() => setCopied(null), 2000);
-    } catch {
-      toast.error("تعذّر النسخ");
-    }
-  };
-
-  // تجميع المقتطفات حسب الفئة
-  const grouped = items.reduce<Record<string, Snippet[]>>((acc, item) => {
-    if (!acc[item.category]) acc[item.category] = [];
-    acc[item.category]!.push(item);
-    return acc;
-  }, {});
-
   return (
-    <AppShell title="المقتطفات النصية">
+    <>
+      <AppShellHeader title="كتالوج المكوّنات" />
       <div className="flex-1 flex flex-col gap-4">
         {/* شريط البحث والإضافة */}
         <div className="flex gap-2">
@@ -78,7 +67,7 @@ export default function SnippetsClient() {
               type="search"
               value={search}
               onChange={handleSearch}
-              placeholder="بحث في المقتطفات..."
+              placeholder="بحث في الكتالوج..."
               className="w-full h-11 pr-9 pl-4 rounded-lg border border-hairline bg-paper text-sm focus:outline-none focus:ring-2 focus:ring-ink"
             />
           </div>
@@ -92,37 +81,26 @@ export default function SnippetsClient() {
           </button>
         </div>
 
-        {/* المحتوى */}
+        {/* قائمة المكوّنات */}
         {isPending ? (
           <div className="flex-1 flex items-center justify-center text-ink/40 text-sm">
             جاري التحميل...
           </div>
         ) : items.length === 0 ? (
           <EmptyState
-            title="لا توجد مقتطفات"
-            description={search ? "لا توجد نتائج للبحث" : "أضف نصوصاً جاهزة تُستخدم بشكل متكرر"}
+            title="الكتالوج فارغ"
+            description={search ? "لا توجد نتائج للبحث" : "أضف مكوّنات شائعة لتسهيل إنشاء الطلبات"}
           />
         ) : (
-          <div className="flex flex-col gap-6">
-            {Object.entries(grouped).map(([category, snippets]) => (
-              <div key={category}>
-                <h3 className="text-xs font-bold text-ink/40 uppercase tracking-wider mb-2 px-1">
-                  {category}
-                </h3>
-                <ul className="flex flex-col gap-2">
-                  {snippets.map((s) => (
-                    <SnippetCard
-                      key={s.id}
-                      snippet={s}
-                      copied={copied === s.id}
-                      onCopy={() => handleCopy(s.body, s.id)}
-                      onEdit={() => setEditing(s)}
-                    />
-                  ))}
-                </ul>
-              </div>
+          <ul className="flex flex-col gap-2">
+            {items.map((item) => (
+              <CatalogCard
+                key={item.id}
+                item={item}
+                onEdit={() => setEditing(item)}
+              />
             ))}
-          </div>
+          </ul>
         )}
       </div>
 
@@ -130,11 +108,11 @@ export default function SnippetsClient() {
       <ResponsiveModal
         isOpen={creating}
         onClose={() => setCreating(false)}
-        title="إضافة مقتطف"
+        title="إضافة مكوّن للكتالوج"
       >
-        <SnippetForm
+        <CatalogForm
           onSubmit={async (values) => {
-            const res = await createSnippet(values);
+            const res = await createCatalogComponent(values);
             if (res.status === "error") {
               toast.error(res.message);
             } else {
@@ -150,13 +128,13 @@ export default function SnippetsClient() {
       <ResponsiveModal
         isOpen={!!editing}
         onClose={() => setEditing(null)}
-        title="تعديل المقتطف"
+        title="تعديل المكوّن"
       >
         {editing && (
-          <SnippetForm
+          <CatalogForm
             initialData={editing}
             onSubmit={async (values) => {
-              const res = await updateSnippet({
+              const res = await updateCatalogComponent({
                 id: editing.id,
                 updatedAt: editing.updatedAt instanceof Date
                   ? editing.updatedAt.toISOString()
@@ -175,7 +153,7 @@ export default function SnippetsClient() {
               const updatedAt = editing.updatedAt instanceof Date
                 ? editing.updatedAt.toISOString()
                 : String(editing.updatedAt);
-              const res = await deleteSnippet(editing.id, updatedAt);
+              const res = await deleteCatalogComponent(editing.id, updatedAt);
               if (res.status === "error") {
                 toast.error(res.message);
               } else {
@@ -187,64 +165,54 @@ export default function SnippetsClient() {
           />
         )}
       </ResponsiveModal>
-    </AppShell>
+    </>
   );
 }
 
-function SnippetCard({
-  snippet,
-  copied,
-  onCopy,
+function CatalogCard({
+  item,
   onEdit,
 }: {
-  snippet: Snippet;
-  copied: boolean;
-  onCopy: () => void;
+  item: CatalogComponent;
   onEdit: () => void;
 }) {
+  const costJOD = (item.defaultCostCents / 1000).toFixed(3);
   return (
-    <li className="bg-paper border border-hairline rounded-xl p-4 flex flex-col gap-2">
-      <div className="flex items-start justify-between gap-2">
-        <span className="font-bold text-ink text-sm">{snippet.title}</span>
-        <div className="flex items-center gap-1 shrink-0">
-          <button
-            type="button"
-            onClick={onCopy}
-            className="text-xs px-2 py-1 rounded border border-hairline text-ink/60 hover:text-ink hover:border-ink/30 transition-colors"
-          >
-            {copied ? "✓ نُسخ" : "نسخ"}
-          </button>
-          <button
-            type="button"
-            onClick={onEdit}
-            className="w-8 h-8 rounded border border-hairline flex items-center justify-center text-ink/50 hover:text-ink hover:border-ink/30 transition-colors"
-          >
-            <Edit3 className="w-3.5 h-3.5" />
-          </button>
-        </div>
+    <li className="bg-paper border border-hairline rounded-xl p-4 flex items-center justify-between gap-3">
+      <div className="flex flex-col gap-0.5 min-w-0">
+        <span className="font-bold text-ink text-sm truncate">{item.name}</span>
+        <span className="text-xs text-ink/60">
+          {costJOD} د.أ / {item.unit}
+          {item.notes ? ` · ${item.notes}` : ""}
+        </span>
       </div>
-      <p className="text-sm text-ink/70 whitespace-pre-wrap leading-relaxed line-clamp-3">
-        {snippet.body}
-      </p>
+      <button
+        type="button"
+        onClick={onEdit}
+        className="shrink-0 w-9 h-9 rounded-lg border border-hairline flex items-center justify-center text-ink/50 hover:text-ink hover:border-ink/30 transition-colors"
+      >
+        <Edit3 className="w-4 h-4" />
+      </button>
     </li>
   );
 }
 
-function SnippetForm({
+function CatalogForm({
   initialData,
   onSubmit,
   onDelete,
 }: {
-  initialData?: Snippet;
+  initialData?: CatalogComponent;
   onSubmit: (values: FormValues) => Promise<void>;
   onDelete?: () => Promise<void>;
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { register, handleSubmit, formState: { errors } } = useForm<FormValues>({
+  const { register, handleSubmit, control, formState: { errors } } = useForm<FormValues>({
     defaultValues: {
-      title: initialData?.title ?? "",
-      body: initialData?.body ?? "",
-      category: initialData?.category ?? "عام",
+      name: initialData?.name ?? "",
+      defaultCostCents: initialData?.defaultCostCents ?? 0,
+      unit: initialData?.unit ?? "قطعة",
+      notes: initialData?.notes ?? "",
     },
   });
 
@@ -259,7 +227,7 @@ function SnippetForm({
 
   const handleDelete = async () => {
     if (!onDelete) return;
-    if (!confirm("هل أنت متأكد من حذف هذا المقتطف؟")) return;
+    if (!confirm("هل أنت متأكد من حذف هذا المكوّن؟")) return;
     setIsSubmitting(true);
     try {
       await onDelete();
@@ -271,37 +239,50 @@ function SnippetForm({
   return (
     <form onSubmit={handleSubmit(submit)} className="space-y-4 pt-2">
       <div>
-        <label className="text-xs font-semibold text-ink/60 block mb-1">العنوان *</label>
+        <label className="text-xs font-semibold text-ink/60 block mb-1">اسم المكوّن *</label>
         <input
           type="text"
           placeholder=""
-          {...register("title", { required: "العنوان مطلوب" })}
+          {...register("name", { required: "الاسم مطلوب" })}
           className="w-full h-12 px-4 rounded-md border border-hairline focus:outline-none focus:ring-2 focus:ring-ink bg-paper text-base"
         />
-        {errors.title && <span className="text-xs text-alert mt-1 block">{errors.title.message}</span>}
+        {errors.name && <span className="text-xs text-alert mt-1 block">{errors.name.message}</span>}
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Controller
+          control={control}
+          name="defaultCostCents"
+          render={({ field: { value, onChange } }) => (
+            <MoneyInput
+              label="التكلفة الافتراضية"
+              value={value}
+              onChange={onChange}
+              placeholder="0.000"
+            />
+          )}
+        />
+        <div>
+          <label className="text-xs font-semibold text-ink/60 block mb-1">الوحدة</label>
+          <select
+            {...register("unit")}
+            className="w-full h-12 px-4 rounded-md border border-hairline focus:outline-none focus:ring-2 focus:ring-ink bg-paper text-base"
+          >
+            {UNITS.map((u) => (
+              <option key={u} value={u}>{u}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div>
-        <label className="text-xs font-semibold text-ink/60 block mb-1">الفئة</label>
-        <select
-          {...register("category")}
-          className="w-full h-12 px-4 rounded-md border border-hairline focus:outline-none focus:ring-2 focus:ring-ink bg-paper text-base"
-        >
-          {CATEGORIES.map((c) => (
-            <option key={c} value={c}>{c}</option>
-          ))}
-        </select>
-      </div>
-
-      <div>
-        <label className="text-xs font-semibold text-ink/60 block mb-1">النص *</label>
+        <label className="text-xs font-semibold text-ink/60 block mb-1">ملاحظات (اختياري)</label>
         <textarea
-          {...register("body", { required: "النص مطلوب" })}
+          {...register("notes")}
           placeholder=""
-          rows={5}
+          rows={2}
           className="w-full px-4 py-3 rounded-md border border-hairline focus:outline-none focus:ring-2 focus:ring-ink bg-paper text-base resize-none"
         />
-        {errors.body && <span className="text-xs text-alert mt-1 block">{errors.body.message}</span>}
       </div>
 
       <div className="flex gap-3 pt-2">
@@ -310,14 +291,14 @@ function SnippetForm({
           disabled={isSubmitting}
           className="flex-1 min-h-[48px] bg-ink text-paper rounded-md font-bold text-sm disabled:opacity-60 hover:bg-ink/90 transition-colors"
         >
-          {isSubmitting ? "جاري الحفظ..." : initialData ? "حفظ التعديلات" : "إضافة المقتطف"}
+          {isSubmitting ? "جاري الحفظ..." : initialData ? "حفظ التعديلات" : "إضافة للكتالوج"}
         </button>
         {onDelete && (
           <button
             type="button"
             onClick={handleDelete}
             disabled={isSubmitting}
-            className="min-h-[48px] px-4 rounded-md border border-alert text-alert hover:bg-alert-soft transition-colors disabled:opacity-60 flex items-center"
+            className="min-h-[48px] px-4 rounded-md border border-alert text-alert hover:bg-alert-soft transition-colors disabled:opacity-60 flex items-center gap-2"
           >
             <Trash2 className="w-4 h-4" />
           </button>

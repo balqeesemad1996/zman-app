@@ -68,6 +68,7 @@ export function useCreateOrder() {
     onSuccess: (res) => {
       if (res.status === "ok") {
         queryClient.invalidateQueries({ queryKey: orderKeys.all });
+        queryClient.invalidateQueries({ queryKey: ["reports"] });
       }
     },
   });
@@ -83,6 +84,7 @@ export function useUpdateOrder() {
     onSuccess: (res, _variables) => {
       if (res.status === "ok") {
         queryClient.invalidateQueries({ queryKey: orderKeys.all });
+        queryClient.invalidateQueries({ queryKey: ["reports"] });
       }
     },
   });
@@ -99,6 +101,7 @@ export function useDeleteOrder() {
     onSuccess: (res) => {
       if (res.status === "ok") {
         queryClient.invalidateQueries({ queryKey: orderKeys.all });
+        queryClient.invalidateQueries({ queryKey: ["reports"] });
       }
     },
   });
@@ -129,6 +132,7 @@ export function useUpdateOrderStatus() {
     onSuccess: (res) => {
       if (res.status === "ok") {
         queryClient.invalidateQueries({ queryKey: orderKeys.all });
+        queryClient.invalidateQueries({ queryKey: ["reports"] });
       }
     },
   });

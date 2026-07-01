@@ -4,6 +4,7 @@ import { CalendarDays, LayoutList, Plus } from "lucide-react";
 import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/layout/AppShell";
+import { AppShellHeader } from "@/providers/app-shell-context";
 import { ErrorState } from "@/components/shared/ErrorState";
 import { SkeletonList } from "@/components/shared/SkeletonList";
 import { cn } from "@/lib/utils";
@@ -144,7 +145,8 @@ export default function OrdersClient() {
   };
 
   return (
-    <AppShell title={pageTitle} action={pageAction}>
+    <>
+      <AppShellHeader title={pageTitle} action={pageAction} />
       {isNew && (
         <OrderForm onSubmitSuccess={handleShowList} onCancel={handleShowList} />
       )}
@@ -174,6 +176,6 @@ export default function OrdersClient() {
           onCreateNew={handleShowCreate}
         />
       )}
-    </AppShell>
+    </>
   );
 }

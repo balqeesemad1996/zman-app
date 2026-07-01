@@ -17,6 +17,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { AppShell } from "@/components/layout/AppShell";
+import { AppShellHeader } from "@/providers/app-shell-context";
 import { AmountText } from "@/components/shared/AmountText";
 import { ErrorState } from "@/components/shared/ErrorState";
 import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
@@ -119,14 +120,15 @@ export function DashboardClient() {
 
   if (isErrorSummary || isErrorActivities || isErrorTrend) {
     return (
-      <AppShell title="لوحة القيادة والمؤشرات">
+      <>
+        <AppShellHeader title="لوحة القيادة والمؤشرات" />
         <div className="flex-1 flex items-center justify-center">
           <ErrorState
             message="حدث خطأ أثناء تحميل بيانات لوحة القيادة. يرجى التحقق من اتصالك وحاول مجدداً."
             onRetry={handleRetryAll}
           />
         </div>
-      </AppShell>
+      </>
     );
   }
 
@@ -138,22 +140,23 @@ export function DashboardClient() {
   const NetIcon = isProfit ? TrendingUp : TrendingDown;
 
   return (
-    <AppShell
-      title="لوحة القيادة"
-      action={
-        /* زر فلتر التاريخ في هيدر الموبايل — أيقونة بسيطة فقط */
-        <button
-          type="button"
-          onClick={() => setIsSelectorOpen(true)}
-          className="lg:hidden h-10 min-h-[44px] px-3 bg-canvas border border-hairline text-ink rounded-md flex items-center gap-1.5 text-xs font-semibold"
-        >
-          <Calendar className="h-4 w-4 text-info flex-shrink-0" />
-          <span className="max-w-[90px] truncate">
-            {customRange ? "فترة مخصصة" : (presets[selectedPresetIdx]?.label ?? "")}
-          </span>
-        </button>
-      }
-    >
+    <>
+      <AppShellHeader
+        title="لوحة القيادة"
+        action={
+          /* زر فلتر التاريخ في هيدر الموبايل — أيقونة بسيطة فقط */
+          <button
+            type="button"
+            onClick={() => setIsSelectorOpen(true)}
+            className="lg:hidden h-10 min-h-[44px] px-3 bg-canvas border border-hairline text-ink rounded-md flex items-center gap-1.5 text-xs font-semibold"
+          >
+            <Calendar className="h-4 w-4 text-info flex-shrink-0" />
+            <span className="max-w-[90px] truncate">
+              {customRange ? "فترة مخصصة" : (presets[selectedPresetIdx]?.label ?? "")}
+            </span>
+          </button>
+        }
+      />
       <div className="space-y-5">
         {/* شريط فلتر التاريخ للديسكتوب — موحّد داخل المحتوى */}
         <div className="hidden lg:flex items-center gap-1.5 p-1 bg-paper rounded-lg border border-hairline self-start">
@@ -556,6 +559,6 @@ export function DashboardClient() {
           </Link>
         </div>
       </ResponsiveModal>
-    </AppShell>
+    </>
   );
 }

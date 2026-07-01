@@ -13,9 +13,11 @@ import {
   TrendingUp,
   Wallet,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
+import { AppShellHeader } from "@/providers/app-shell-context";
 import { AmountText } from "@/components/shared/AmountText";
 import {
   downloadReport,
@@ -80,29 +82,21 @@ function ProgressBar({ pct, colorClass }: { pct: number; colorClass: string }) {
 }
 
 export default function ReportsPage() {
-  const [data, setData] = useState<StructuredReportData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
-  const loadData = useCallback(async () => {
-    setIsLoading(true);
-    try {
+  const { data: queryData, isLoading, refetch } = useQuery({
+    queryKey: ["reports"],
+    queryFn: async () => {
       const res = await getAllReportData();
-      if (res.status === "ok" && res.data) {
-        setData(res.data);
-      } else {
-        toast.error(res.status === "error" ? res.message : "فشل تحميل التقارير");
+      if (res.status === "error") {
+        toast.error(res.message);
+        throw new Error(res.message);
       }
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : String(err));
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+      return res.data || null;
+    },
+  });
 
-  useEffect(() => {
-    void loadData();
-  }, [loadData]);
+  const data = queryData || null;
 
   const handleDownload = async (
     type: "pnl" | "expenses" | "sales" | "orders" | "products",
@@ -135,20 +129,21 @@ export default function ReportsPage() {
   const isProfit = net >= 0;
 
   return (
-    <AppShell
-      title="التقارير المالية والتشغيلية"
-      action={
-        <button
-          type="button"
-          onClick={() => void loadData()}
-          disabled={isLoading}
-          className="h-10 min-h-[44px] px-3 bg-canvas border border-hairline text-ink rounded-md flex items-center gap-1.5 text-xs font-semibold disabled:opacity-50"
-        >
-          <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
-          <span className="hidden sm:inline">تحديث</span>
-        </button>
-      }
-    >
+    <>
+      <AppShellHeader
+        title="التقارير المالية والتشغيلية"
+        action={
+          <button
+            type="button"
+            onClick={() => void refetch()}
+            disabled={isLoading}
+            className="h-10 min-h-[44px] px-3 bg-canvas border border-hairline text-ink rounded-md flex items-center gap-1.5 text-xs font-semibold disabled:opacity-50"
+          >
+            <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+            <span className="hidden sm:inline">تحديث</span>
+          </button>
+        }
+      />
       {isLoading ? (
         <div className="flex flex-col items-center justify-center gap-3 py-20 text-ink/40">
           <Loader2 className="h-8 w-8 animate-spin" />
@@ -159,7 +154,7 @@ export default function ReportsPage() {
           <p className="text-sm text-ink/60">تعذّر تحميل البيانات</p>
           <button
             type="button"
-            onClick={() => void loadData()}
+            onClick={() => void refetch()}
             className="px-4 h-10 bg-ink text-paper rounded-md text-sm font-bold"
           >
             إعادة المحاولة
@@ -432,6 +427,6 @@ export default function ReportsPage() {
 
         </div>
       )}
-    </AppShell>
+    </>
   );
 }

@@ -12,6 +12,8 @@
     "@hookform/resolvers": "catalog:",
     "@t3-oss/env-nextjs": "catalog:",
     "@tanstack/react-query": "catalog:",
+    "@tanstack/react-query-persist-client": "catalog:",
+    "@tanstack/query-sync-storage-persister": "catalog:",
     "@upstash/ratelimit": "catalog:",
     "@upstash/redis": "catalog:",
     "clsx": "catalog:",
