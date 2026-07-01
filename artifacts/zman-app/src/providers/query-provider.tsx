@@ -50,7 +50,7 @@ export default function QueryProvider({
       client={queryClient}
       persistOptions={{
         persister,
-        buster: "1.0.0", // رقم الإصدار لإلغاء الكاش القديم عند التحديث
+        buster: "1.1.0", // رقم الإصدار لإلغاء الكاش القديم عند التحديث
         maxAge: 30 * 60 * 1000, // صلاحية الكاش المحلي تتطابق مع gcTime
         dehydrateOptions: {
           shouldDehydrateQuery: (query) => {
