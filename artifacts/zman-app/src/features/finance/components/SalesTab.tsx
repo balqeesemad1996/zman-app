@@ -2,7 +2,7 @@
 
 import { Landmark, Plus, Search, ShoppingBag } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { AmountText } from "@/components/shared/AmountText";
 import { DateText } from "@/components/shared/DateText";
@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { ErrorState } from "@/components/shared/ErrorState";
 import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
 import { SkeletonList } from "@/components/shared/SkeletonList";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import {
   useCreateSale,
   useDeleteSale,
@@ -30,6 +31,7 @@ export function SalesTab() {
   const source = searchParams.get("source") || "all";
   const newSale = searchParams.get("newSale") === "true";
   const editId = searchParams.get("editSale");
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   // الفلاتر المتاحة للمصدر
   const sourceFilters = [
@@ -111,10 +113,13 @@ export function SalesTab() {
     }
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
     if (!editId || !activeSale) return;
-    const confirm = window.confirm("هل أنت متأكد من حذف عملية البيع هذه؟");
-    if (!confirm) return;
+    setDeleteConfirmOpen(false);
 
     const res = await deleteMutation.mutateAsync({
       id: editId,
@@ -162,7 +167,7 @@ export function SalesTab() {
               key={filt.value}
               type="button"
               onClick={() => handleSourceFilter(filt.value)}
-              className={`flex-1 h-9 px-3 rounded-full text-xs font-bold border transition-all ${
+              className={`flex-1 min-h-[44px] h-11 px-3 rounded-full text-xs font-bold border transition-all ${
                 isActive
                   ? "bg-ink text-paper border-ink"
                   : "bg-paper text-ink/75 border-hairline hover:border-ink/20"
@@ -287,6 +292,14 @@ export function SalesTab() {
           />
         )}
       </ResponsiveModal>
+      <ConfirmDialog
+        isOpen={deleteConfirmOpen}
+        title="تأكيد الحذف"
+        message="هل أنت متأكد من حذف عملية البيع هذه؟"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteConfirmOpen(false)}
+        isLoading={deleteMutation.isPending}
+      />
     </div>
   );
 }

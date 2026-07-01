@@ -175,10 +175,11 @@ ${sources
       );
 
       const statusLabels: Record<string, string> = {
-        pending: "قيد الانتظار (جديد)",
-        processing: "قيد التنفيذ والتحضير",
-        delivered: "تم التسليم",
-        cancelled: "ملغي",
+        draft: "مسودة",
+        sent: "تم الإرسال",
+        confirmed: "مؤكد",
+        delivered: "تم التوصيل",
+        cancelled: "ملغى",
       };
 
       markdown = `# تقرير قنوات وحالة الطلبات
@@ -379,10 +380,11 @@ export async function getAllReportData(): Promise<
     });
 
     const statusLabels: Record<string, string> = {
-      pending: "قيد الانتظار",
-      processing: "قيد التنفيذ",
-      delivered: "تم التسليم",
-      cancelled: "ملغي",
+      draft: "مسودة",
+      sent: "تم الإرسال",
+      confirmed: "مؤكد",
+      delivered: "تم التوصيل",
+      cancelled: "ملغى",
     };
     const totalOrderCount = funnelsRes.reduce((s, f) => s + f.count, 0);
     const ordersByStatus = funnelsRes.map((f) => ({

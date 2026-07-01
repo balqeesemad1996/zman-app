@@ -164,7 +164,7 @@ export function DashboardClient() {
               key={preset.label}
               type="button"
               onClick={() => handlePresetSelect(i)}
-              className={`px-4 h-9 rounded-md text-xs font-bold transition-all ${
+              className={`px-4 min-h-[44px] h-11 rounded-md text-xs font-bold transition-all ${
                 selectedPresetIdx === i && !customRange
                   ? "bg-info text-paper shadow-sm"
                   : "text-ink/60 hover:text-ink/80 hover:bg-canvas"
@@ -176,7 +176,7 @@ export function DashboardClient() {
           <button
             type="button"
             onClick={() => setIsSelectorOpen(true)}
-            className={`px-4 h-9 rounded-md text-xs font-bold flex items-center gap-1.5 transition-all ${
+            className={`px-4 min-h-[44px] h-11 rounded-md text-xs font-bold flex items-center gap-1.5 transition-all ${
               customRange
                 ? "bg-info text-paper shadow-sm"
                 : "text-ink/60 hover:text-ink/80 hover:bg-canvas"

@@ -5,6 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import {
   usePurchaseItemCatalog,
   useCreatePurchaseItemCatalog,
@@ -37,6 +38,7 @@ export function FinanceCatalogModal({
   const [search, setSearch] = useState("");
   const [nameInput, setNameInput] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   // Queries & Mutations
   const purchasesQuery = usePurchaseItemCatalog();
@@ -103,8 +105,14 @@ export function FinanceCatalogModal({
     setNameInput("");
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm("هل أنت متأكد من الحذف؟")) return;
+  const handleDeleteClick = (id: string) => {
+    setDeleteId(id);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteId) return;
+    const id = deleteId;
+    setDeleteId(null);
     try {
       const res = isPurchases
         ? await deletePurchaseItem.mutateAsync(id)
@@ -163,13 +171,13 @@ export function FinanceCatalogModal({
 
         {/* حقل البحث */}
         <div className="relative">
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink/40 pointer-events-none" />
+          <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink/40 pointer-events-none" />
           <input
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={searchPlaceholder}
-            className="w-full h-10 pr-9 pl-4 rounded border border-hairline bg-paper text-sm focus:outline-none focus:ring-2 focus:ring-ink"
+            className="w-full h-10 ps-9 pe-4 rounded border border-hairline bg-paper text-sm focus:outline-none focus:ring-2 focus:ring-ink"
           />
         </div>
 
@@ -201,7 +209,7 @@ export function FinanceCatalogModal({
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleDelete(item.id)}
+                    onClick={() => handleDeleteClick(item.id)}
                     className="p-2 rounded hover:bg-alert-soft text-alert min-h-[40px] min-w-[40px] flex items-center justify-center"
                     title="حذف"
                   >
@@ -213,6 +221,13 @@ export function FinanceCatalogModal({
           )}
         </div>
       </div>
+      <ConfirmDialog
+        isOpen={deleteId !== null}
+        title="تأكيد الحذف"
+        message="هل أنت متأكد من حذف هذا العنصر؟"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteId(null)}
+      />
     </ResponsiveModal>
   );
 }
