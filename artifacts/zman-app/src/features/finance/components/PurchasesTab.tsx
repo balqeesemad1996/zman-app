@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { ErrorState } from "@/components/shared/ErrorState";
 import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
 import { SkeletonList } from "@/components/shared/SkeletonList";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import {
   useCreatePurchase,
   useDeletePurchase,
@@ -31,6 +32,7 @@ export function PurchasesTab() {
   const newPurchase = searchParams.get("newPurchase") === "true";
   const editId = searchParams.get("editPurchase");
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   // هوك جلب البيانات اللانهائي (§10.1)
   const {
@@ -100,10 +102,13 @@ export function PurchasesTab() {
     }
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
     if (!editId || !activePurchase) return;
-    const confirm = window.confirm("هل أنت متأكد من حذف هذه المشتريات؟");
-    if (!confirm) return;
+    setDeleteConfirmOpen(false);
 
     const res = await deleteMutation.mutateAsync({
       id: editId,
@@ -259,6 +264,15 @@ export function PurchasesTab() {
         isOpen={isCatalogOpen}
         onClose={() => setIsCatalogOpen(false)}
         type="purchases"
+      />
+
+      <ConfirmDialog
+        isOpen={deleteConfirmOpen}
+        title="تأكيد الحذف"
+        message="هل أنت متأكد من حذف هذه المشتريات؟"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteConfirmOpen(false)}
+        isLoading={deleteMutation.isPending}
       />
     </div>
   );

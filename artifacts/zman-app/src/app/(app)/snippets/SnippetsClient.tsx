@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { AppShellHeader } from "@/providers/app-shell-context";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import {
   createSnippet,
   deleteSnippet,
@@ -73,14 +74,14 @@ export default function SnippetsClient() {
         {/* شريط البحث والإضافة */}
         <div className="flex gap-2">
           <div className="relative flex-1">
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink/40 pointer-events-none" />
+            <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink/40 pointer-events-none" />
             <input
               ref={searchRef}
               type="search"
               value={search}
               onChange={handleSearch}
               placeholder="بحث في الملاحظات..."
-              className="w-full h-11 pr-9 pl-4 rounded-lg border border-hairline bg-paper text-sm focus:outline-none focus:ring-2 focus:ring-ink"
+              className="w-full h-11 ps-9 pe-4 rounded-lg border border-hairline bg-paper text-sm focus:outline-none focus:ring-2 focus:ring-ink"
             />
           </div>
           <button
@@ -218,7 +219,7 @@ function SnippetCard({
           <button
             type="button"
             onClick={onEdit}
-            className="w-8 h-8 rounded border border-hairline flex items-center justify-center text-ink/50 hover:text-ink hover:border-ink/30 transition-colors"
+            className="w-11 h-11 min-w-[44px] min-h-[44px] rounded border border-hairline flex items-center justify-center text-ink/50 hover:text-ink hover:border-ink/30 transition-colors"
           >
             <Edit3 className="w-3.5 h-3.5" />
           </button>
@@ -258,9 +259,15 @@ function SnippetForm({
     }
   };
 
-  const handleDelete = async () => {
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const handleDelete = () => {
+    setConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
     if (!onDelete) return;
-    if (!confirm("هل أنت متأكد من حذف هذه الملاحظة؟")) return;
+    setConfirmOpen(false);
     setIsSubmitting(true);
     try {
       await onDelete();
@@ -275,7 +282,7 @@ function SnippetForm({
         <label className="text-xs font-semibold text-ink/60 block mb-1">العنوان *</label>
         <input
           type="text"
-          placeholder=""
+          placeholder="مثال: رسالة شحن"
           {...register("title", { required: "العنوان مطلوب" })}
           className="w-full h-12 px-4 rounded-md border border-hairline focus:outline-none focus:ring-2 focus:ring-ink bg-paper text-base"
         />
@@ -298,7 +305,7 @@ function SnippetForm({
         <label className="text-xs font-semibold text-ink/60 block mb-1">النص *</label>
         <textarea
           {...register("body", { required: "النص مطلوب" })}
-          placeholder=""
+          placeholder="اكتب النص هنا..."
           rows={5}
           className="w-full px-4 py-3 rounded-md border border-hairline focus:outline-none focus:ring-2 focus:ring-ink bg-paper text-base resize-none"
         />
@@ -324,6 +331,14 @@ function SnippetForm({
           </button>
         )}
       </div>
+      <ConfirmDialog
+        isOpen={confirmOpen}
+        title="تأكيد الحذف"
+        message="هل أنت متأكد من حذف هذه الملاحظة؟"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setConfirmOpen(false)}
+        isLoading={isSubmitting}
+      />
     </form>
   );
 }

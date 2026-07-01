@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { ErrorState } from "@/components/shared/ErrorState";
 import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
 import { SkeletonList } from "@/components/shared/SkeletonList";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import {
   useCreateExpense,
   useDeleteExpense,
@@ -32,6 +33,7 @@ export function ExpensesTab() {
   const newExpense = searchParams.get("newExpense") === "true";
   const editId = searchParams.get("editExpense");
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   // الفئات المعتمدة للتصفية (§5.1)
   const categoriesList = [
@@ -127,10 +129,13 @@ export function ExpensesTab() {
     }
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
     if (!editId || !activeExpense) return;
-    const confirm = window.confirm("هل أنت متأكد من حذف هذا المصروف؟");
-    if (!confirm) return;
+    setDeleteConfirmOpen(false);
 
     const res = await deleteMutation.mutateAsync({
       id: editId,
@@ -187,7 +192,7 @@ export function ExpensesTab() {
               key={cat}
               type="button"
               onClick={() => handleCategoryFilter(cat)}
-              className={`h-9 px-4 rounded-full text-sm font-bold whitespace-nowrap border transition-all ${
+              className={`min-h-[44px] h-11 px-4 rounded-full text-sm font-bold whitespace-nowrap border transition-all ${
                 isActive
                   ? "bg-ink text-paper border-ink"
                   : "bg-paper text-ink/75 border-hairline hover:border-ink/20"
@@ -309,6 +314,15 @@ export function ExpensesTab() {
         isOpen={isCatalogOpen}
         onClose={() => setIsCatalogOpen(false)}
         type="expenses"
+      />
+
+      <ConfirmDialog
+        isOpen={deleteConfirmOpen}
+        title="تأكيد الحذف"
+        message="هل أنت متأكد من حذف هذا المصروف؟"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteConfirmOpen(false)}
+        isLoading={deleteMutation.isPending}
       />
     </div>
   );

@@ -100,11 +100,6 @@ export function AppShell({ children, title: propTitle, action: propAction }: App
         {action && <div className="flex items-center ms-3">{action}</div>}
       </header>
 
-      {/* زر تثبيت التطبيق — موبايل */}
-      <div className="lg:hidden flex-shrink-0 px-4 pt-2">
-        <InstallButton />
-      </div>
-
       {/* المنطقة الرئيسية */}
       <main className="flex-1 overflow-hidden flex flex-col lg:pe-[240px]">
         {/* شريط الأدوات للديسكتوب — ارتفاع ثابت 64px */}
@@ -212,6 +207,10 @@ export function AppShell({ children, title: propTitle, action: propAction }: App
                   </Link>
                 );
               })}
+            </div>
+            {/* زر التثبيت — موبايل */}
+            <div className="px-5 py-4 border-t border-hairline">
+              <InstallButton />
             </div>
           </div>
         </>

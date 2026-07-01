@@ -119,9 +119,16 @@ export async function getCatalogComponents(search?: string) {
   if (search?.trim()) {
     conditions.push(ilike(catalogComponent.name, `%${search.trim()}%`));
   }
-  return db
+  const rows = await db
     .select()
     .from(catalogComponent)
     .where(and(...conditions))
     .orderBy(catalogComponent.name);
+
+  return rows.map((r) => ({
+    ...r,
+    createdAt: r.createdAt.toISOString() as unknown as Date,
+    updatedAt: r.updatedAt.toISOString() as unknown as Date,
+    deletedAt: r.deletedAt ? (r.deletedAt.toISOString() as unknown as Date) : null,
+  }));
 }

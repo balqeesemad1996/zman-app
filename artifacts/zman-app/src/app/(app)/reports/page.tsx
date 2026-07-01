@@ -25,10 +25,11 @@ import {
 } from "@/features/reports/actions";
 
 const statusColors: Record<string, string> = {
-  pending: "bg-info-soft text-info",
-  processing: "bg-alert-soft text-alert",
+  draft: "bg-warn-soft text-warn-deep",
+  sent: "bg-info-soft text-info",
+  confirmed: "bg-info-soft text-info",
   delivered: "bg-info-soft text-info",
-  cancelled: "text-ink/50 bg-canvas",
+  cancelled: "bg-alert-soft text-alert",
 };
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
@@ -105,13 +106,17 @@ export default function ReportsPage() {
     try {
       const res = await downloadReport(type);
       if (res.status === "ok" && res.data) {
-        const blob = new Blob([res.data], { type: "text/markdown;charset=utf-8" });
+        const BOM = "\uFEFF";
+        const blob = new Blob([BOM + res.data], { type: "text/markdown;charset=utf-8" });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
         const dateStr = new Date().toISOString().split("T")[0] ?? "";
-        link.download = `تقرير_${title.replace(/\s+/g, "_")}_${dateStr}.md`;
+        const safeName = type;
+        link.download = `report_${safeName}_${dateStr}.md`;
+        document.body.appendChild(link);
         link.click();
+        document.body.removeChild(link);
         URL.revokeObjectURL(url);
         toast.success(`تم تحميل ${title} بنجاح`);
       } else {
@@ -161,6 +166,14 @@ export default function ReportsPage() {
         </div>
       ) : (
         <div className="space-y-8">
+          <div className="flex items-center justify-between pb-2">
+            <div>
+              <h2 className="text-xl font-bold text-ink">التقارير المالية والتشغيلية</h2>
+              <p className="text-xs text-ink/50 mt-1">
+                آخر تحديث: {new Date().toLocaleDateString("ar-JO", { dateStyle: "medium", timeStyle: "short" })}
+              </p>
+            </div>
+          </div>
 
           {/* ===== ١ — ملخص الأرباح والخسائر ===== */}
           <section className="bg-paper rounded-lg border border-hairline shadow-sm p-5 space-y-4">
@@ -179,7 +192,7 @@ export default function ReportsPage() {
                 type="button"
                 onClick={() => void handleDownload("pnl", "الأرباح والخسائر")}
                 disabled={downloadingId !== null}
-                className="flex items-center gap-1.5 text-xs text-ink/50 hover:text-ink border border-hairline rounded-md px-2.5 h-8 transition-colors disabled:opacity-50 flex-shrink-0"
+                className="flex items-center gap-1.5 text-xs text-ink/50 hover:text-ink border border-hairline rounded-md px-3 min-h-[44px] h-11 transition-colors disabled:opacity-50 flex-shrink-0"
               >
                 {downloadingId === "pnl" ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -197,8 +210,13 @@ export default function ReportsPage() {
                 <span className="font-mono text-2xl">{isProfit ? "+" : "−"}</span>
                 <AmountText amount={Math.abs(net)} />
               </p>
-              <p className="text-[11px] text-ink/50 mt-1.5">
-                المبيعات ناقصاً المشتريات والمصاريف التشغيلية
+              <p className="text-[11px] text-ink/50 mt-1.5 flex justify-between items-center flex-wrap gap-1">
+                <span>المبيعات ناقصاً المشتريات والمصاريف التشغيلية</span>
+                {data.pnl.salesCents > 0 && (
+                  <span className="font-bold">
+                    هامش الربح: {((net / data.pnl.salesCents) * 100).toFixed(1)}%
+                  </span>
+                )}
               </p>
             </div>
 
@@ -243,7 +261,7 @@ export default function ReportsPage() {
                 type="button"
                 onClick={() => void handleDownload("expenses", "فئات المصاريف")}
                 disabled={downloadingId !== null}
-                className="flex items-center gap-1.5 text-xs text-ink/50 hover:text-ink border border-hairline rounded-md px-2.5 h-8 transition-colors disabled:opacity-50 flex-shrink-0"
+                className="flex items-center gap-1.5 text-xs text-ink/50 hover:text-ink border border-hairline rounded-md px-3 min-h-[44px] h-11 transition-colors disabled:opacity-50 flex-shrink-0"
               >
                 {downloadingId === "expenses" ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -292,7 +310,7 @@ export default function ReportsPage() {
                 type="button"
                 onClick={() => void handleDownload("sales", "مصادر المبيعات")}
                 disabled={downloadingId !== null}
-                className="flex items-center gap-1.5 text-xs text-ink/50 hover:text-ink border border-hairline rounded-md px-2.5 h-8 transition-colors disabled:opacity-50 flex-shrink-0"
+                className="flex items-center gap-1.5 text-xs text-ink/50 hover:text-ink border border-hairline rounded-md px-3 min-h-[44px] h-11 transition-colors disabled:opacity-50 flex-shrink-0"
               >
                 {downloadingId === "sales" ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -337,7 +355,7 @@ export default function ReportsPage() {
                 type="button"
                 onClick={() => void handleDownload("orders", "حالة الطلبات")}
                 disabled={downloadingId !== null}
-                className="flex items-center gap-1.5 text-xs text-ink/50 hover:text-ink border border-hairline rounded-md px-2.5 h-8 transition-colors disabled:opacity-50 flex-shrink-0"
+                className="flex items-center gap-1.5 text-xs text-ink/50 hover:text-ink border border-hairline rounded-md px-3 min-h-[44px] h-11 transition-colors disabled:opacity-50 flex-shrink-0"
               >
                 {downloadingId === "orders" ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -389,7 +407,7 @@ export default function ReportsPage() {
                 type="button"
                 onClick={() => void handleDownload("products", "أكثر المنتجات طلباً")}
                 disabled={downloadingId !== null}
-                className="flex items-center gap-1.5 text-xs text-ink/50 hover:text-ink border border-hairline rounded-md px-2.5 h-8 transition-colors disabled:opacity-50 flex-shrink-0"
+                className="flex items-center gap-1.5 text-xs text-ink/50 hover:text-ink border border-hairline rounded-md px-3 min-h-[44px] h-11 transition-colors disabled:opacity-50 flex-shrink-0"
               >
                 {downloadingId === "products" ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />

@@ -123,9 +123,16 @@ export async function getSnippets(search?: string) {
       )!,
     );
   }
-  return db
+  const rows = await db
     .select()
     .from(snippet)
     .where(and(...conditions))
     .orderBy(snippet.category, snippet.title);
+
+  return rows.map((r) => ({
+    ...r,
+    createdAt: r.createdAt.toISOString() as unknown as Date,
+    updatedAt: r.updatedAt.toISOString() as unknown as Date,
+    deletedAt: r.deletedAt ? (r.deletedAt.toISOString() as unknown as Date) : null,
+  }));
 }
