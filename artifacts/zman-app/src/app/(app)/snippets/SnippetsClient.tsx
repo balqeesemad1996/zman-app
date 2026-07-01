@@ -1,7 +1,7 @@
 "use client";
 
-import { Edit3, Plus, Search, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { Edit3, Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { AppShellHeader } from "@/providers/app-shell-context";
@@ -9,12 +9,13 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import {
-  createSnippet,
-  deleteSnippet,
-  getSnippets,
-  updateSnippet,
-} from "@/features/snippets/actions";
+  useSnippets,
+  useCreateSnippet,
+  useUpdateSnippet,
+  useDeleteSnippet,
+} from "@/features/snippets/hooks";
 import type { Snippet } from "@/features/snippets/db";
+import { ListHeader } from "@/components/shared/ListHeader";
 
 const CATEGORIES = ["عام", "رسائل العملاء", "الوصف", "الشروط", "أخرى"];
 
@@ -25,29 +26,20 @@ interface FormValues {
 }
 
 export default function SnippetsClient() {
-  const [items, setItems] = useState<Snippet[]>([]);
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<Snippet | null>(null);
   const [creating, setCreating] = useState(false);
-  const [isPending, startTransition] = useTransition();
   const [copied, setCopied] = useState<string | null>(null);
-  const searchRef = useRef<HTMLInputElement>(null);
 
-  const fetchItems = useCallback((q?: string) => {
-    startTransition(async () => {
-      const result = await getSnippets(q);
-      setItems(result);
-    });
-  }, []);
+  // جلب البيانات عبر React Query لضمان الاستجابة الفورية (§10.1)
+  const { data: items = [], isLoading } = useSnippets(search);
 
-  useEffect(() => {
-    fetchItems();
-  }, [fetchItems]);
+  const createMutation = useCreateSnippet();
+  const updateMutation = useUpdateSnippet();
+  const deleteMutation = useDeleteSnippet();
 
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const q = e.target.value;
+  const handleSearchChange = (q: string) => {
     setSearch(q);
-    fetchItems(q);
   };
 
   const handleCopy = async (text: string, id: string) => {
@@ -72,30 +64,24 @@ export default function SnippetsClient() {
       <AppShellHeader title="الملاحظات" />
       <div className="flex-1 flex flex-col gap-4">
         {/* شريط البحث والإضافة */}
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink/40 pointer-events-none" />
-            <input
-              ref={searchRef}
-              type="search"
-              value={search}
-              onChange={handleSearch}
-              placeholder="بحث في الملاحظات..."
-              className="w-full h-11 ps-9 pe-4 rounded-lg border border-hairline bg-paper text-sm focus:outline-none focus:ring-2 focus:ring-ink"
-            />
-          </div>
-          <button
-            type="button"
-            onClick={() => setCreating(true)}
-            className="h-11 px-4 rounded-lg bg-ink text-paper text-sm font-bold flex items-center gap-1.5 hover:bg-ink/90 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            إضافة
-          </button>
-        </div>
+        <ListHeader
+          searchValue={search}
+          onSearchChange={handleSearchChange}
+          searchPlaceholder="بحث في الملاحظات..."
+          actions={
+            <button
+              type="button"
+              onClick={() => setCreating(true)}
+              className="h-12 px-4 rounded-lg bg-ink text-paper text-sm font-bold flex items-center gap-1.5 hover:bg-ink/90 transition-colors shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+              إضافة
+            </button>
+          }
+        />
 
         {/* المحتوى */}
-        {isPending ? (
+        {isLoading ? (
           <div className="flex-1 flex items-center justify-center text-ink/40 text-sm">
             جاري التحميل...
           </div>
@@ -136,13 +122,12 @@ export default function SnippetsClient() {
       >
         <SnippetForm
           onSubmit={async (values) => {
-            const res = await createSnippet(values);
+            const res = await createMutation.mutateAsync(values);
             if (res.status === "error") {
               toast.error(res.message);
             } else {
               toast.success("تمت الإضافة");
               setCreating(false);
-              fetchItems(search);
             }
           }}
         />
@@ -158,11 +143,8 @@ export default function SnippetsClient() {
           <SnippetForm
             initialData={editing}
             onSubmit={async (values) => {
-              const res = await updateSnippet({
-                id: editing.id,
-                updatedAt: editing.updatedAt instanceof Date
-                  ? editing.updatedAt.toISOString()
-                  : String(editing.updatedAt),
+              const res = await updateMutation.mutateAsync({
+                ...editing,
                 ...values,
               });
               if (res.status === "error") {
@@ -170,20 +152,18 @@ export default function SnippetsClient() {
               } else {
                 toast.success("تم الحفظ");
                 setEditing(null);
-                fetchItems(search);
               }
             }}
             onDelete={async () => {
               const updatedAt = editing.updatedAt instanceof Date
                 ? editing.updatedAt.toISOString()
                 : String(editing.updatedAt);
-              const res = await deleteSnippet(editing.id, updatedAt);
+              const res = await deleteMutation.mutateAsync({ id: editing.id, updatedAt });
               if (res.status === "error") {
                 toast.error(res.message);
               } else {
                 toast.success("تم الحذف");
                 setEditing(null);
-                fetchItems(search);
               }
             }}
           />
@@ -325,7 +305,7 @@ function SnippetForm({
             type="button"
             onClick={handleDelete}
             disabled={isSubmitting}
-            className="min-h-[48px] px-4 rounded-md border border-alert text-alert hover:bg-alert-soft transition-colors disabled:opacity-60 flex items-center"
+            className="min-h-[48px] px-4 rounded-md border border-alert text-alert hover:bg-alert-soft transition-colors disabled:opacity-60 flex items-center justify-center"
           >
             <Trash2 className="w-4 h-4" />
           </button>

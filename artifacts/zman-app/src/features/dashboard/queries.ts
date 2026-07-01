@@ -217,3 +217,86 @@ export async function getFinancialTrendData(
 
   return { salesTrend, expensesTrend, purchasesTrend };
 }
+
+export interface UpcomingOrder {
+  id: string;
+  customerName: string;
+  productName: string;
+  deliveryDate: string | null;
+  totalPriceCents: number;
+}
+
+export interface DashboardStats {
+  ordersByStatus: Record<string, number>;
+  upcomingOrders: UpcomingOrder[];
+  totalDepositsCents: number;
+}
+
+export async function getDashboardStats(
+  startDate: string,
+  endDate: string,
+): Promise<DashboardStats> {
+  const [statusPromise, upcomingPromise, depositsPromise] = await Promise.all([
+    db
+      .select({
+        status: order.status,
+        count: sql<number>`count(${order.id})::int`,
+      })
+      .from(order)
+      .where(isNull(order.deletedAt))
+      .groupBy(order.status),
+    db
+      .select({
+        id: order.id,
+        customerName: order.customerName,
+        productName: order.productName,
+        deliveryDate: sql<string>`TO_CHAR(${order.deliveryDate}::date, 'YYYY-MM-DD')`,
+        totalPriceCents: order.totalPriceCents,
+      })
+      .from(order)
+      .where(
+        and(
+          isNull(order.deletedAt),
+          sql`${order.deliveryDate} >= CURRENT_DATE`,
+          sql`${order.deliveryDate} <= CURRENT_DATE + INTERVAL '7 days'`,
+        ),
+      )
+      .orderBy(order.deliveryDate)
+      .limit(10),
+    db
+      .select({
+        total: sql<number>`coalesce(sum(${order.depositCents}), 0)::int`,
+      })
+      .from(order)
+      .where(
+        and(
+          isNull(order.deletedAt),
+          sql`coalesce(${order.depositDate}, ${order.createdAt})::date >= ${startDate}::date`,
+          sql`coalesce(${order.depositDate}, ${order.createdAt})::date <= ${endDate}::date`,
+        ),
+      ),
+  ]);
+
+  const ordersByStatus: Record<string, number> = {
+    draft: 0,
+    sent: 0,
+    confirmed: 0,
+    delivered: 0,
+    cancelled: 0,
+  };
+  for (const row of statusPromise) {
+    ordersByStatus[row.status] = row.count;
+  }
+
+  const upcomingOrders = upcomingPromise.map((o) => ({
+    id: o.id,
+    customerName: o.customerName,
+    productName: o.productName,
+    deliveryDate: o.deliveryDate,
+    totalPriceCents: o.totalPriceCents,
+  }));
+
+  const totalDepositsCents = depositsPromise[0]?.total ?? 0;
+
+  return { ordersByStatus, upcomingOrders, totalDepositsCents };
+}

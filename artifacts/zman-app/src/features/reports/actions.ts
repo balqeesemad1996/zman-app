@@ -1,6 +1,6 @@
 "use server";
 
-import { count, desc, isNull, sql, sum } from "drizzle-orm";
+import { count, desc, isNull, sql, sum, gte, and } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import type { ActionResponse } from "../finance/actions";
 import { expense, purchase, sale } from "../finance/db";
@@ -15,8 +15,23 @@ function formatJOD(cents: number): string {
   })} د.أ`;
 }
 
+function buildDateCondition(table: any, range?: "all" | "month" | "30d") {
+  const conditions = [isNull(table.deletedAt)];
+  if (range === "month") {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    conditions.push(gte(table.createdAt, startOfMonth));
+  } else if (range === "30d") {
+    const startOf30Days = new Date();
+    startOf30Days.setDate(startOf30Days.getDate() - 30);
+    conditions.push(gte(table.createdAt, startOf30Days));
+  }
+  return and(...conditions);
+}
+
 export async function downloadReport(
   type: "pnl" | "expenses" | "sales" | "orders" | "products",
+  range: "all" | "month" | "30d" = "all",
 ): Promise<ActionResponse<string>> {
   try {
     const todayStr = new Date().toLocaleDateString("ar-JO", {
@@ -34,15 +49,15 @@ export async function downloadReport(
         db
           .select({ total: sum(sale.amountCents) })
           .from(sale)
-          .where(isNull(sale.deletedAt)),
+          .where(buildDateCondition(sale, range)),
         db
           .select({ total: sum(purchase.totalCents) })
           .from(purchase)
-          .where(isNull(purchase.deletedAt)),
+          .where(buildDateCondition(purchase, range)),
         db
           .select({ total: sum(expense.amountCents) })
           .from(expense)
-          .where(isNull(expense.deletedAt)),
+          .where(buildDateCondition(expense, range)),
       ]);
 
       const salesCents = Number(salesRes?.total) || 0;
@@ -77,7 +92,7 @@ export async function downloadReport(
           count: count(expense.id),
         })
         .from(expense)
-        .where(isNull(expense.deletedAt))
+        .where(buildDateCondition(expense, range))
         .groupBy(expense.category)
         .orderBy(desc(sql`sum(${expense.amountCents})`));
 
@@ -118,7 +133,7 @@ ${categories
           count: count(sale.id),
         })
         .from(sale)
-        .where(isNull(sale.deletedAt))
+        .where(buildDateCondition(sale, range))
         .groupBy(sale.source)
         .orderBy(desc(sql`sum(${sale.amountCents})`));
 
@@ -165,7 +180,7 @@ ${sources
           totalPrice: sum(order.totalPriceCents),
         })
         .from(order)
-        .where(isNull(order.deletedAt))
+        .where(buildDateCondition(order, range))
         .groupBy(order.status);
 
       const totalCount = funnels.reduce((sum, f) => sum + f.count, 0);
@@ -216,7 +231,7 @@ ${funnels
           totalRevenue: sum(order.totalPriceCents),
         })
         .from(order)
-        .where(isNull(order.deletedAt))
+        .where(buildDateCondition(order, range))
         .groupBy(order.productName)
         .orderBy(desc(sql`sum(${order.totalPriceCents})`))
         .limit(15);
@@ -289,15 +304,15 @@ export type StructuredReportData = {
   }[];
 };
 
-export async function getAllReportData(): Promise<
-  ActionResponse<StructuredReportData>
-> {
+export async function getAllReportData(
+  range: "all" | "month" | "30d" = "all",
+): Promise<ActionResponse<StructuredReportData>> {
   try {
     const [salesRes, purchasesRes, expensesRes, categoriesRes, sourcesRes, funnelsRes, productsRes] =
       await Promise.all([
-        db.select({ total: sum(sale.amountCents) }).from(sale).where(isNull(sale.deletedAt)),
-        db.select({ total: sum(purchase.totalCents) }).from(purchase).where(isNull(purchase.deletedAt)),
-        db.select({ total: sum(expense.amountCents) }).from(expense).where(isNull(expense.deletedAt)),
+        db.select({ total: sum(sale.amountCents) }).from(sale).where(buildDateCondition(sale, range)),
+        db.select({ total: sum(purchase.totalCents) }).from(purchase).where(buildDateCondition(purchase, range)),
+        db.select({ total: sum(expense.amountCents) }).from(expense).where(buildDateCondition(expense, range)),
         db
           .select({
             category: expense.category,
@@ -305,7 +320,7 @@ export async function getAllReportData(): Promise<
             count: count(expense.id),
           })
           .from(expense)
-          .where(isNull(expense.deletedAt))
+          .where(buildDateCondition(expense, range))
           .groupBy(expense.category)
           .orderBy(desc(sql`sum(${expense.amountCents})`)),
         db
@@ -315,7 +330,7 @@ export async function getAllReportData(): Promise<
             count: count(sale.id),
           })
           .from(sale)
-          .where(isNull(sale.deletedAt))
+          .where(buildDateCondition(sale, range))
           .groupBy(sale.source)
           .orderBy(desc(sql`sum(${sale.amountCents})`)),
         db
@@ -325,7 +340,7 @@ export async function getAllReportData(): Promise<
             totalPrice: sum(order.totalPriceCents),
           })
           .from(order)
-          .where(isNull(order.deletedAt))
+          .where(buildDateCondition(order, range))
           .groupBy(order.status),
         db
           .select({
@@ -335,7 +350,7 @@ export async function getAllReportData(): Promise<
             totalRevenue: sum(order.totalPriceCents),
           })
           .from(order)
-          .where(isNull(order.deletedAt))
+          .where(buildDateCondition(order, range))
           .groupBy(order.productName)
           .orderBy(desc(sql`sum(${order.totalPriceCents})`))
           .limit(15),

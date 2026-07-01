@@ -32,6 +32,8 @@ const statusColors: Record<string, string> = {
   cancelled: "bg-alert-soft text-alert",
 };
 
+const DONUT_COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6", "#6b7280"];
+
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
     <h3 className="text-sm font-bold text-ink border-b border-hairline pb-3 mb-4">
@@ -70,12 +72,12 @@ function StatCard({
   );
 }
 
-function ProgressBar({ pct, colorClass }: { pct: number; colorClass: string }) {
+function ProgressBar({ pct, colorClass, style }: { pct: number; colorClass?: string; style?: React.CSSProperties }) {
   return (
     <div className="w-full bg-canvas rounded-full h-1.5 mt-1">
       <div
-        className={`h-1.5 rounded-full ${colorClass}`}
-        style={{ width: `${Math.min(100, pct)}%` }}
+        className={`h-1.5 rounded-full ${colorClass || ""}`}
+        style={{ width: `${Math.min(100, pct)}%`, ...style }}
       />
     </div>
   );
@@ -83,11 +85,12 @@ function ProgressBar({ pct, colorClass }: { pct: number; colorClass: string }) {
 
 export default function ReportsPage() {
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [dateRange, setDateRange] = useState<"all" | "month" | "30d">("all");
 
   const { data: queryData, isLoading, refetch } = useQuery({
-    queryKey: ["reports"],
+    queryKey: ["reports", dateRange],
     queryFn: async () => {
-      const res = await getAllReportData();
+      const res = await getAllReportData(dateRange);
       if (res.status === "error") {
         toast.error(res.message);
         throw new Error(res.message);
@@ -104,7 +107,7 @@ export default function ReportsPage() {
   ) => {
     setDownloadingId(type);
     try {
-      const res = await downloadReport(type);
+      const res = await downloadReport(type, dateRange);
       if (res.status === "ok" && res.data) {
         const BOM = "\uFEFF";
         const blob = new Blob([BOM + res.data], { type: "text/markdown;charset=utf-8" });
@@ -166,12 +169,33 @@ export default function ReportsPage() {
         </div>
       ) : (
         <div className="space-y-8">
-          <div className="flex items-center justify-between pb-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-hairline">
             <div>
               <h2 className="text-xl font-bold text-ink">التقارير المالية والتشغيلية</h2>
               <p className="text-xs text-ink/50 mt-1">
                 آخر تحديث: {new Date().toLocaleDateString("ar-JO", { dateStyle: "medium", timeStyle: "short" })}
               </p>
+            </div>
+
+            {/* فلتر فترة التقارير */}
+            <div className="flex gap-2 bg-canvas p-1 rounded-lg border border-hairline w-fit">
+              {[
+                { v: "all", l: "كل الفترات" },
+                { v: "month", l: "هذا الشهر" },
+                { v: "30d", l: "آخر 30 يوم" },
+              ].map((opt) => (
+                <button
+                  key={opt.v}
+                  onClick={() => setDateRange(opt.v as any)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all min-h-[38px] ${
+                    dateRange === opt.v
+                      ? "bg-paper text-ink shadow-sm border border-hairline-2"
+                      : "text-ink/60 hover:text-ink"
+                  }`}
+                >
+                  {opt.l}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -275,24 +299,64 @@ export default function ReportsPage() {
             {data.expensesByCategory.length === 0 ? (
               <p className="text-sm text-ink/45 text-center py-6">لا توجد مصاريف مسجّلة بعد</p>
             ) : (
-              <div className="space-y-3">
-                {data.expensesByCategory.map((cat) => (
-                  <div key={cat.category} className="space-y-1">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="font-semibold text-ink/85">{cat.category}</span>
-                      <div className="flex items-center gap-3">
-                        <span className="text-xs text-ink/45">{cat.count} حركة</span>
-                        <span className="font-bold text-alert">
-                          <AmountText amount={cat.totalCents} />
-                        </span>
-                        <span className="text-xs text-ink/40 w-10 text-end">
-                          {cat.pct.toFixed(0)}%
-                        </span>
-                      </div>
-                    </div>
-                    <ProgressBar pct={cat.pct} colorClass="bg-alert" />
+              <div className="flex flex-col md:flex-row items-center gap-8">
+                {/* Donut SVG */}
+                <div className="relative w-36 h-36 flex-shrink-0 flex items-center justify-center">
+                  <svg viewBox="0 0 100 100" className="w-36 h-36 -rotate-90">
+                    {(() => {
+                      let cumulativePct = 0;
+                      return data.expensesByCategory.map((cat, i) => {
+                        const dash = (cat.pct / 100) * 251.2;
+                        const offset = (cumulativePct / 100) * 251.2;
+                        cumulativePct += cat.pct;
+                        return (
+                          <circle
+                            key={cat.category}
+                            cx="50"
+                            cy="50"
+                            r="40"
+                            fill="none"
+                            stroke={DONUT_COLORS[i % DONUT_COLORS.length]}
+                            strokeWidth="12"
+                            strokeDasharray={`${dash} 251.2`}
+                            strokeDashoffset={-offset}
+                            className="transition-all duration-300"
+                          />
+                        );
+                      });
+                    })()}
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-[10px] text-ink/50 font-bold">المصاريف</span>
+                    <span className="text-xs font-bold text-ink truncate max-w-[100px] text-center">
+                      <AmountText amount={data.pnl.expensesCents} />
+                    </span>
                   </div>
-                ))}
+                </div>
+
+                {/* Legend & Progress Bars */}
+                <div className="flex-1 w-full space-y-3">
+                  {data.expensesByCategory.map((cat, i) => (
+                    <div key={cat.category} className="space-y-1">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="font-semibold text-ink/85 flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: DONUT_COLORS[i % DONUT_COLORS.length] }} />
+                          {cat.category}
+                        </span>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-ink/45">{cat.count} حركة</span>
+                          <span className="font-bold text-alert">
+                            <AmountText amount={cat.totalCents} />
+                          </span>
+                          <span className="text-xs text-ink/40 w-10 text-end">
+                            {cat.pct.toFixed(0)}%
+                          </span>
+                        </div>
+                      </div>
+                      <ProgressBar pct={cat.pct} style={{ backgroundColor: DONUT_COLORS[i % DONUT_COLORS.length] }} />
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </section>
@@ -378,8 +442,9 @@ export default function ReportsPage() {
                     <div className="flex-1 min-w-0">
                       <ProgressBar pct={row.pct} colorClass={
                         row.status === "delivered" ? "bg-info" :
-                        row.status === "processing" ? "bg-alert" :
-                        row.status === "pending" ? "bg-info/50" : "bg-canvas border border-hairline"
+                        row.status === "confirmed" ? "bg-info/80" :
+                        row.status === "sent" ? "bg-info/60" :
+                        row.status === "draft" ? "bg-warn" : "bg-alert"
                       } />
                     </div>
                     <span className="text-xs text-ink/45 w-8 text-end flex-shrink-0">
@@ -441,7 +506,6 @@ export default function ReportsPage() {
               </div>
             )}
           </section>
-
         </div>
       )}
     </>

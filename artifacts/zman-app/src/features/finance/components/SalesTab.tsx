@@ -11,6 +11,7 @@ import { ErrorState } from "@/components/shared/ErrorState";
 import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
 import { SkeletonList } from "@/components/shared/SkeletonList";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { ListHeader } from "@/components/shared/ListHeader";
 import {
   useCreateSale,
   useDeleteSale,
@@ -35,28 +36,26 @@ export function SalesTab() {
 
   // الفلاتر المتاحة للمصدر
   const sourceFilters = [
-    { value: "all", label: "كل المبيعات" },
-    { value: "manual", label: "مبيعات يدوية" },
-    { value: "order", label: "مبيعات ناتجة عن طلبات" },
+    { label: "الكل", value: "all" },
+    { label: "مباشر", value: "direct" },
+    { label: "طلب محول", value: "order" },
   ];
 
   // هوك جلب البيانات اللانهائي
+  const querySource = source === "direct" ? "manual" : source === "order" ? "order" : undefined;
   const {
     data,
     isLoading,
     isError,
-    hasNextPage,
     fetchNextPage,
+    hasNextPage,
     isFetchingNextPage,
     refetch,
-  } = useInfiniteSales({
-    search,
-    source: source === "all" ? undefined : (source as "manual" | "order"),
-  });
+  } = useInfiniteSales({ search, source: querySource });
 
-  const { data: activeSale, isLoading: isLoadingActive } = useSale(
-    editId || "",
-  );
+  const activeSale = useSale(editId || "").data;
+  const isLoadingActive = useSale(editId || "").isLoading;
+
   const createMutation = useCreateSale();
   const updateMutation = useUpdateSale();
   const deleteMutation = useDeleteSale();
@@ -64,32 +63,33 @@ export function SalesTab() {
   const sales = data?.pages.flatMap((page) => page.items) || [];
 
   const updateUrl = (params: Record<string, string | null>) => {
-    const newParams = new URLSearchParams(searchParams.toString());
-    for (const [key, value] of Object.entries(params)) {
-      if (value === null) {
-        newParams.delete(key);
-      } else {
-        newParams.set(key, value);
-      }
-    }
-    startTransition(() => {
-      router.push(`${pathname}?${newParams.toString()}`);
+    const next = new URLSearchParams(searchParams.toString());
+    Object.entries(params).forEach(([key, val]) => {
+      if (val === null) next.delete(key);
+      else next.set(key, val);
     });
+    router.replace(`${pathname}?${next.toString()}`);
   };
 
   const handleSearchChange = (val: string) => {
-    updateUrl({ search: val || null });
+    startTransition(() => {
+      updateUrl({ search: val || null });
+    });
   };
 
-  const handleSourceFilter = (val: string) => {
-    updateUrl({ source: val === "all" ? null : val });
+  const handleSourceFilter = (src: string) => {
+    startTransition(() => {
+      updateUrl({ source: src === "all" ? null : src });
+    });
   };
 
-  const handleCreate = async (values: NewSale) => {
-    const requestId = crypto.randomUUID();
-    const res = await createMutation.mutateAsync({ values, requestId });
+  const handleCreate = async (fields: NewSale) => {
+    const res = await createMutation.mutateAsync({
+      values: fields,
+      requestId: crypto.randomUUID(),
+    });
     if (res.status === "ok") {
-      toast.success("تم تسجيل عملية البيع بنجاح");
+      toast.success("تم تسجيل المبيعات بنجاح");
       updateUrl({ newSale: null });
       refetch();
     } else {
@@ -97,12 +97,12 @@ export function SalesTab() {
     }
   };
 
-  const handleUpdate = async (values: NewSale) => {
+  const handleUpdate = async (fields: NewSale) => {
     if (!editId || !activeSale) return;
     const res = await updateMutation.mutateAsync({
       id: editId,
       updatedAt: activeSale.updatedAt.toISOString(),
-      values,
+      values: fields,
     });
     if (res.status === "ok") {
       toast.success("تم تحديث المبيعات بنجاح");
@@ -136,48 +136,42 @@ export function SalesTab() {
 
   return (
     <div className="space-y-4 flex-1 flex flex-col">
-      {/* شريط البحث وزر الإضافة */}
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute inset-s-3 top-3 h-4.5 w-4.5 text-ink/40" />
-          <input
-            type="text"
-            placeholder="البحث في بيان المبيعات..."
-            defaultValue={search}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            className="w-full h-11 ps-10 pe-4 rounded-md border border-hairline bg-paper text-sm text-ink focus:outline-none focus:ring-2 focus:ring-ink"
-          />
-        </div>
-        <button
-          type="button"
-          onClick={() => updateUrl({ newSale: "true" })}
-          className="h-11 px-4 bg-ink text-paper rounded-md flex items-center gap-1.5 text-sm font-bold shadow-sm hover:bg-ink/90 transition-colors"
-        >
-          <Plus className="h-4.5 w-4.5" />
-          <span>مبيعات</span>
-        </button>
-      </div>
-
-      {/* مرشح مصدر المبيعات */}
-      <div className="flex gap-2">
-        {sourceFilters.map((filt) => {
-          const isActive = source === filt.value;
-          return (
-            <button
-              key={filt.value}
-              type="button"
-              onClick={() => handleSourceFilter(filt.value)}
-              className={`flex-1 min-h-[44px] h-11 px-3 rounded-full text-xs font-bold border transition-all ${
-                isActive
-                  ? "bg-ink text-paper border-ink"
-                  : "bg-paper text-ink/75 border-hairline hover:border-ink/20"
-              }`}
-            >
-              {filt.label}
-            </button>
-          );
-        })}
-      </div>
+      <ListHeader
+        searchValue={search}
+        onSearchChange={handleSearchChange}
+        searchPlaceholder="البحث في بيان المبيعات..."
+        actions={
+          <button
+            type="button"
+            onClick={() => updateUrl({ newSale: "true" })}
+            className="h-12 px-4 bg-ink text-paper rounded-lg flex items-center gap-1.5 text-sm font-bold shadow-sm hover:bg-ink/90 transition-colors shrink-0"
+          >
+            <Plus className="h-4.5 w-4.5" />
+            <span>مبيعات</span>
+          </button>
+        }
+        filters={
+          <>
+            {sourceFilters.map((filt) => {
+              const isActive = source === filt.value;
+              return (
+                <button
+                  key={filt.value}
+                  type="button"
+                  onClick={() => handleSourceFilter(filt.value)}
+                  className={`flex-1 min-h-[44px] h-11 px-3 rounded-full text-xs font-bold border transition-all ${
+                    isActive
+                      ? "bg-ink text-paper border-ink"
+                      : "bg-paper text-ink/75 border-hairline hover:border-ink/20"
+                  }`}
+                >
+                  {filt.label}
+                </button>
+              );
+            })}
+          </>
+        }
+      />
 
       {/* قائمة المبيعات */}
       {isLoading ? (

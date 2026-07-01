@@ -25,6 +25,7 @@ import {
   useFinancialSummary,
   useFinancialTrendData,
   useRecentActivities,
+  useDashboardStats,
 } from "../hooks";
 
 // تحميل الرسم البياني ديناميكياً لتقليل حزم التحميل المبدئي (§12.1)
@@ -90,11 +91,16 @@ export function DashboardClient() {
     isError: isErrorTrend,
     refetch: refetchTrend,
   } = useFinancialTrendData(startDateStr, endDateStr);
+  const {
+    data: stats,
+    refetch: refetchStats,
+  } = useDashboardStats(startDateStr, endDateStr);
 
   const handleRetryAll = () => {
     refetchSummary();
     refetchActivities();
     refetchTrend();
+    refetchStats();
   };
 
   const handlePresetSelect = (idx: number) => {
@@ -261,6 +267,11 @@ export function DashboardClient() {
                   <span className="text-[10px] text-ink/40 mt-1">
                     مجموع الإيرادات الواردة
                   </span>
+                  {stats && stats.totalDepositsCents > 0 && (
+                    <span className="text-[10px] text-ink-3 mt-1 block">
+                      منه عربون: <AmountText amount={stats.totalDepositsCents} />
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -310,6 +321,77 @@ export function DashboardClient() {
             startDate={startDateStr}
             endDate={endDateStr}
           />
+        )}
+
+        {/* حالة الطلبات التشغيلية */}
+        {stats && (
+          <div className="bg-paper p-6 rounded-lg border border-hairline shadow-sm space-y-4">
+            <div className="flex items-center justify-between border-b border-hairline pb-3">
+              <h3 className="text-md font-bold text-ink flex items-center gap-1.5">
+                <ClipboardList className="h-4.5 w-4.5 text-info" />
+                حالة الطلبات التشغيلية
+              </h3>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              {[
+                { status: "draft", label: "مسودة", color: "text-warn-deep bg-warn-soft border-warn/10" },
+                { status: "sent", label: "تم الإرسال", color: "text-info bg-info-soft border-info/10" },
+                { status: "confirmed", label: "مؤكد", color: "text-info bg-info-soft border-info/10" },
+                { status: "delivered", label: "تم التوصيل", color: "text-info bg-info-soft border-info/10" },
+                { status: "cancelled", label: "ملغى", color: "text-alert bg-alert-soft border-alert/10" },
+              ].map((s) => (
+                <div key={s.status} className={`p-3 rounded-lg border flex flex-col items-center justify-center ${s.color}`}>
+                  <p className="text-2xl font-black">{stats.ordersByStatus[s.status] ?? 0}</p>
+                  <p className="text-xs font-bold mt-1">{s.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* طلبات للتسليم قريباً */}
+        {stats && (
+          <div className="bg-paper p-6 rounded-lg border border-hairline shadow-sm space-y-4">
+            <div className="flex items-center justify-between border-b border-hairline pb-3">
+              <h3 className="text-md font-bold text-ink flex items-center gap-1.5">
+                <Calendar className="h-4.5 w-4.5 text-info" />
+                طلبات يستحق تسليمها قريباً (خلال 7 أيام)
+              </h3>
+              <span className="text-xs text-ink/45">{stats.upcomingOrders.length} طلبات</span>
+            </div>
+            {stats.upcomingOrders.length === 0 ? (
+              <p className="text-sm text-ink/45 text-center py-6 bg-canvas rounded-lg border border-hairline">لا توجد طلبات يستحق تسليمها هذا الأسبوع</p>
+            ) : (
+              <div className="divide-y divide-hairline">
+                {stats.upcomingOrders.map((o) => (
+                  <Link
+                    key={o.id}
+                    href={`/orders?view=${o.id}`}
+                    className="flex items-center justify-between py-3 hover:bg-canvas px-2 -mx-2 rounded transition-colors"
+                  >
+                    <div>
+                      <p className="font-bold text-ink text-sm">{o.customerName}</p>
+                      <p className="text-xs text-ink/50 mt-0.5">{o.productName}</p>
+                    </div>
+                    <div className="text-end">
+                      <p className="text-xs text-ink/45">
+                        {o.deliveryDate
+                          ? new Date(o.deliveryDate).toLocaleDateString("ar-JO", {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                            })
+                          : "تاريخ غير محدد"}
+                      </p>
+                      <p className="text-sm font-bold text-info mt-0.5">
+                        <AmountText amount={o.totalPriceCents} />
+                      </p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
         )}
 
         {/* آخر النشاطات والعمليات المدمجة */}

@@ -179,8 +179,7 @@ export function OrderCalendar({ onViewDetail, onCreateNew }: OrderCalendarProps)
   const todayStr = toLocalDateString(today);
 
   // جلب أيام الشهر التي تحتوي على طلبات (month+1 لأن DB يتوقع 1-indexed)
-  const { data: orderDates = [] } = useOrderDatesForMonth(year, month + 1);
-  const orderDatesSet = new Set(orderDates);
+  const { data: orderDates = {} } = useOrderDatesForMonth(year, month + 1);
 
   const cells = buildCalendarCells(year, month);
 
@@ -253,7 +252,8 @@ export function OrderCalendar({ onViewDetail, onCreateNew }: OrderCalendarProps)
 
             const dateStr = toLocalDateString(date);
             const isToday = dateStr === todayStr;
-            const hasOrders = orderDatesSet.has(dateStr);
+            const dayStatuses = orderDates[dateStr] ?? [];
+            const hasOrders = dayStatuses.length > 0;
             const isSelected = dateStr === selectedDate;
 
             return (
@@ -283,14 +283,25 @@ export function OrderCalendar({ onViewDetail, onCreateNew }: OrderCalendarProps)
                   {date.getDate()}
                 </span>
 
-                {/* نقطة الطلبات */}
+                {/* نقاط حالات الطلبات */}
                 {hasOrders && (
-                  <div
-                    className={cn(
-                      "w-1.5 h-1.5 rounded-full mt-1",
-                      isSelected ? "bg-paper/80" : "bg-info",
+                  <div className="flex gap-0.5 mt-1 justify-center">
+                    {dayStatuses.includes("delivered") && (
+                      <div className={cn("w-1.5 h-1.5 rounded-full", isSelected ? "bg-paper/80" : "bg-info")} />
                     )}
-                  />
+                    {dayStatuses.includes("confirmed") && (
+                      <div className={cn("w-1.5 h-1.5 rounded-full", isSelected ? "bg-paper/60" : "bg-info/60")} />
+                    )}
+                    {dayStatuses.includes("sent") && (
+                      <div className={cn("w-1.5 h-1.5 rounded-full", isSelected ? "bg-paper/40" : "bg-info/40")} />
+                    )}
+                    {dayStatuses.includes("draft") && (
+                      <div className={cn("w-1.5 h-1.5 rounded-full", isSelected ? "bg-paper/80" : "bg-warn")} />
+                    )}
+                    {dayStatuses.includes("cancelled") && (
+                      <div className={cn("w-1.5 h-1.5 rounded-full", isSelected ? "bg-paper/80" : "bg-alert")} />
+                    )}
+                  </div>
                 )}
               </button>
             );

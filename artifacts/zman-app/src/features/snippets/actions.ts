@@ -131,8 +131,8 @@ export async function getSnippets(search?: string) {
 
   return rows.map((r) => ({
     ...r,
-    createdAt: r.createdAt.toISOString() as unknown as Date,
-    updatedAt: r.updatedAt.toISOString() as unknown as Date,
-    deletedAt: r.deletedAt ? (r.deletedAt.toISOString() as unknown as Date) : null,
+    createdAt: new Date(r.createdAt),
+    updatedAt: new Date(r.updatedAt),
+    deletedAt: r.deletedAt ? new Date(r.deletedAt) : null,
   }));
 }

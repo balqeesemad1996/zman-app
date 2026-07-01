@@ -38,7 +38,7 @@ export async function getOrders({
   }
 
   if (date) {
-    conditions.push(sql`(${order.deliveryDate})::date = ${date}::date`);
+    conditions.push(sql`(COALESCE(${order.deliveryDate}, ${order.receivedDate}))::date = ${date}::date`);
   }
 
   // إذا تم إرسال cursor (وهو ID الطلب الأخير)، نقوم بجلب تاريخه وتصفية ما بعده بشكل ثنائي محدد (Tuple) لمنع تخطي الطلبات ذات نفس التوقيت
@@ -95,28 +95,33 @@ export async function getOrders({
   };
 }
 
-/**
- * جلب أيام الشهر التي تحتوي على طلبات (للتقويم) — يُرجع مصفوفة من "YYYY-MM-DD"
- */
 export async function getOrderDatesForMonth(
   year: number,
   month: number,
-): Promise<string[]> {
+): Promise<Record<string, string[]>> {
   const rows = await db
     .select({
-      d: sql<string>`TO_CHAR((${order.deliveryDate})::date, 'YYYY-MM-DD')`,
+      d: sql<string>`TO_CHAR((COALESCE(${order.deliveryDate}, ${order.receivedDate}))::date, 'YYYY-MM-DD')`,
+      status: order.status,
     })
     .from(order)
     .where(
       and(
         isNull(order.deletedAt),
-        sql`EXTRACT(YEAR FROM ${order.deliveryDate}) = ${year}`,
-        sql`EXTRACT(MONTH FROM ${order.deliveryDate}) = ${month}`,
+        sql`EXTRACT(YEAR FROM COALESCE(${order.deliveryDate}, ${order.receivedDate})) = ${year}`,
+        sql`EXTRACT(MONTH FROM COALESCE(${order.deliveryDate}, ${order.receivedDate})) = ${month}`,
       ),
-    )
-    .groupBy(sql`(${order.deliveryDate})::date`);
+    );
 
-  return rows.map((r) => r.d);
+  const map: Record<string, string[]> = {};
+  for (const r of rows) {
+    if (!r.d) continue;
+    if (!map[r.d]) map[r.d] = [];
+    if (!map[r.d].includes(r.status)) {
+      map[r.d].push(r.status);
+    }
+  }
+  return map;
 }
 
 /**

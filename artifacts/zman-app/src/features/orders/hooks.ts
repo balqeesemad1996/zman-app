@@ -51,6 +51,8 @@ export function useInfiniteOrders(filters: Omit<GetOrdersFilters, "cursor">) {
       }),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? null,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 }
 

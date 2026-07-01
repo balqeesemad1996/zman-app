@@ -11,6 +11,7 @@ import { ErrorState } from "@/components/shared/ErrorState";
 import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
 import { SkeletonList } from "@/components/shared/SkeletonList";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { ListHeader } from "@/components/shared/ListHeader";
 import {
   useCreateExpense,
   useDeleteExpense,
@@ -153,56 +154,53 @@ export function ExpensesTab() {
   return (
     <div className="space-y-4 flex-1 flex flex-col">
       {/* شريط البحث وزر الإضافة */}
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute inset-s-3 top-3 h-4.5 w-4.5 text-ink/40" />
-          <input
-            type="text"
-            placeholder="البحث في تفاصيل المصاريف..."
-            defaultValue={search}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            className="w-full h-11 ps-10 pe-4 rounded-md border border-hairline bg-paper text-sm text-ink focus:outline-none focus:ring-2 focus:ring-ink"
-          />
-        </div>
-        <button
-          type="button"
-          onClick={() => setIsCatalogOpen(true)}
-          className="h-11 w-11 border border-hairline hover:bg-canvas text-ink-2 rounded-md flex items-center justify-center transition-colors shrink-0"
-          title="إدارة فئات المصاريف"
-        >
-          <Boxes className="h-5 w-5" />
-        </button>
-        <button
-          type="button"
-          onClick={() => updateUrl({ newExpense: "true" })}
-          className="h-11 px-4 bg-ink text-paper rounded-md flex items-center gap-1.5 text-sm font-bold shadow-sm hover:bg-ink/90 transition-colors"
-        >
-          <Plus className="h-4.5 w-4.5" />
-          <span>مصروف</span>
-        </button>
-      </div>
-
-      {/* مرشح الفئات الأفقي */}
-      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none -mx-4 px-4 lg:mx-0 lg:px-0">
-        {categoriesList.map((cat) => {
-          const isActive =
-            (cat === "الكل" && category === "all") || category === cat;
-          return (
+      <ListHeader
+        searchValue={search}
+        onSearchChange={handleSearchChange}
+        searchPlaceholder="البحث في تفاصيل المصاريف..."
+        actions={
+          <>
             <button
-              key={cat}
               type="button"
-              onClick={() => handleCategoryFilter(cat)}
-              className={`min-h-[44px] h-11 px-4 rounded-full text-sm font-bold whitespace-nowrap border transition-all ${
-                isActive
-                  ? "bg-ink text-paper border-ink"
-                  : "bg-paper text-ink/75 border-hairline hover:border-ink/20"
-              }`}
+              onClick={() => setIsCatalogOpen(true)}
+              className="h-12 w-12 border border-hairline hover:bg-canvas text-ink-2 rounded-lg flex items-center justify-center transition-colors shrink-0"
+              title="إدارة فئات المصاريف"
             >
-              {cat}
+              <Boxes className="h-5 w-5" />
             </button>
-          );
-        })}
-      </div>
+            <button
+              type="button"
+              onClick={() => updateUrl({ newExpense: "true" })}
+              className="h-12 px-4 bg-ink text-paper rounded-lg flex items-center gap-1.5 text-sm font-bold shadow-sm hover:bg-ink/90 transition-colors shrink-0"
+            >
+              <Plus className="h-4.5 w-4.5" />
+              <span>مصروف</span>
+            </button>
+          </>
+        }
+        filters={
+          <>
+            {categoriesList.map((cat) => {
+              const isActive =
+                (cat === "الكل" && category === "all") || category === cat;
+              return (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => handleCategoryFilter(cat)}
+                  className={`min-h-[44px] h-11 px-4 rounded-full text-sm font-bold whitespace-nowrap border transition-all ${
+                    isActive
+                      ? "bg-ink text-paper border-ink"
+                      : "bg-paper text-ink/75 border-hairline hover:border-ink/20"
+                  }`}
+                >
+                  {cat}
+                </button>
+              );
+            })}
+          </>
+        }
+      />
 
       {/* قائمة المصاريف */}
       {isLoading ? (

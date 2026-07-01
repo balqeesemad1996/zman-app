@@ -15,9 +15,9 @@ export default function QueryProvider({
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 5 * 60 * 1000, // 5 دقائق افتراضياً للبيانات
-            gcTime: 30 * 60 * 1000, // 30 دقيقة للمخزن المؤقت
-            refetchOnWindowFocus: false, // تجنب التحديث عند التركيز فقط
+            staleTime: 30 * 1000, // 30 ثانية
+            gcTime: 5 * 60 * 1000, // 5 دقائق
+            refetchOnWindowFocus: true, // أعد الجلب عند العودة للنافذة
             refetchOnReconnect: true, // التحديث عند استعادة الاتصال بالإنترنت
           },
         },

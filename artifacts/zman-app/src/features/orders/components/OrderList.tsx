@@ -15,6 +15,7 @@ import type { Order } from "../types";
 import { OrderCard } from "./OrderCard";
 import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
 import { WhatsAppTemplateEditor } from "./WhatsAppTemplateEditor";
+import { ListHeader } from "@/components/shared/ListHeader";
 
 interface OrderListProps {
   onEdit: (order: Order) => void;
@@ -123,75 +124,57 @@ export function OrderList({
 
   return (
     <div className="space-y-4">
-      {/* شريط البحث وتصفية الحالات: لاصق بأعلى منطقة المحتوى القابلة للتمرير */}
-      <div className="sticky top-0 bg-canvas/95 backdrop-blur-sm pt-1 pb-3 z-sticky space-y-2.5">
-        {/* صندوق البحث وزر إدارة المكوّنات */}
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <input
-              type="text"
-              inputMode="text"
-              placeholder="ابحث باسم العميل أو المنتج المطلوب..."
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              className="w-full h-12 ps-11 pe-10 rounded-md border border-hairline-2 focus:outline-none focus:ring-2 focus:ring-ink bg-paper text-base leading-tight py-2.5 transition-colors"
-            />
-            <Search className="w-5 h-5 text-ink-3 absolute inset-s-4 top-3.5" />
-            {searchInput && (
-              <button
-                type="button"
-                onClick={() => setSearchInput("")}
-                className="absolute inset-e-4 top-3.5 text-ink-3 hover:text-ink"
-                aria-label="مسح البحث"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={() => setIsTemplateOpen(true)}
-            className="w-12 h-12 rounded-md border border-hairline-2 bg-paper text-ink-2 hover:text-ink hover:bg-canvas transition-colors flex items-center justify-center shrink-0 min-h-[44px] min-w-[44px]"
-            title="محرر قالب رسالة WhatsApp"
-            aria-label="محرر قالب رسالة WhatsApp"
-          >
-            <MessageSquare className="w-5 h-5 text-info" />
-          </button>
-          {onOpenComponents && (
+      <ListHeader
+        searchValue={searchInput}
+        onSearchChange={setSearchInput}
+        searchPlaceholder="ابحث باسم العميل أو المنتج المطلوب..."
+        actions={
+          <>
             <button
               type="button"
-              onClick={onOpenComponents}
-              className="w-12 h-12 rounded-md border border-hairline-2 bg-paper text-ink-2 hover:text-ink hover:bg-canvas transition-colors flex items-center justify-center shrink-0 min-h-[44px] min-w-[44px]"
-              title="إدارة المكوّنات"
-              aria-label="إدارة المكوّنات"
+              onClick={() => setIsTemplateOpen(true)}
+              className="w-12 h-12 rounded-lg border border-hairline bg-paper text-ink-2 hover:text-ink hover:bg-canvas transition-colors flex items-center justify-center shrink-0 min-h-[44px] min-w-[44px]"
+              title="محرر قالب رسالة WhatsApp"
+              aria-label="محرر قالب رسالة WhatsApp"
             >
-              <Boxes className="w-5 h-5" />
+              <MessageSquare className="w-5 h-5 text-info" />
             </button>
-          )}
-        </div>
-
-        {/* رقاقات الحالات (Filter Chips) - سكرول أفقي للموبايل بدون إخفاء للتنقل (§10.1) */}
-        <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 lg:mx-0 lg:px-0 no-scrollbar">
-          {statusFilters.map((filter) => {
-            const isActive = currentStatus === filter.value;
-            return (
+            {onOpenComponents && (
               <button
-                key={filter.value}
                 type="button"
-                onClick={() => handleStatusChange(filter.value)}
-                className={cn(
-                  "px-4 py-1.5 rounded-full text-xs font-semibold border transition-colors whitespace-nowrap min-h-[44px] flex items-center justify-center",
-                  isActive
-                    ? "bg-info text-paper border-info"
-                    : "bg-paper text-ink-2 border-hairline hover:border-hairline-2",
-                )}
+                onClick={onOpenComponents}
+                className="w-12 h-12 rounded-lg border border-hairline bg-paper text-ink-2 hover:text-ink hover:bg-canvas transition-colors flex items-center justify-center shrink-0 min-h-[44px] min-w-[44px]"
+                title="إدارة المكوّنات"
+                aria-label="إدارة المكوّنات"
               >
-                {filter.label}
+                <Boxes className="w-5 h-5" />
               </button>
-            );
-          })}
-        </div>
-      </div>
+            )}
+          </>
+        }
+        filters={
+          <>
+            {statusFilters.map((filter) => {
+              const isActive = currentStatus === filter.value;
+              return (
+                <button
+                  key={filter.value}
+                  type="button"
+                  onClick={() => handleStatusChange(filter.value)}
+                  className={cn(
+                    "px-4 py-1.5 rounded-full text-xs font-semibold border transition-colors whitespace-nowrap min-h-[44px] flex items-center justify-center",
+                    isActive
+                      ? "bg-info text-paper border-info"
+                      : "bg-paper text-ink-2 border-hairline hover:border-hairline-2",
+                  )}
+                >
+                  {filter.label}
+                </button>
+              );
+            })}
+          </>
+        }
+      />
 
       {/* 4. التحقق من القوائم الفارغة والـ Onboarding (§9.5) */}
       {allOrders.length === 0 ? (

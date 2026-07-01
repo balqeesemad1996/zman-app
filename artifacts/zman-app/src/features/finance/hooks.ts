@@ -75,6 +75,8 @@ export function useInfinitePurchases(
       }),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? null,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 }
 
@@ -156,6 +158,8 @@ export function useInfiniteExpenses(
       }),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? null,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 }
 
@@ -242,6 +246,8 @@ export function useInfiniteSales(filters: Omit<GetSalesFilters, "cursor">) {
       }),
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? null,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 }
 

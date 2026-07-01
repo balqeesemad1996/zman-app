@@ -11,6 +11,7 @@ import { ErrorState } from "@/components/shared/ErrorState";
 import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
 import { SkeletonList } from "@/components/shared/SkeletonList";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { ListHeader } from "@/components/shared/ListHeader";
 import {
   useCreatePurchase,
   useDeletePurchase,
@@ -39,16 +40,15 @@ export function PurchasesTab() {
     data,
     isLoading,
     isError,
-    hasNextPage,
     fetchNextPage,
+    hasNextPage,
     isFetchingNextPage,
     refetch,
   } = useInfinitePurchases({ search });
 
-  // هوك العمليات
-  const { data: activePurchase, isLoading: isLoadingActive } = usePurchase(
-    editId || "",
-  );
+  const activePurchase = usePurchase(editId || "").data;
+  const isLoadingActive = usePurchase(editId || "").isLoading;
+
   const createMutation = useCreatePurchase();
   const updateMutation = useUpdatePurchase();
   const deleteMutation = useDeletePurchase();
@@ -57,26 +57,25 @@ export function PurchasesTab() {
 
   // تحديث محددات الـ URL
   const updateUrl = (params: Record<string, string | null>) => {
-    const newParams = new URLSearchParams(searchParams.toString());
-    for (const [key, value] of Object.entries(params)) {
-      if (value === null) {
-        newParams.delete(key);
-      } else {
-        newParams.set(key, value);
-      }
-    }
-    startTransition(() => {
-      router.push(`${pathname}?${newParams.toString()}`);
+    const next = new URLSearchParams(searchParams.toString());
+    Object.entries(params).forEach(([key, val]) => {
+      if (val === null) next.delete(key);
+      else next.set(key, val);
     });
+    router.replace(`${pathname}?${next.toString()}`);
   };
 
   const handleSearchChange = (val: string) => {
-    updateUrl({ search: val || null });
+    startTransition(() => {
+      updateUrl({ search: val || null });
+    });
   };
 
-  const handleCreate = async (values: NewPurchase) => {
-    const requestId = crypto.randomUUID();
-    const res = await createMutation.mutateAsync({ values, requestId });
+  const handleCreate = async (fields: NewPurchase) => {
+    const res = await createMutation.mutateAsync({
+      values: fields,
+      requestId: crypto.randomUUID(),
+    });
     if (res.status === "ok") {
       toast.success("تم تسجيل المشتريات بنجاح");
       updateUrl({ newPurchase: null });
@@ -86,12 +85,12 @@ export function PurchasesTab() {
     }
   };
 
-  const handleUpdate = async (values: NewPurchase) => {
+  const handleUpdate = async (fields: NewPurchase) => {
     if (!editId || !activePurchase) return;
     const res = await updateMutation.mutateAsync({
       id: editId,
       updatedAt: activePurchase.updatedAt.toISOString(),
-      values,
+      values: fields,
     });
     if (res.status === "ok") {
       toast.success("تم تحديث المشتريات بنجاح");
@@ -126,34 +125,31 @@ export function PurchasesTab() {
   return (
     <div className="space-y-4 flex-1 flex flex-col">
       {/* شريط البحث وزر الإضافة */}
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute inset-s-3 top-3 h-4.5 w-4.5 text-ink/40" />
-          <input
-            type="text"
-            placeholder="البحث في المشتريات والموردين..."
-            defaultValue={search}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            className="w-full h-11 ps-10 pe-4 rounded-md border border-hairline bg-paper text-sm text-ink focus:outline-none focus:ring-2 focus:ring-ink"
-          />
-        </div>
-        <button
-          type="button"
-          onClick={() => setIsCatalogOpen(true)}
-          className="h-11 w-11 border border-hairline hover:bg-canvas text-ink-2 rounded-md flex items-center justify-center transition-colors shrink-0"
-          title="إدارة أصناف المشتريات"
-        >
-          <Boxes className="h-5 w-5" />
-        </button>
-        <button
-          type="button"
-          onClick={() => updateUrl({ newPurchase: "true" })}
-          className="h-11 px-4 bg-ink text-paper rounded-md flex items-center gap-1.5 text-sm font-bold shadow-sm hover:bg-ink/90 transition-colors"
-        >
-          <Plus className="h-4.5 w-4.5" />
-          <span>مشتريات</span>
-        </button>
-      </div>
+      <ListHeader
+        searchValue={search}
+        onSearchChange={handleSearchChange}
+        searchPlaceholder="البحث في المشتريات والموردين..."
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={() => setIsCatalogOpen(true)}
+              className="h-12 w-12 border border-hairline hover:bg-canvas text-ink-2 rounded-lg flex items-center justify-center transition-colors shrink-0"
+              title="إدارة أصناف المشتريات"
+            >
+              <Boxes className="h-5 w-5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => updateUrl({ newPurchase: "true" })}
+              className="h-12 px-4 bg-ink text-paper rounded-lg flex items-center gap-1.5 text-sm font-bold shadow-sm hover:bg-ink/90 transition-colors shrink-0"
+            >
+              <Plus className="h-4.5 w-4.5" />
+              <span>مشتريات</span>
+            </button>
+          </>
+        }
+      />
 
       {/* قائمة المشتريات */}
       {isLoading ? (

@@ -1,7 +1,7 @@
 "use client";
 
-import { Edit3, Plus, Search, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { Edit3, Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { toast } from "sonner";
 import { AppShellHeader } from "@/providers/app-shell-context";
@@ -10,12 +10,13 @@ import { MoneyInput } from "@/components/shared/MoneyInput";
 import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import {
-  createCatalogComponent,
-  deleteCatalogComponent,
-  getCatalogComponents,
-  updateCatalogComponent,
-} from "@/features/catalog/actions";
+  useCatalogComponents,
+  useCreateCatalogComponent,
+  useUpdateCatalogComponent,
+  useDeleteCatalogComponent,
+} from "@/features/catalog/hooks";
 import type { CatalogComponent } from "@/features/catalog/db";
+import { ListHeader } from "@/components/shared/ListHeader";
 
 const UNITS = ["قطعة", "متر", "غرام", "علبة", "كيلو", "لتر", "ورقة"];
 
@@ -27,31 +28,19 @@ interface FormValues {
 }
 
 export default function CatalogClient({ hideHeader = false }: { hideHeader?: boolean }) {
-  const [items, setItems] = useState<CatalogComponent[]>([]);
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<CatalogComponent | null>(null);
   const [creating, setCreating] = useState(false);
-  const [isPending, startTransition] = useTransition();
-  const searchRef = useRef<HTMLInputElement>(null);
 
-  const fetchItems = useCallback(
-    (q?: string) => {
-      startTransition(async () => {
-        const result = await getCatalogComponents(q);
-        setItems(result);
-      });
-    },
-    [],
-  );
+  // جلب البيانات عبر React Query لضمان الاستجابة الفورية (§10.1)
+  const { data: items = [], isLoading } = useCatalogComponents(search);
 
-  useEffect(() => {
-    fetchItems();
-  }, [fetchItems]);
+  const createMutation = useCreateCatalogComponent();
+  const updateMutation = useUpdateCatalogComponent();
+  const deleteMutation = useDeleteCatalogComponent();
 
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const q = e.target.value;
+  const handleSearch = (q: string) => {
     setSearch(q);
-    fetchItems(q);
   };
 
   return (
@@ -59,30 +48,24 @@ export default function CatalogClient({ hideHeader = false }: { hideHeader?: boo
       {!hideHeader && <AppShellHeader title="المكوّنات" />}
       <div className="flex-1 flex flex-col gap-4">
         {/* شريط البحث والإضافة */}
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink/40 pointer-events-none" />
-            <input
-              ref={searchRef}
-              type="search"
-              value={search}
-              onChange={handleSearch}
-              placeholder="بحث في المكوّنات..."
-              className="w-full h-11 ps-9 pe-4 rounded-lg border border-hairline bg-paper text-sm focus:outline-none focus:ring-2 focus:ring-ink"
-            />
-          </div>
-          <button
-            type="button"
-            onClick={() => setCreating(true)}
-            className="h-11 px-4 rounded-lg bg-ink text-paper text-sm font-bold flex items-center gap-1.5 hover:bg-ink/90 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            إضافة
-          </button>
-        </div>
+        <ListHeader
+          searchValue={search}
+          onSearchChange={handleSearch}
+          searchPlaceholder="بحث في المكوّنات..."
+          actions={
+            <button
+              type="button"
+              onClick={() => setCreating(true)}
+              className="h-12 px-4 rounded-lg bg-ink text-paper text-sm font-bold flex items-center gap-1.5 hover:bg-ink/90 transition-colors shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+              إضافة
+            </button>
+          }
+        />
 
         {/* قائمة المكوّنات */}
-        {isPending ? (
+        {isLoading ? (
           <div className="flex-1 flex items-center justify-center text-ink/40 text-sm">
             جاري التحميل...
           </div>
@@ -112,13 +95,12 @@ export default function CatalogClient({ hideHeader = false }: { hideHeader?: boo
       >
         <CatalogForm
           onSubmit={async (values) => {
-            const res = await createCatalogComponent(values);
+            const res = await createMutation.mutateAsync(values);
             if (res.status === "error") {
               toast.error(res.message);
             } else {
               toast.success("تمت الإضافة");
               setCreating(false);
-              fetchItems(search);
             }
           }}
         />
@@ -134,11 +116,8 @@ export default function CatalogClient({ hideHeader = false }: { hideHeader?: boo
           <CatalogForm
             initialData={editing}
             onSubmit={async (values) => {
-              const res = await updateCatalogComponent({
-                id: editing.id,
-                updatedAt: editing.updatedAt instanceof Date
-                  ? editing.updatedAt.toISOString()
-                  : String(editing.updatedAt),
+              const res = await updateMutation.mutateAsync({
+                ...editing,
                 ...values,
               });
               if (res.status === "error") {
@@ -146,20 +125,18 @@ export default function CatalogClient({ hideHeader = false }: { hideHeader?: boo
               } else {
                 toast.success("تم الحفظ");
                 setEditing(null);
-                fetchItems(search);
               }
             }}
             onDelete={async () => {
               const updatedAt = editing.updatedAt instanceof Date
                 ? editing.updatedAt.toISOString()
                 : String(editing.updatedAt);
-              const res = await deleteCatalogComponent(editing.id, updatedAt);
+              const res = await deleteMutation.mutateAsync({ id: editing.id, updatedAt });
               if (res.status === "error") {
                 toast.error(res.message);
               } else {
                 toast.success("تم الحذف");
                 setEditing(null);
-                fetchItems(search);
               }
             }}
           />

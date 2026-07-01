@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { buildOrderWhatsAppLink } from "@/lib/whatsapp";
 import { useConvertOrderToSale } from "../../finance/hooks";
 import { useDeleteOrder, useOrder, useUpdateOrderStatus, useMessageTemplate } from "../hooks";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
 interface OrderDetailProps {
   orderId: string;
@@ -47,6 +48,7 @@ export function OrderDetail({ orderId, onEdit, onBack }: OrderDetailProps) {
   const convertOrderToSaleMutation = useConvertOrderToSale();
   const [isConverting, setIsConverting] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
 
   const handleConvertToSale = async () => {
     setIsConverting(true);
@@ -374,7 +376,13 @@ export function OrderDetail({ orderId, onEdit, onBack }: OrderDetailProps) {
             <button
               key={next.status}
               type="button"
-              onClick={() => handleUpdateStatus(next.status)}
+              onClick={() => {
+                if (next.status === "cancelled") {
+                  setCancelConfirmOpen(true);
+                } else {
+                  handleUpdateStatus(next.status);
+                }
+              }}
               disabled={isUpdatingStatus}
               className={`flex-1 min-h-[44px] px-3 rounded-md text-sm font-bold border transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5 ${
                 next.status === "cancelled"
@@ -459,6 +467,19 @@ export function OrderDetail({ orderId, onEdit, onBack }: OrderDetailProps) {
           </div>
         </div>
       </ResponsiveModal>
+
+      <ConfirmDialog
+        isOpen={cancelConfirmOpen}
+        title="تأكيد إلغاء الطلب"
+        message="هل أنت متأكد من إلغاء هذا الطلب؟ لا يمكن التراجع عن هذه العملية."
+        confirmLabel="نعم، إلغاء الطلب"
+        onConfirm={async () => {
+          setCancelConfirmOpen(false);
+          await handleUpdateStatus("cancelled");
+        }}
+        onCancel={() => setCancelConfirmOpen(false)}
+        isLoading={isUpdatingStatus}
+      />
     </div>
   );
 }
