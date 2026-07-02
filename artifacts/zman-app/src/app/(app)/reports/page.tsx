@@ -173,7 +173,7 @@ export default function ReportsPage() {
             <div>
               <h2 className="text-xl font-bold text-ink">التقارير المالية والتشغيلية</h2>
               <p className="text-xs text-ink/50 mt-1">
-                آخر تحديث: {new Date().toLocaleDateString("ar-JO", { dateStyle: "medium", timeStyle: "short" })}
+                آخر تحديث: {new Date().toLocaleString("ar-JO", { dateStyle: "medium", timeStyle: "short" })}
               </p>
             </div>
 
