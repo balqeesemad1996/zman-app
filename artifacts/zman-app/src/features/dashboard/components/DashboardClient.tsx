@@ -26,6 +26,7 @@ import {
   useFinancialTrendData,
   useRecentActivities,
   useDashboardStats,
+  useCashSummary,
 } from "../hooks";
 
 // تحميل الرسم البياني ديناميكياً لتقليل حزم التحميل المبدئي (§12.1)
@@ -95,12 +96,19 @@ export function DashboardClient() {
     data: stats,
     refetch: refetchStats,
   } = useDashboardStats(startDateStr, endDateStr);
+  const {
+    data: cashSummary,
+    isLoading: isLoadingCash,
+    isError: isErrorCash,
+    refetch: refetchCash,
+  } = useCashSummary();
 
   const handleRetryAll = () => {
     refetchSummary();
     refetchActivities();
     refetchTrend();
     refetchStats();
+    refetchCash();
   };
 
   const handlePresetSelect = (idx: number) => {
@@ -123,7 +131,7 @@ export function DashboardClient() {
     }
   };
 
-  if (isErrorSummary || isErrorActivities || isErrorTrend) {
+  if (isErrorSummary || isErrorActivities || isErrorTrend || isErrorCash) {
     return (
       <>
         <AppShellHeader title="لوحة القيادة والمؤشرات" />
@@ -195,7 +203,7 @@ export function DashboardClient() {
           </button>
         </div>
         {/* شبكة المؤشرات الماليّة 2x2 Stat Cards */}
-        {isLoadingSummary ? (
+        {isLoadingSummary || isLoadingCash ? (
           <div className="space-y-4">
             <div className="h-40 bg-paper rounded-lg border border-hairline animate-pulse" />
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -205,6 +213,18 @@ export function DashboardClient() {
                   className="h-28 bg-paper rounded-lg border border-hairline animate-pulse"
                 />
               ))}
+            </div>
+            {/* هيكل تحميل الملخص النقدي */}
+            <div className="space-y-3 pt-2">
+              <div className="h-5 w-32 bg-hairline-2 rounded animate-pulse" />
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {[...Array(3)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="h-24 bg-paper rounded-lg border border-hairline animate-pulse"
+                  />
+                ))}
+              </div>
             </div>
           </div>
         ) : (
@@ -306,6 +326,67 @@ export function DashboardClient() {
                   <span className="text-[10px] text-ink/40 mt-1">
                     تكاليف التشغيل والرواتب والفواتير
                   </span>
+                </div>
+              </div>
+            </div>
+
+            {/* قسم الملخص النقدي الجديد */}
+            <div className="space-y-3 pt-2">
+              <h3 className="text-base font-bold text-ink flex items-center gap-2">
+                <Clock className="h-4.5 w-4.5 text-info" />
+                الملخص النقدي
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* الأرباح المحققة */}
+                <div className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col justify-between">
+                  <span className="text-xs font-bold text-ink/65 flex items-center gap-1">
+                    <NetIcon className={`h-4 w-4 ${netColorClass}`} />
+                    الأرباح المحققة (من المبيعات)
+                  </span>
+                  <div className="mt-2 flex flex-col">
+                    <span className={`text-xl lg:text-2xl font-bold flex items-center gap-1 ${netColorClass}`}>
+                      <span className="font-mono text-lg">{netSign}</span>
+                      <AmountText amount={Math.abs(net)} />
+                    </span>
+                    <span className="text-[10px] text-ink/40 mt-1">
+                      النقد الفعلي المستلم بعد خصم المشتريات والمصاريف
+                    </span>
+                  </div>
+                </div>
+
+                {/* العربون بحوزتك */}
+                <div className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col justify-between">
+                  <span className="text-xs font-bold text-ink/65 flex items-center gap-1">
+                    <TrendingUp className="h-4 w-4 text-info" />
+                    العربون بحوزتك
+                  </span>
+                  <div className="mt-2 flex flex-col">
+                    <span className="text-xl lg:text-2xl font-bold text-info flex items-center gap-1">
+                      <span className="font-mono text-lg">+</span>
+                      <AmountText amount={cashSummary?.depositsHeldCents ?? 0} />
+                    </span>
+                    <span className="text-[10px] text-ink/40 mt-1">
+                      مبالغ العربون المستلمة للطلبات المعلقة (قيد التنفيذ)
+                    </span>
+                  </div>
+                </div>
+
+                {/* مبالغ متوقعة (متبقي الطلبات) */}
+                <div className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col justify-between">
+                  <span className="text-xs font-bold text-ink/65 flex items-center gap-1">
+                    <Calendar className="h-4 w-4 text-ink-3" />
+                    مبالغ متوقعة (متبقي الطلبات)
+                  </span>
+                  <div className="mt-2 flex flex-col">
+                    <span className="text-xl lg:text-2xl font-bold text-ink-2 flex items-center gap-1">
+                      <span className="font-mono text-lg">+</span>
+                      <AmountText amount={cashSummary?.expectedRemainingCents ?? 0} />
+                    </span>
+                    <span className="text-[10px] text-ink/40 mt-1">
+                      المتبقي المتفق عليه عند تسليم الطلبات المعلقة (مخصوم منه العربون)
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>

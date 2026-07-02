@@ -6,6 +6,7 @@ import {
   getFinancialTrendData,
   getRecentActivities,
   getDashboardStats,
+  getCashSummary,
 } from "./queries";
 
 export const dashboardKeys = {
@@ -17,6 +18,7 @@ export const dashboardKeys = {
     [...dashboardKeys.all, "trend", startDate, endDate] as const,
   stats: (startDate: string, endDate: string) =>
     [...dashboardKeys.all, "stats", startDate, endDate] as const,
+  cash: () => [...dashboardKeys.all, "cash"] as const,
 };
 
 export function useFinancialSummary(startDate: string, endDate: string) {
@@ -47,5 +49,12 @@ export function useDashboardStats(startDate: string, endDate: string) {
     queryKey: dashboardKeys.stats(startDate, endDate),
     queryFn: () => getDashboardStats(startDate, endDate),
     enabled: !!startDate && !!endDate,
+  });
+}
+
+export function useCashSummary() {
+  return useQuery({
+    queryKey: dashboardKeys.cash(),
+    queryFn: () => getCashSummary(),
   });
 }

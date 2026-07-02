@@ -300,3 +300,28 @@ export async function getDashboardStats(
 
   return { ordersByStatus, upcomingOrders, totalDepositsCents };
 }
+
+export interface CashSummary {
+  depositsHeldCents: number;
+  expectedRemainingCents: number;
+}
+
+export async function getCashSummary(): Promise<CashSummary> {
+  const [result] = await db
+    .select({
+      depositsHeldCents: sql<number>`coalesce(sum(${order.depositCents}), 0)::int`,
+      expectedRemainingCents: sql<number>`coalesce(sum(${order.totalPriceCents} - ${order.depositCents}), 0)::int`,
+    })
+    .from(order)
+    .where(
+      and(
+        isNull(order.deletedAt),
+        sql`${order.status} not in ('delivered', 'cancelled')`
+      )
+    );
+
+  return {
+    depositsHeldCents: result?.depositsHeldCents ?? 0,
+    expectedRemainingCents: result?.expectedRemainingCents ?? 0,
+  };
+}

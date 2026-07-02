@@ -331,6 +331,7 @@ export function useConvertOrderToSale() {
         queryClient.invalidateQueries({ queryKey: financeKeys.sales() });
         queryClient.invalidateQueries({ queryKey: ["orders"] }); // إبطال كاش الطلبات لتحديث الحالة
         queryClient.invalidateQueries({ queryKey: ["reports"] });
+        queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       }
     },
   });

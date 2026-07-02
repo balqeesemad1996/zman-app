@@ -78,6 +78,7 @@ export function useCreateOrder() {
       if (res.status === "ok") {
         queryClient.invalidateQueries({ queryKey: orderKeys.all });
         queryClient.invalidateQueries({ queryKey: ["reports"] });
+        queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       }
     },
   });
@@ -94,6 +95,7 @@ export function useUpdateOrder() {
       if (res.status === "ok") {
         queryClient.invalidateQueries({ queryKey: orderKeys.all });
         queryClient.invalidateQueries({ queryKey: ["reports"] });
+        queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       }
     },
   });
@@ -111,6 +113,7 @@ export function useDeleteOrder() {
       if (res.status === "ok") {
         queryClient.invalidateQueries({ queryKey: orderKeys.all });
         queryClient.invalidateQueries({ queryKey: ["reports"] });
+        queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       }
     },
   });
@@ -181,12 +184,14 @@ export function useUpdateOrderStatus() {
         // إبطال كاش تفاصيل الطلب المعدّل وتقارير المالية
         queryClient.invalidateQueries({ queryKey: orderKeys.detail(updatedOrder.id) });
         queryClient.invalidateQueries({ queryKey: ["reports"] });
+        queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       }
     },
     // إبطال الكاش العام دائماً بعد الانتهاء من الطلب لضمان تماسك البيانات بين الأجهزة
     onSettled: (_data, _error, variables) => {
       queryClient.invalidateQueries({ queryKey: orderKeys.all });
       queryClient.invalidateQueries({ queryKey: ["reports"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
   });
 }
