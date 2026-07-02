@@ -64,6 +64,13 @@
   --font-sans: var(--font-cairo), system-ui, sans-serif;
 }
 
+@utility z-base { z-index: 0; }
+@utility z-sticky { z-index: 10; }
+@utility z-dropdown { z-index: 20; }
+@utility z-sheet { z-index: 30; }
+@utility z-modal { z-index: 40; }
+@utility z-toast { z-index: 50; }
+
 html,
 body {
   height: 100%;

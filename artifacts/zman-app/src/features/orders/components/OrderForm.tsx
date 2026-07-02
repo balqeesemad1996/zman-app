@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, TrendingDown, TrendingUp } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { AmountText } from "@/components/shared/AmountText";
@@ -41,6 +41,7 @@ export function OrderForm({
     control,
     watch,
     getValues,
+    reset,
     formState: { errors },
   } = useForm({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -86,6 +87,33 @@ export function OrderForm({
         },
   });
 
+  // إعادة ضبط قيم النموذج عند تحميل أو تغيير بيانات التعديل
+  useEffect(() => {
+    if (initialData) {
+      reset({
+        id: initialData.id,
+        updatedAt: initialData.updatedAt
+          ? new Date(initialData.updatedAt).toISOString()
+          : "",
+        customerName: initialData.customerName,
+        customerPhone: initialData.customerPhone,
+        customerPhoneAlt: initialData.customerPhoneAlt || "",
+        productName: initialData.productName,
+        quantity: initialData.quantity,
+        components: initialData.components || [],
+        additionalCostsCents: initialData.additionalCostsCents ?? 0,
+        totalPriceCents: initialData.totalPriceCents,
+        notes: initialData.notes || "",
+        deliveryDate: initialData.deliveryDate || "",
+        receivedDate: initialData.receivedDate
+          ? new Date(initialData.receivedDate).toISOString().split("T")[0]
+          : new Date().toISOString().split("T")[0],
+        depositCents: initialData.depositCents ?? 0,
+        depositDate: initialData.depositDate || "",
+      });
+    }
+  }, [initialData, reset]);
+
   // مراقبة الحقول للحساب الحي (§9.2)
   const watchedComponents = watch("components") || [];
   const watchedAdditionalCosts = Number(watch("additionalCostsCents")) || 0;
@@ -112,9 +140,16 @@ export function OrderForm({
   const onSubmit = async (data: CreateOrderInput | UpdateOrderInput) => {
     setIsSubmitting(true);
     try {
+      const submitData = isEditMode
+        ? (data as UpdateOrderInput)
+        : {
+            ...(data as CreateOrderInput),
+            requestId: typeof window !== "undefined" ? window.crypto.randomUUID() : "",
+          };
+
       const response = isEditMode
-        ? await updateOrderMutation.mutateAsync(data as UpdateOrderInput)
-        : await createOrderMutation.mutateAsync(data as CreateOrderInput);
+        ? await updateOrderMutation.mutateAsync(submitData as UpdateOrderInput)
+        : await createOrderMutation.mutateAsync(submitData as CreateOrderInput);
 
       if (response.status === "ok") {
         toast.success(isEditMode ? "تم تحديث الطلب بنجاح" : "تم إنشاء الطلب بنجاح");

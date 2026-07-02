@@ -146,7 +146,6 @@ export function OrderDetail({ orderId, onEdit, onBack }: OrderDetailProps) {
       });
       if (response.status === "ok") {
         toast.success("تم تحديث حالة الطلب");
-        refetch();
       } else {
         toast.error(response.message || "فشل تحديث الحالة");
       }

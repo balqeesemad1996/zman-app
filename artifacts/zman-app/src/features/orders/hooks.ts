@@ -140,9 +140,53 @@ export function useUpdateOrderStatus() {
     }) => updateOrderStatus(id, newStatus, updatedAt),
     onSuccess: (res) => {
       if (res.status === "ok") {
-        queryClient.invalidateQueries({ queryKey: orderKeys.all });
+        const updatedOrder = res.data as any;
+        // تحديث فوري للكاش المحلي للقوائم لتجنب الوميض والبيانات القديمة
+        queryClient.setQueriesData(
+          { queryKey: orderKeys.lists() },
+          (oldData: any) => {
+            if (!oldData) return oldData;
+
+            // إذا كانت بنية استعلام صفحات لانهائية (Infinite Scroll)
+            if (oldData.pages) {
+              return {
+                ...oldData,
+                pages: oldData.pages.map((page: any) => ({
+                  ...page,
+                  items: page.items.map((item: any) =>
+                    item.id === updatedOrder.id
+                      ? { ...item, status: updatedOrder.status, updatedAt: updatedOrder.updatedAt }
+                      : item
+                  ),
+                })),
+              };
+            }
+
+            // إذا كانت بنية استعلام قائمة عادية
+            if (oldData.items) {
+              return {
+                ...oldData,
+                items: oldData.items.map((item: any) =>
+                  item.id === updatedOrder.id
+                    ? { ...item, status: updatedOrder.status, updatedAt: updatedOrder.updatedAt }
+                    : item
+                ),
+              };
+            }
+
+            return oldData;
+          }
+        );
+
+        // إبطال كاش تفاصيل الطلب المعدّل وتقارير المالية
+        queryClient.invalidateQueries({ queryKey: orderKeys.detail(updatedOrder.id) });
         queryClient.invalidateQueries({ queryKey: ["reports"] });
       }
+    },
+    // إبطال الكاش العام دائماً بعد الانتهاء من الطلب لضمان تماسك البيانات بين الأجهزة
+    onSettled: (_data, _error, variables) => {
+      queryClient.invalidateQueries({ queryKey: orderKeys.all });
+      queryClient.invalidateQueries({ queryKey: ["reports"] });
     },
   });
 }

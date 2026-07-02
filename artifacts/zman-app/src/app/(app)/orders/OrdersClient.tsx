@@ -148,6 +148,7 @@ export default function OrdersClient() {
     }
     return (
       <OrderForm
+        key={editId}
         initialData={editOrder}
         onSubmitSuccess={handleShowList}
         onCancel={handleShowList}
