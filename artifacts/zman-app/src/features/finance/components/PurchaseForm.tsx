@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Trash2 } from "lucide-react";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { AmountText } from "@/components/shared/AmountText";
 import { MoneyInput } from "@/components/shared/MoneyInput";
@@ -58,12 +58,42 @@ export function PurchaseForm({
 
   const watchQty = watch("quantity") || 0;
   const watchUnitCost = watch("unitCostCents") || 0;
+  const watchTotal = watch("totalCents") || 0;
 
-  // مزامنة المجموع تلقائياً وحساب القيمة
+  // مزامنة ثنائية الاتجاه بين سعر الوحدة والإجمالي:
+  // - تعديل سعر الوحدة  → إجمالي = كمية × سعر الوحدة
+  // - تعديل الإجمالي     → سعر الوحدة = إجمالي ÷ كمية
+  // - تعديل الكمية       → نعيد حساب الإجمالي من سعر الوحدة (المصدر الأساسي)
+  // نتتبّع آخر حقل عدّله المستخدم لتحديد اتجاه الحساب.
+  const lastEdited = useRef<"unit" | "total">("unit");
+
+  const handleUnitCostChange = (value: number) => {
+    lastEdited.current = "unit";
+    setValue("unitCostCents", value);
+    const qty = watch("quantity") || 0;
+    setValue("totalCents", Math.round(value * qty));
+  };
+
+  const handleTotalChange = (value: number) => {
+    lastEdited.current = "total";
+    setValue("totalCents", value);
+    const qty = watch("quantity") || 0;
+    setValue("unitCostCents", qty > 0 ? Math.round(value / qty) : 0);
+  };
+
+  // عند تغيّر الكمية: نعيد الحساب حسب آخر حقل عدّله المستخدم
   useEffect(() => {
-    const total = Math.round(watchQty * watchUnitCost);
-    setValue("totalCents", total);
-  }, [watchQty, watchUnitCost, setValue]);
+    if (lastEdited.current === "total") {
+      setValue(
+        "unitCostCents",
+        watchQty > 0 ? Math.round(watchTotal / watchQty) : 0,
+      );
+    } else {
+      setValue("totalCents", Math.round(watchQty * watchUnitCost));
+    }
+    // نراقب الكمية فقط عمداً (إعادة الحساب عند تغيّرها)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watchQty]);
 
   useEffect(() => {
     if (initialData) {
@@ -235,7 +265,7 @@ export function PurchaseForm({
               render={({ field }) => (
                 <MoneyInput
                   value={Number(field.value) || 0}
-                  onChange={field.onChange}
+                  onChange={handleUnitCostChange}
                   error={errors.unitCostCents?.message as string}
                 />
               )}
@@ -248,11 +278,36 @@ export function PurchaseForm({
           </div>
         </div>
 
-        {/* الإجمالي */}
+        {/* الإجمالي — قابل للإدخال (يحدّث سعر الوحدة تلقائياً) */}
+        <div className="space-y-2 flex flex-col">
+          <label
+            htmlFor={`${formId}-total`}
+            className="text-sm font-bold text-ink/75"
+          >
+            إجمالي التكلفة
+          </label>
+          <Controller
+            name="totalCents"
+            control={control}
+            render={({ field }) => (
+              <MoneyInput
+                value={Number(field.value) || 0}
+                onChange={handleTotalChange}
+                error={errors.totalCents?.message as string}
+              />
+            )}
+          />
+        </div>
+
+        {/* سعر القطعة الواحدة — محسوب للعرض فقط */}
         <div className="p-3.5 bg-canvas/30 rounded-lg border border-hairline flex items-center justify-between">
-          <span className="text-sm font-bold text-ink-2">إجمالي التكلفة:</span>
-          <span className="text-lg font-extrabold text-alert">
-            <AmountText amount={watch("totalCents")} />
+          <span className="text-sm font-bold text-ink-2">سعر القطعة الواحدة:</span>
+          <span className="text-lg font-extrabold text-info">
+            {watchQty > 0 ? (
+              <AmountText amount={Math.round(watchTotal / watchQty)} />
+            ) : (
+              <span className="text-ink-3">—</span>
+            )}
           </span>
         </div>
 
