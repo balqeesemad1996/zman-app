@@ -1,83 +1,39 @@
 "use client";
 
-import { Boxes, Edit, MessageSquare, Search, Trash2, X } from "lucide-react";
+import { Edit, MessageSquare, Trash2 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
 import { AmountText } from "@/components/shared/AmountText";
 import { DateText } from "@/components/shared/DateText";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ErrorState } from "@/components/shared/ErrorState";
 import { SkeletonList } from "@/components/shared/SkeletonList";
-import { cn } from "@/lib/utils";
 import { buildOrderWhatsAppLink } from "@/lib/whatsapp";
 import { useInfiniteOrders } from "../hooks";
 import type { Order } from "../types";
 import { OrderCard } from "./OrderCard";
-import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
-import { WhatsAppTemplateEditor } from "./WhatsAppTemplateEditor";
-import { ListHeader } from "@/components/shared/ListHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge";
-import { FilterChip } from "@/components/shared/FilterChip";
 
 interface OrderListProps {
   onEdit: (order: Order) => void;
   onDelete: (order: Order) => void;
   onViewDetail: (order: Order) => void;
   onCreateNew: () => void;
-  onOpenComponents?: () => void;
 }
-
-// خيارات الحالات للمرشح العلوي
-const statusFilters = [
-  { value: "all", label: "الكل" },
-  { value: "draft", label: "مسودة" },
-  { value: "sent", label: "تم الإرسال" },
-  { value: "confirmed", label: "مؤكد" },
-  { value: "delivered", label: "تم التوصيل" },
-  { value: "cancelled", label: "ملغى" },
-];
-
-
 
 export function OrderList({
   onEdit,
   onDelete,
   onViewDetail,
   onCreateNew,
-  onOpenComponents,
 }: OrderListProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  // 1. قراءة الفلاتر الحالية من الـ URL (§7.3)
+  // الفلاتر تُدار الآن من هيدر الصفحة (PageToolbar) عبر الـ URL؛
+  // هنا نقرأها فقط لجلب البيانات (تبقى مشتركة مع عرض التقويم)
   const currentStatus = searchParams.get("status") || "all";
   const currentQuery = searchParams.get("q") || "";
-
-  const [searchInput, setSearchInput] = useState(currentQuery);
-  const [isTemplateOpen, setIsTemplateOpen] = useState(false);
-
-  // تحديث حقل البحث مع إضافة تأخير (Debounce) لمنع كثرة استعلامات السيرفر
-  useEffect(() => {
-    const delayDebounceFn = setTimeout(() => {
-      const params = new URLSearchParams(searchParams.toString());
-      if (searchInput) {
-        params.set("q", searchInput);
-      } else {
-        params.delete("q");
-      }
-      // العودة للصفحة الأولى دائماً عند تغيير البحث
-      params.delete("cursor");
-      router.replace(`${pathname}?${params.toString()}`);
-    }, 400);
-
-    return () => clearTimeout(delayDebounceFn);
-  }, [searchInput, pathname, router, searchParams]);
-
-  // مزامنة حالة البحث المحلي عند تغيير الـ URL (مثلاً عند مسح الفلاتر)
-  useEffect(() => {
-    setSearchInput(currentQuery);
-  }, [currentQuery]);
 
   // 2. جلب البيانات باستخدام Infinite Query (§10.1)
   const {
@@ -93,15 +49,7 @@ export function OrderList({
     q: currentQuery,
   });
 
-  const handleStatusChange = (status: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("status", status);
-    params.delete("cursor");
-    router.replace(`${pathname}?${params.toString()}`);
-  };
-
   const handleClearFilters = () => {
-    setSearchInput("");
     router.replace(pathname);
   };
 
@@ -120,48 +68,6 @@ export function OrderList({
 
   return (
     <div className="space-y-4">
-      <ListHeader
-        searchValue={searchInput}
-        onSearchChange={setSearchInput}
-        searchPlaceholder="ابحث باسم العميل أو المنتج المطلوب..."
-        actions={
-          <>
-            <button
-              type="button"
-              onClick={() => setIsTemplateOpen(true)}
-              className="w-12 h-12 rounded-lg border border-hairline bg-paper text-ink-2 hover:text-ink hover:bg-canvas transition-colors flex items-center justify-center shrink-0 min-h-[44px] min-w-[44px]"
-              title="محرر قالب رسالة WhatsApp"
-              aria-label="محرر قالب رسالة WhatsApp"
-            >
-              <MessageSquare className="w-5 h-5 text-info" />
-            </button>
-            {onOpenComponents && (
-              <button
-                type="button"
-                onClick={onOpenComponents}
-                className="w-12 h-12 rounded-lg border border-hairline bg-paper text-ink-2 hover:text-ink hover:bg-canvas transition-colors flex items-center justify-center shrink-0 min-h-[44px] min-w-[44px]"
-                title="إدارة المكوّنات"
-                aria-label="إدارة المكوّنات"
-              >
-                <Boxes className="w-5 h-5" />
-              </button>
-            )}
-          </>
-        }
-        filters={
-          <>
-            {statusFilters.map((filter) => (
-              <FilterChip
-                key={filter.value}
-                label={filter.label}
-                isActive={currentStatus === filter.value}
-                onClick={() => handleStatusChange(filter.value)}
-              />
-            ))}
-          </>
-        }
-      />
-
       {/* 4. التحقق من القوائم الفارغة والـ Onboarding (§9.5) */}
       {allOrders.length === 0 ? (
         isFiltering ? (
@@ -295,14 +201,6 @@ export function OrderList({
           )}
         </>
       )}
-
-      <ResponsiveModal
-        isOpen={isTemplateOpen}
-        onClose={() => setIsTemplateOpen(false)}
-        title="تعديل قالب رسالة WhatsApp"
-      >
-        <WhatsAppTemplateEditor onClose={() => setIsTemplateOpen(false)} />
-      </ResponsiveModal>
     </div>
   );
 }

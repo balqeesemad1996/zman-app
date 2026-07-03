@@ -1,16 +1,27 @@
 "use client";
 
-import { CalendarDays, LayoutList, Plus } from "lucide-react";
+import { Boxes, CalendarDays, LayoutList, MessageSquare, Plus } from "lucide-react";
 import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AppShellHeader } from "@/providers/app-shell-context";
 import { ErrorState } from "@/components/shared/ErrorState";
 import { SkeletonList } from "@/components/shared/SkeletonList";
 import { SegmentedControl } from "@/components/shared/SegmentedControl";
 import { Button } from "@/components/shared/Button";
+import { PageToolbar } from "@/components/shared/PageToolbar";
 import { useOrder } from "@/features/orders/hooks";
 import type { Order } from "@/features/orders/types";
+
+// خيارات فلتر الحالة (مشتركة بين القائمة والتقويم)
+const STATUS_FILTER_OPTIONS = [
+  { value: "all", label: "كل الحالات" },
+  { value: "draft", label: "مسودة" },
+  { value: "sent", label: "تم الإرسال" },
+  { value: "confirmed", label: "مؤكد" },
+  { value: "delivered", label: "تم التوصيل" },
+  { value: "cancelled", label: "ملغى" },
+];
 
 const OrderList = dynamic(
   () => import("@/features/orders/components/OrderList").then((m) => m.OrderList),
@@ -42,6 +53,14 @@ const OrderCalendar = dynamic(
   { ssr: false, loading: () => <SkeletonList count={4} /> },
 );
 
+const WhatsAppTemplateEditor = dynamic(
+  () =>
+    import("@/features/orders/components/WhatsAppTemplateEditor").then(
+      (m) => m.WhatsAppTemplateEditor,
+    ),
+  { ssr: false, loading: () => <SkeletonList count={3} /> },
+);
+
 export default function OrdersClient() {
   const router = useRouter();
   const pathname = usePathname();
@@ -51,7 +70,35 @@ export default function OrdersClient() {
   const editId = searchParams.get("edit");
   const isNew = searchParams.get("new") === "true";
   const tab = searchParams.get("tab") ?? "list";
+  const currentStatus = searchParams.get("status") || "all";
+  const currentQuery = searchParams.get("q") || "";
   const [isComponentsOpen, setIsComponentsOpen] = useState(false);
+  const [isTemplateOpen, setIsTemplateOpen] = useState(false);
+
+  // بحث محلي مع debounce يكتب q في الـ URL (يقرأه العرضان: قائمة/تقويم)
+  const [searchInput, setSearchInput] = useState(currentQuery);
+  useEffect(() => {
+    setSearchInput(currentQuery);
+  }, [currentQuery]);
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (searchInput === currentQuery) return;
+      const params = new URLSearchParams(searchParams.toString());
+      if (searchInput) params.set("q", searchInput);
+      else params.delete("q");
+      params.delete("cursor");
+      router.replace(`${pathname}?${params.toString()}`);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [searchInput, currentQuery, pathname, router, searchParams]);
+
+  const setStatusFilter = (status: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (status === "all") params.delete("status");
+    else params.set("status", status);
+    params.delete("cursor");
+    router.replace(`${pathname}?${params.toString()}`);
+  };
 
   const {
     data: editOrder,
@@ -95,26 +142,54 @@ export default function OrdersClient() {
   else if (viewId) pageTitle = "تفاصيل الطلب";
 
   const pageAction: React.ReactNode = isInSubView ? null : (
-    <div className="flex items-center gap-2">
-      {/* مبدّل العرض: قائمة | تقويم */}
-      <SegmentedControl
-        value={tab}
-        onChange={(val) => setTab(val as "list" | "calendar")}
-        options={[
-          { value: "list", label: "", icon: <LayoutList className="w-5 h-5" /> },
-          { value: "calendar", label: "", icon: <CalendarDays className="w-5 h-5" /> },
-        ]}
-        className="gap-0.5"
-      />
-
-      {/* زر طلب جديد */}
-      <Button
-        onClick={handleShowCreate}
-        icon={<Plus className="w-4 h-4" />}
-      >
-        <span className="hidden sm:inline">طلب جديد</span>
-      </Button>
-    </div>
+    <PageToolbar
+      leading={
+        // مبدّل العرض: قائمة | تقويم
+        <SegmentedControl
+          value={tab}
+          onChange={(val) => setTab(val as "list" | "calendar")}
+          options={[
+            { value: "list", label: "", icon: <LayoutList className="w-5 h-5" /> },
+            { value: "calendar", label: "", icon: <CalendarDays className="w-5 h-5" /> },
+          ]}
+          className="gap-0.5"
+        />
+      }
+      search={{
+        value: searchInput,
+        onChange: setSearchInput,
+        placeholder: "ابحث باسم العميل أو المنتج...",
+      }}
+      filters={[
+        {
+          key: "status",
+          label: "حالة الطلب",
+          value: currentStatus,
+          options: STATUS_FILTER_OPTIONS,
+          onChange: setStatusFilter,
+        },
+      ]}
+      menuItems={[
+        {
+          key: "template",
+          label: "قالب رسالة واتساب",
+          icon: <MessageSquare className="w-5 h-5 text-info" />,
+          onClick: () => setIsTemplateOpen(true),
+        },
+        {
+          key: "components",
+          label: "إدارة المكوّنات",
+          icon: <Boxes className="w-5 h-5" />,
+          onClick: () => setIsComponentsOpen(true),
+        },
+      ]}
+      trailing={
+        // زر طلب جديد — مستطيل بنص دائم
+        <Button onClick={handleShowCreate} icon={<Plus className="w-4 h-4" />}>
+          طلب جديد
+        </Button>
+      }
+    />
   );
 
   const renderEditForm = () => {
@@ -164,7 +239,6 @@ export default function OrdersClient() {
           onDelete={(order: Order) => navigateTo({ view: order.id })}
           onViewDetail={handleShowDetail}
           onCreateNew={handleShowCreate}
-          onOpenComponents={() => setIsComponentsOpen(true)}
         />
       )}
 
@@ -174,6 +248,14 @@ export default function OrdersClient() {
         title="إدارة المكوّنات"
       >
         <CatalogClient hideHeader={true} />
+      </ResponsiveModal>
+
+      <ResponsiveModal
+        isOpen={isTemplateOpen}
+        onClose={() => setIsTemplateOpen(false)}
+        title="تعديل قالب رسالة WhatsApp"
+      >
+        <WhatsAppTemplateEditor onClose={() => setIsTemplateOpen(false)} />
       </ResponsiveModal>
     </>
   );

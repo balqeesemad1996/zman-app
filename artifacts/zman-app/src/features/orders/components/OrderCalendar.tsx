@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { AmountText } from "@/components/shared/AmountText";
 import { cn } from "@/lib/utils";
@@ -77,13 +78,15 @@ function buildCalendarCells(year: number, month: number): (Date | null)[] {
 
 interface DayOrdersPanelProps {
   dateStr: string;
+  status: string;
+  q: string;
   onClose: () => void;
   onViewDetail: (order: Order) => void;
   onCreateNew: () => void;
 }
 
-function DayOrdersPanel({ dateStr, onClose, onViewDetail, onCreateNew }: DayOrdersPanelProps) {
-  const { data, isLoading } = useOrders({ date: dateStr, limit: 50 });
+function DayOrdersPanel({ dateStr, status, q, onClose, onViewDetail, onCreateNew }: DayOrdersPanelProps) {
+  const { data, isLoading } = useOrders({ date: dateStr, status, q, limit: 50 });
   const orders = data?.items ?? [];
 
   return (
@@ -174,6 +177,10 @@ interface OrderCalendarProps {
 
 export function OrderCalendar({ onViewDetail, onCreateNew }: OrderCalendarProps) {
   const today = new Date();
+  const searchParams = useSearchParams();
+  // الفلاتر المشتركة من هيدر الصفحة (تؤثر على لوحة اليوم)
+  const status = searchParams.get("status") || "all";
+  const q = searchParams.get("q") || "";
 
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth()); // 0-indexed
@@ -332,6 +339,8 @@ export function OrderCalendar({ onViewDetail, onCreateNew }: OrderCalendarProps)
       {selectedDate && (
         <DayOrdersPanel
           dateStr={selectedDate}
+          status={status}
+          q={q}
           onClose={() => setSelectedDate(null)}
           onViewDetail={(ord) => {
             setSelectedDate(null);

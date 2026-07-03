@@ -82,91 +82,100 @@ export default function FinancialChart({
         </div>
       </div>
 
-      {/* الرسم البياني */}
-      <div className="relative w-full min-w-0">
-        {/* خطوط الشبكة الخلفية (ثابتة في الخلفية) */}
-        <div className="absolute inset-x-0 top-0 bottom-6 flex flex-col justify-between pointer-events-none z-0">
-          <div className="w-full border-t border-hairline/40 text-[11px] text-ink/35 flex justify-end pe-1 leading-none pt-0.5 select-none">
-            <AmountText amount={maxVal} />
+      {/* تفصيل اليوم المحدّد (بدل tooltip عائم يُقصّ بالـ overflow) */}
+      <div className="min-h-[2.5rem] flex items-center">
+        {selected ? (
+          <div className="flex items-center flex-wrap gap-x-4 gap-y-1 text-xs w-full bg-canvas rounded-md px-3 py-2 border border-hairline animate-fade-in">
+            <span className="font-mono text-ink/60">{selected.dateStr}</span>
+            <span className="text-info font-bold flex items-center gap-1">
+              <span>مبيعات:</span>
+              <AmountText amount={selected.sales} />
+            </span>
+            <span className="text-alert font-bold flex items-center gap-1">
+              <span>تكاليف:</span>
+              <AmountText amount={selected.outgoings} />
+            </span>
           </div>
-          <div className="w-full border-t border-hairline/40 text-[11px] text-ink/35 flex justify-end pe-1 leading-none pt-0.5 select-none">
-            <AmountText amount={maxVal / 2} />
-          </div>
-          <div className="w-full border-t border-hairline text-[11px] text-ink/35 flex justify-end pe-1 leading-none select-none">
-            <span>٠</span>
-          </div>
+        ) : (
+          <p className="text-[11px] text-ink/35 select-none">اضغط عموداً لعرض تفاصيل اليوم</p>
+        )}
+      </div>
+
+      {/* الرسم البياني: صف واحد = محور القيم (ثابت) + منطقة الأعمدة (قابلة للتمرير) */}
+      <div className="flex w-full min-w-0" style={{ height: "16rem" }}>
+        {/* محور القيم الرأسي — ثابت، محاذٍ تماماً لمنطقة الرسم */}
+        <div className="flex flex-col justify-between shrink-0 pe-2 text-[11px] text-ink/35 select-none text-end leading-none">
+          <span className="flex justify-end"><AmountText amount={maxVal} /></span>
+          <span className="flex justify-end"><AmountText amount={maxVal / 2} /></span>
+          <span className="flex justify-end">٠</span>
         </div>
 
-        {/* الأعمدة المكدّسة (قابلة للتمرير أفقيًا على الموبايل) */}
-        <div className="relative z-sticky w-full overflow-x-auto no-scrollbar">
-          <div className="h-64 flex items-end pb-6 pt-16 gap-1.5 min-w-max px-1">
-            {chartData.map((item, index) => {
-              const total = item.sales + item.outgoings;
-              const totalPct = maxVal > 0 ? (total / maxVal) * 100 : 0;
-              const salesRatio = total > 0 ? (item.sales / total) * 100 : 0;
-              const outRatio = total > 0 ? (item.outgoings / total) * 100 : 0;
+        {/* منطقة الرسم: الشبكة والأعمدة في نفس الإطار بنفس الارتفاع */}
+        <div className="relative flex-1 min-w-0">
+          {/* خطوط الشبكة الأفقية — تحاذي المحور تماماً (نفس الحاوية، نفس الارتفاع) */}
+          <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
+            <div className="w-full border-t border-hairline/40" />
+            <div className="w-full border-t border-hairline/40" />
+            <div className="w-full border-t border-hairline" />
+          </div>
 
-              const dayNum = item.dateStr.split("-")[2];
-              const isSelected = selectedDate === item.dateStr;
+          {/* الأعمدة المكدّسة (تمرير أفقي على الموبايل — بدون طبقات z طافية) */}
+          <div className="absolute inset-0 overflow-x-auto no-scrollbar">
+            <div className="h-full flex items-end gap-1.5 min-w-max px-1">
+              {chartData.map((item, index) => {
+                const total = item.sales + item.outgoings;
+                const totalPct = maxVal > 0 ? (total / maxVal) * 100 : 0;
+                const salesRatio = total > 0 ? (item.sales / total) * 100 : 0;
+                const outRatio = total > 0 ? (item.outgoings / total) * 100 : 0;
 
-              // عرض كل تسمية يوم ثالثة لتجنب التزاحم
-              const showLabel = index % 3 === 0;
+                const dayNum = item.dateStr.split("-")[2];
+                const isSelected = selectedDate === item.dateStr;
 
-              return (
-                <button
-                  key={item.dateStr}
-                  type="button"
-                  onClick={() => setSelectedDate(isSelected ? null : item.dateStr)}
-                  className="relative flex-shrink-0 w-8 flex flex-col items-center justify-end h-full focus:outline-none group cursor-pointer"
-                  title={item.dateStr}
-                >
-                  {/* Tooltip عائم */}
-                  {isSelected && (
-                    <div className="absolute bottom-full mb-2 start-1/2 -translate-x-1/2 z-dropdown bg-ink text-paper text-[10px] rounded p-2 shadow-lg min-w-[120px] text-center select-text pointer-events-auto border border-hairline-2 animate-fade-in">
-                      <p className="font-mono text-paper/70 border-b border-paper/10 pb-0.5 mb-1">{item.dateStr}</p>
-                      <p className="text-info font-bold flex items-center justify-center gap-1">
-                        <span>مبيعات:</span>
-                        <AmountText amount={item.sales} />
-                      </p>
-                      <p className="text-alert font-bold flex items-center justify-center gap-1 mt-0.5">
-                        <span>تكاليف:</span>
-                        <AmountText amount={item.outgoings} />
-                      </p>
+                // عرض كل تسمية يوم ثالثة لتجنب التزاحم
+                const showLabel = index % 3 === 0;
+
+                return (
+                  <button
+                    key={item.dateStr}
+                    type="button"
+                    onClick={() => setSelectedDate(isSelected ? null : item.dateStr)}
+                    className="relative flex-shrink-0 w-8 flex flex-col items-center justify-end h-full focus:outline-none group cursor-pointer pb-5"
+                    title={item.dateStr}
+                  >
+                    {/* عمود مكدس واحد */}
+                    <div className="w-full flex items-end justify-center flex-1 min-w-0">
+                      {total > 0 ? (
+                        <div
+                          style={{ height: `${totalPct}%` }}
+                          className={`w-3.5 rounded-t-[3px] overflow-hidden flex flex-col justify-end transition-all duration-150
+                            ${isSelected ? "opacity-100 ring-2 ring-ink/30" : "opacity-70 group-hover:opacity-90"}
+                          `}
+                        >
+                          {item.sales > 0 && (
+                            <div
+                              style={{ height: `${salesRatio}%` }}
+                              className="w-full bg-info transition-all"
+                            />
+                          )}
+                          {item.outgoings > 0 && (
+                            <div
+                              style={{ height: `${outRatio}%` }}
+                              className="w-full bg-alert transition-all"
+                            />
+                          )}
+                        </div>
+                      ) : (
+                        <div className="w-3.5 h-[2px] bg-hairline rounded-sm" />
+                      )}
                     </div>
-                  )}
-
-                  {/* عمود مكدس واحد */}
-                  <div className="w-full flex items-end justify-center flex-1 min-w-0">
-                    {total > 0 ? (
-                      <div
-                        style={{ height: `${totalPct}%` }}
-                        className={`w-3.5 rounded-t-[3px] overflow-hidden flex flex-col justify-end transition-all duration-150
-                          ${isSelected ? "opacity-100 ring-2 ring-ink/30" : "opacity-70 group-hover:opacity-90"}
-                        `}
-                      >
-                        {item.sales > 0 && (
-                          <div
-                            style={{ height: `${salesRatio}%` }}
-                            className="w-full bg-info transition-all"
-                          />
-                        )}
-                        {item.outgoings > 0 && (
-                          <div
-                            style={{ height: `${outRatio}%` }}
-                            className="w-full bg-alert transition-all"
-                          />
-                        )}
-                      </div>
-                    ) : (
-                      <div className="w-3.5 h-[2px] bg-hairline rounded-sm" />
-                    )}
-                  </div>
-                  <span className="text-[11px] text-ink/40 font-mono mt-1.5 select-none leading-none block h-3">
-                    {showLabel ? dayNum : ""}
-                  </span>
-                </button>
-              );
-            })}
+                    {/* تسمية اليوم — مثبّتة أسفل، لا تزيح ارتفاع العمود */}
+                    <span className="absolute bottom-0 inset-x-0 text-[11px] text-ink/40 font-mono select-none leading-none h-4 flex items-center justify-center">
+                      {showLabel ? dayNum : ""}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
