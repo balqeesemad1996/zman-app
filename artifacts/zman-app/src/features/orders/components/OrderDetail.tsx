@@ -17,6 +17,7 @@ import { AmountText } from "@/components/shared/AmountText";
 import { DateText } from "@/components/shared/DateText";
 import { ErrorState } from "@/components/shared/ErrorState";
 import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
+import { Button } from "@/components/shared/Button";
 import { cn } from "@/lib/utils";
 import { buildOrderWhatsAppLink } from "@/lib/whatsapp";
 import { useConvertOrderToSale } from "../../finance/hooks";
@@ -381,27 +382,24 @@ export function OrderDetail({ orderId, onEdit, onBack }: OrderDetailProps) {
 
       {/* زر التراسل السريع والاتفاق: شريط سفلي لاصق في الهاتف للإبهام ومرن بالديسكتوب (§9.1) */}
       <div className="sticky bottom-0 bg-paper border-t border-hairline p-4 flex flex-col gap-3 lg:static lg:p-0 lg:bg-transparent lg:border-none z-sticky lg:z-auto">
-        <button
-          type="button"
+        <Button
           onClick={handleWhatsApp}
-          className="w-full min-h-[44px] py-3 px-4 rounded-md bg-info text-paper font-bold hover:bg-info/90 transition-colors flex items-center justify-center gap-2"
+          className="w-full py-3"
+          icon={<MessageSquare className="w-5 h-5" />}
         >
-          <MessageSquare className="w-5 h-5" />
           <span>إرسال تفاصيل العرض عبر واتساب</span>
-        </button>
+        </Button>
         {orderData.status !== "delivered" &&
           orderData.status !== "cancelled" && (
-            <button
-              type="button"
+            <Button
               onClick={handleConvertToSale}
               disabled={isConverting}
-              className="w-full min-h-[44px] py-3 px-4 rounded-md bg-ink text-paper font-bold hover:bg-ink/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+              isLoading={isConverting}
+              className="w-full py-3"
+              icon={<ShoppingCart className="w-5 h-5" />}
             >
-              <ShoppingCart className="w-5 h-5" />
-              <span>
-                {isConverting ? "جاري التحويل..." : "تحويل إلى مبيعات (تسجيل إيراد)"}
-              </span>
-            </button>
+              <span>تحويل إلى مبيعات (تسجيل إيراد)</span>
+            </Button>
           )}
       </div>
 
@@ -430,22 +428,25 @@ export function OrderDetail({ orderId, onEdit, onBack }: OrderDetailProps) {
           </p>
 
           <div className="flex gap-3 pt-2">
-            <button
+            <Button
               type="button"
               onClick={() => setIsDeleteOpen(false)}
               disabled={isDeleting}
-              className="flex-1 min-h-[44px] py-2 px-4 rounded-md border border-hairline-2 text-ink-2 hover:bg-canvas font-semibold transition-colors disabled:opacity-50"
+              variant="secondary"
+              className="flex-1"
             >
               إلغاء
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               onClick={handleDeleteConfirm}
               disabled={isDeleting}
-              className="flex-1 min-h-[44px] py-2 px-4 rounded-md bg-alert text-paper font-bold hover:bg-alert/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              isLoading={isDeleting}
+              variant="destructive"
+              className="flex-1"
             >
-              {isDeleting ? "جاري الحذف..." : "نعم، احذف الطلب"}
-            </button>
+              نعم، احذف الطلب
+            </Button>
           </div>
         </div>
       </ResponsiveModal>

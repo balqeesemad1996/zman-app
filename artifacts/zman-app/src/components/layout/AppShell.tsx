@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { MoreHorizontal, X } from "lucide-react";
+import { MoreHorizontal } from "lucide-react";
 import { useEffect, useState } from "react";
 import { navItems, mainNavItems, moreNavItems } from "@/config/nav";
 import { InstallButton } from "@/components/pwa/InstallButton";
 import { cn } from "@/lib/utils";
 import { useAppShell } from "@/providers/app-shell-context";
+import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -20,16 +21,53 @@ export function AppShell({ children, title: propTitle, action: propAction }: App
   const [isOnline, setIsOnline] = useState(true);
   const [isMoreOpen, setIsMoreOpen] = useState(false);
 
+  // سحب للتحديث
+  const [pullStart, setPullStart] = useState<number | null>(null);
+  const [pullProgress, setPullProgress] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    const container = e.currentTarget;
+    if (container.scrollTop === 0) {
+      setPullStart(e.touches[0].clientY);
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (pullStart === null || isRefreshing) return;
+    const currentY = e.touches[0].clientY;
+    const diff = currentY - pullStart;
+    if (diff > 0) {
+      const progress = Math.min(diff / 3, 80);
+      setPullProgress(progress);
+      if (progress > 10) {
+        if (e.cancelable) e.preventDefault();
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (pullProgress >= 60) {
+      setIsRefreshing(true);
+      setPullProgress(40);
+      setTimeout(() => {
+        window.location.reload();
+      }, 800);
+    } else {
+      setPullStart(null);
+      setPullProgress(0);
+    }
+  };
+
   let context: ReturnType<typeof useAppShell> | null = null;
   try {
     context = useAppShell();
   } catch {
-    // خارج Provider (مثل صفحات الخطأ أو الدخول)
+    // خارج Provider
   }
 
   const title = propTitle !== undefined ? propTitle : context ? context.title : "Zman";
   const action = propAction !== undefined ? propAction : context ? context.action : null;
-
 
   useEffect(() => {
     setIsOnline(navigator.onLine);
@@ -43,7 +81,6 @@ export function AppShell({ children, title: propTitle, action: propAction }: App
     };
   }, []);
 
-  // هل أحد عناصر "المزيد" هو الصفحة الحالية؟
   const isMoreActive = moreNavItems.some(
     (item) =>
       pathname === item.href ||
@@ -87,13 +124,12 @@ export function AppShell({ children, title: propTitle, action: propAction }: App
             );
           })}
         </nav>
-        {/* زر تثبيت التطبيق — ديسكتوب */}
         <div className="px-3 pb-4">
           <InstallButton />
         </div>
       </aside>
 
-      {/* هيدر الموبايل — ارتفاع ثابت 56px */}
+      {/* هيدر الموبايل */}
       <header className="lg:hidden flex-shrink-0 w-full h-14 bg-paper/90 backdrop-blur-sm shadow-sm border-b border-hairline flex items-center justify-between px-4 z-sticky">
         <h1 className="text-base font-bold text-ink truncate">{title || "Zman"}</h1>
         {action && <div className="flex items-center ms-3">{action}</div>}
@@ -101,21 +137,53 @@ export function AppShell({ children, title: propTitle, action: propAction }: App
 
       {/* المنطقة الرئيسية */}
       <main className="flex-1 overflow-hidden flex flex-col lg:pe-[240px]">
-        {/* شريط الأدوات للديسكتوب — ارتفاع ثابت 64px */}
+        {/* شريط الأدوات للديسكتوب */}
         <div className="hidden lg:flex flex-shrink-0 items-center justify-between px-8 h-16 border-b border-hairline bg-paper">
           <h2 className="text-lg font-bold text-ink">{title || "الرئيسية"}</h2>
           {action && <div>{action}</div>}
         </div>
 
-        {/* منطقة المحتوى القابلة للتمرير — تملأ المساحة المتبقية */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar">
+        {/* منطقة المحتوى القابلة للتمرير مع دعم السحب للتحديث */}
+        <div
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          className="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar relative"
+        >
+          {pullProgress > 0 && (
+            <div
+              style={{ height: `${pullProgress}px` }}
+              className="w-full flex items-center justify-center overflow-hidden transition-all duration-75 bg-canvas flex-shrink-0 border-b border-hairline/10"
+            >
+              <svg
+                className={cn(
+                  "h-6 w-6 text-info transition-transform",
+                  isRefreshing ? "animate-spin" : ""
+                )}
+                style={{
+                  transform: isRefreshing ? undefined : `rotate(${pullProgress * 4}deg)`,
+                }}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <title>سحب للتحديث</title>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 7.89"
+                />
+              </svg>
+            </div>
+          )}
           <div className="w-full max-w-6xl mx-auto px-4 lg:px-8 py-4 lg:py-6 flex flex-col min-h-full min-w-0">
             {children}
           </div>
         </div>
       </main>
 
-      {/* شريط التبويب السفلي للموبايل — 4 تبويبات + زر المزيد */}
+      {/* شريط التبويب السفلي للموبايل */}
       <nav className="lg:hidden flex-shrink-0 h-16 bg-paper border-t border-hairline flex items-center justify-around z-sticky">
         {mainNavItems.map((item) => {
           const isActive =
@@ -138,7 +206,6 @@ export function AppShell({ children, title: propTitle, action: propAction }: App
             </Link>
           );
         })}
-        {/* زر المزيد */}
         <button
           type="button"
           onClick={() => setIsMoreOpen(true)}
@@ -154,66 +221,41 @@ export function AppShell({ children, title: propTitle, action: propAction }: App
         </button>
       </nav>
 
-      {/* شيت "المزيد" */}
-      {isMoreOpen && (
-        <>
-          {/* backdrop */}
-          <div
-            className="fixed inset-0 z-sheet bg-ink/40 lg:hidden"
-            onClick={() => setIsMoreOpen(false)}
-            aria-hidden="true"
-          />
-          {/* اللوحة */}
-          <div className="fixed inset-x-0 bottom-0 z-sheet bg-paper rounded-t-2xl shadow-xl border-t border-hairline lg:hidden">
-            {/* المقبض */}
-            <div className="flex justify-center pt-2.5 pb-1">
-              <div className="w-10 h-1 bg-ink/20 rounded-full" />
-            </div>
-            {/* الترويسة */}
-            <div className="flex items-center justify-between px-5 py-3 border-b border-hairline">
-              <h3 className="text-base font-bold text-ink">المزيد</h3>
-              <button
-                type="button"
+      {/* شيت المزيد باستخدام المكون المشترك */}
+      <ResponsiveModal
+        isOpen={isMoreOpen}
+        onClose={() => setIsMoreOpen(false)}
+        title="المزيد"
+      >
+        <div className="py-1">
+          {moreNavItems.map((item) => {
+            const isActive =
+              pathname === item.href ||
+              (item.href !== "/" && pathname.startsWith(item.href));
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                prefetch={false}
                 onClick={() => setIsMoreOpen(false)}
-                className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg hover:bg-canvas text-ink-3 transition-colors -me-2"
-                aria-label="إغلاق"
+                className={cn(
+                  "flex items-center gap-3 px-4 min-h-[48px] text-sm transition-colors rounded-lg",
+                  isActive
+                    ? "text-info font-bold bg-info-soft"
+                    : "text-ink-2 hover:bg-canvas hover:text-ink",
+                )}
               >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            {/* الروابط */}
-            <div className="py-2">
-              {moreNavItems.map((item) => {
-                const isActive =
-                  pathname === item.href ||
-                  (item.href !== "/" && pathname.startsWith(item.href));
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    prefetch={false}
-                    onClick={() => setIsMoreOpen(false)}
-                    className={cn(
-                      "flex items-center gap-3 px-5 min-h-[48px] text-sm transition-colors",
-                      isActive
-                        ? "text-info font-bold bg-info-soft"
-                        : "text-ink-2 hover:bg-canvas hover:text-ink",
-                    )}
-                  >
-                    <Icon className="w-5 h-5 flex-shrink-0" />
-                    <span>{item.label}</span>
-                  </Link>
-                );
-              })}
-            </div>
-            {/* زر التثبيت — موبايل */}
-            <div className="px-5 py-4 border-t border-hairline">
-              <InstallButton />
-            </div>
-          </div>
-        </>
-      )}
+                <Icon className="w-5 h-5 flex-shrink-0" />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+        <div className="pt-4 border-t border-hairline mt-2">
+          <InstallButton />
+        </div>
+      </ResponsiveModal>
     </div>
   );
 }

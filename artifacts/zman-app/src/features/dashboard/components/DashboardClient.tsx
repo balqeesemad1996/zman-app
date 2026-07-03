@@ -22,6 +22,8 @@ import { ErrorState } from "@/components/shared/ErrorState";
 import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
 import { SkeletonList } from "@/components/shared/SkeletonList";
 import { FilterChip } from "@/components/shared/FilterChip";
+import { SegmentedControl } from "@/components/shared/SegmentedControl";
+import { Sparkline } from "@/components/shared/Sparkline";
 import {
   useFinancialSummary,
   useFinancialTrendData,
@@ -135,7 +137,7 @@ export function DashboardClient() {
   if (isErrorSummary || isErrorActivities || isErrorTrend || isErrorCash) {
     return (
       <>
-        <AppShellHeader title="لوحة القيادة والمؤشرات" />
+        <AppShellHeader title="لوحة القيادة" />
         <div className="flex-1 flex items-center justify-center">
           <ErrorState
             message="حدث خطأ أثناء تحميل بيانات لوحة القيادة. يرجى التحقق من اتصالك وحاول مجدداً."
@@ -152,6 +154,27 @@ export function DashboardClient() {
   const netSign = isProfit ? "+" : "−";
   const netColorClass = isProfit ? "text-info" : "text-alert";
   const NetIcon = isProfit ? TrendingUp : TrendingDown;
+
+  const netTrendData = (() => {
+    if (!trendData) return [];
+    const datesMap: Record<string, { sales: number; outgoings: number }> = {};
+    const start = new Date(startDateStr);
+    const end = new Date(endDateStr);
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const key = d.toISOString().split("T")[0] ?? "";
+      if (key) datesMap[key] = { sales: 0, outgoings: 0 };
+    }
+    for (const item of trendData.salesTrend) {
+      if (item.day && datesMap[item.day]) datesMap[item.day].sales += item.total;
+    }
+    for (const item of trendData.expensesTrend) {
+      if (item.day && datesMap[item.day]) datesMap[item.day].outgoings += item.total;
+    }
+    for (const item of trendData.purchasesTrend) {
+      if (item.day && datesMap[item.day]) datesMap[item.day].outgoings += item.total;
+    }
+    return Object.keys(datesMap).sort().map(k => datesMap[k].sales - datesMap[k].outgoings);
+  })();
 
   return (
     <>
@@ -173,35 +196,30 @@ export function DashboardClient() {
       />
       <div className="space-y-5">
         {/* شريط فلتر التاريخ للديسكتوب — موحّد داخل المحتوى */}
-        <div className="hidden lg:flex items-center gap-1.5 p-1 bg-paper rounded-lg border border-hairline self-start">
-          {presets.map((preset, i) => (
-            <button
-              key={preset.label}
-              type="button"
-              onClick={() => handlePresetSelect(i)}
-              className={`px-4 min-h-[44px] h-11 rounded-md text-xs font-bold transition-all ${
-                selectedPresetIdx === i && !customRange
-                  ? "bg-info text-paper shadow-sm"
-                  : "text-ink/60 hover:text-ink/80 hover:bg-canvas"
-              }`}
-            >
-              {preset.label}
-            </button>
-          ))}
-          <button
-            type="button"
-            onClick={() => setIsSelectorOpen(true)}
-            className={`px-4 min-h-[44px] h-11 rounded-md text-xs font-bold flex items-center gap-1.5 transition-all ${
-              customRange
-                ? "bg-info text-paper shadow-sm"
-                : "text-ink/60 hover:text-ink/80 hover:bg-canvas"
-            }`}
-          >
-            <Calendar className="h-3.5 w-3.5" />
-            {customRange
-              ? `${format(customRange.start, "MM/dd")} - ${format(customRange.end, "MM/dd")}`
-              : "تخصيص"}
-          </button>
+        <div className="hidden lg:block self-start">
+          <SegmentedControl
+            value={customRange ? "custom" : String(selectedPresetIdx)}
+            onChange={(val) => {
+              if (val === "custom") {
+                setIsSelectorOpen(true);
+              } else {
+                handlePresetSelect(Number(val));
+              }
+            }}
+            options={[
+              ...presets.map((preset, i) => ({
+                value: String(i),
+                label: preset.label,
+              })),
+              {
+                value: "custom",
+                label: customRange
+                  ? `${format(customRange.start, "MM/dd")} - ${format(customRange.end, "MM/dd")}`
+                  : "تخصيص",
+                icon: <Calendar className="h-3.5 w-3.5" />,
+              },
+            ]}
+          />
         </div>
         {/* شبكة المؤشرات الماليّة 2x2 Stat Cards */}
         {isLoadingSummary || isLoadingCash ? (
@@ -241,26 +259,48 @@ export function DashboardClient() {
                   {startDateStr} - {endDateStr}
                 </span>
               </div>
-              <div className="mt-4">
-                <span
-                  className={`text-4xl font-bold flex items-center gap-1.5 ${netColorClass}`}
-                >
-                  <span className="font-mono">{netSign}</span>
-                  <AmountText amount={Math.abs(net)} />
-                </span>
-                <p className="text-xs text-ink/50 mt-2">
-                  (الإيرادات والمبيعات − التكاليف والمصاريف التشغيلية)
-                </p>
+              <div className="mt-4 flex items-center justify-between gap-4">
+                <div>
+                  <span
+                    className={`text-4xl font-bold flex items-center gap-1.5 ${netColorClass}`}
+                  >
+                    <span className="font-mono">{netSign}</span>
+                    <AmountText amount={Math.abs(net)} />
+                  </span>
+                  <p className="text-xs text-ink/50 mt-2">
+                    (الإيرادات والمبيعات − التكاليف والمصاريف التشغيلية)
+                  </p>
+                </div>
+                {netTrendData.length >= 2 && (
+                  <div className="w-32 lg:w-48">
+                    <Sparkline
+                      data={netTrendData}
+                      width={160}
+                      height={44}
+                      color={isProfit ? "var(--color-info)" : "var(--color-alert)"}
+                      fillColor={isProfit ? "rgba(21, 101, 192, 0.05)" : "rgba(192, 57, 43, 0.05)"}
+                    />
+                  </div>
+                )}
               </div>
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {/* صافي الأرباح (أزرق في الربح، أحمر في الخسارة - غير معتمد على اللون فقط) */}
               <div className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col justify-between">
-                <span className="text-xs font-bold text-ink/65 flex items-center gap-1">
-                  <NetIcon className={`h-4 w-4 ${netColorClass}`} />
-                  صافي الأرباح
-                </span>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-ink/65 flex items-center gap-1">
+                    <NetIcon className={`h-4 w-4 ${netColorClass}`} />
+                    صافي الأرباح
+                  </span>
+                  {netTrendData.length >= 2 && (
+                    <Sparkline
+                      data={netTrendData}
+                      color={isProfit ? "var(--color-info)" : "var(--color-alert)"}
+                      fillColor={isProfit ? "rgba(21, 101, 192, 0.05)" : "rgba(192, 57, 43, 0.05)"}
+                    />
+                  )}
+                </div>
                 <div className="mt-2 flex flex-col">
                   <span
                     className={`text-xl lg:text-2xl font-bold flex items-center gap-1 ${netColorClass}`}
@@ -276,10 +316,19 @@ export function DashboardClient() {
 
               {/* إجمالي المبيعات (أزرق - Info) */}
               <div className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col justify-between">
-                <span className="text-xs font-bold text-ink/65 flex items-center gap-1">
-                  <ShoppingBag className="h-4 w-4 text-info" />
-                  المبيعات
-                </span>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-ink/65 flex items-center gap-1">
+                    <ShoppingBag className="h-4 w-4 text-info" />
+                    المبيعات
+                  </span>
+                  {trendData && trendData.salesTrend.length >= 2 && (
+                    <Sparkline
+                      data={trendData.salesTrend.map((d: any) => d.total)}
+                      color="var(--color-info)"
+                      fillColor="rgba(21, 101, 192, 0.05)"
+                    />
+                  )}
+                </div>
                 <div className="mt-2 flex flex-col">
                   <span className="text-xl lg:text-2xl font-bold text-info flex items-center gap-1">
                     <span className="font-mono text-lg">+</span>
@@ -298,10 +347,19 @@ export function DashboardClient() {
 
               {/* إجمالي المشتريات (أحمر - Alert) */}
               <div className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col justify-between">
-                <span className="text-xs font-bold text-ink/65 flex items-center gap-1">
-                  <ShoppingCart className="h-4 w-4 text-alert" />
-                  المشتريات
-                </span>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-ink/65 flex items-center gap-1">
+                    <ShoppingCart className="h-4 w-4 text-alert" />
+                    المشتريات
+                  </span>
+                  {trendData && trendData.purchasesTrend.length >= 2 && (
+                    <Sparkline
+                      data={trendData.purchasesTrend.map((d: any) => d.total)}
+                      color="var(--color-alert)"
+                      fillColor="rgba(192, 57, 43, 0.05)"
+                    />
+                  )}
+                </div>
                 <div className="mt-2 flex flex-col">
                   <span className="text-xl lg:text-2xl font-bold text-alert flex items-center gap-1">
                     <span className="font-mono text-lg">−</span>
@@ -315,10 +373,19 @@ export function DashboardClient() {
 
               {/* إجمالي المصاريف (أحمر - Alert) */}
               <div className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col justify-between">
-                <span className="text-xs font-bold text-ink/65 flex items-center gap-1">
-                  <ArrowDownRight className="h-4 w-4 text-alert" />
-                  المصاريف
-                </span>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-ink/65 flex items-center gap-1">
+                    <ArrowDownRight className="h-4 w-4 text-alert" />
+                    المصاريف
+                  </span>
+                  {trendData && trendData.expensesTrend.length >= 2 && (
+                    <Sparkline
+                      data={trendData.expensesTrend.map((d: any) => d.total)}
+                      color="var(--color-alert)"
+                      fillColor="rgba(192, 57, 43, 0.05)"
+                    />
+                  )}
+                </div>
                 <div className="mt-2 flex flex-col">
                   <span className="text-xl lg:text-2xl font-bold text-alert flex items-center gap-1">
                     <span className="font-mono text-lg">−</span>
@@ -409,7 +476,7 @@ export function DashboardClient() {
         {stats && (
           <div className="bg-paper p-6 rounded-lg border border-hairline shadow-sm space-y-4">
             <div className="flex items-center justify-between border-b border-hairline pb-3">
-              <h3 className="text-md font-bold text-ink flex items-center gap-1.5">
+              <h3 className="text-base font-bold text-ink flex items-center gap-1.5">
                 <ClipboardList className="h-4.5 w-4.5 text-info" />
                 حالة الطلبات التشغيلية
               </h3>
@@ -435,7 +502,7 @@ export function DashboardClient() {
         {stats && (
           <div className="bg-paper p-6 rounded-lg border border-hairline shadow-sm space-y-4">
             <div className="flex items-center justify-between border-b border-hairline pb-3">
-              <h3 className="text-md font-bold text-ink flex items-center gap-1.5">
+              <h3 className="text-base font-bold text-ink flex items-center gap-1.5">
                 <Calendar className="h-4.5 w-4.5 text-info" />
                 طلبات يستحق تسليمها قريباً (خلال 7 أيام)
               </h3>
@@ -479,7 +546,7 @@ export function DashboardClient() {
         {/* آخر النشاطات والعمليات المدمجة */}
         <div className="bg-paper p-6 rounded-lg border border-hairline shadow-sm space-y-4">
           <div className="flex items-center justify-between border-b border-hairline pb-3">
-            <h3 className="text-md font-bold text-ink flex items-center gap-1.5">
+            <h3 className="text-base font-bold text-ink flex items-center gap-1.5">
               <Clock className="h-4.5 w-4.5 text-info" />
               آخر النشاطات والحركات المالية
             </h3>

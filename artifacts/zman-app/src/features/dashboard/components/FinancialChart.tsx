@@ -54,11 +54,12 @@ export default function FinancialChart({
       .sort((a, b) => a.dateStr.localeCompare(b.dateStr));
   }, [salesData, expensesData, purchasesData, startDate, endDate]);
 
+  // احتساب الحد الأقصى للمجموع التراكمي (المكدّس)
   const maxVal = useMemo(() => {
     let max = 1000;
     for (const item of chartData) {
-      if (item.sales > max) max = item.sales;
-      if (item.outgoings > max) max = item.outgoings;
+      const sum = item.sales + item.outgoings;
+      if (sum > max) max = sum;
     }
     return max;
   }, [chartData]);
@@ -68,7 +69,7 @@ export default function FinancialChart({
   return (
     <div className="bg-paper p-4 lg:p-6 rounded-lg border border-hairline shadow-sm space-y-4 min-w-0 overflow-hidden">
       <div className="flex items-center justify-between flex-wrap gap-2 border-b border-hairline pb-3">
-        <h3 className="text-sm font-bold text-ink">مخطط التدفق المالي اليومي</h3>
+        <h3 className="text-sm font-bold text-ink">مخطط التدفق المالي اليومي (التراكمي)</h3>
         <div className="flex gap-4 text-xs font-bold">
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-3 bg-info rounded-sm flex-shrink-0" />
@@ -96,12 +97,15 @@ export default function FinancialChart({
           </div>
         </div>
 
-        {/* الأعمدة (قابلة للتمرير أفقيًا على الموبايل) */}
-        <div className="relative z-10 w-full overflow-x-auto no-scrollbar">
+        {/* الأعمدة المكدّسة (قابلة للتمرير أفقيًا على الموبايل) */}
+        <div className="relative z-sticky w-full overflow-x-auto no-scrollbar">
           <div className="h-64 flex items-end pb-6 pt-16 gap-1.5 min-w-max px-1">
             {chartData.map((item, index) => {
-              const salesPct = maxVal > 0 ? (item.sales / maxVal) * 100 : 0;
-              const outPct = maxVal > 0 ? (item.outgoings / maxVal) * 100 : 0;
+              const total = item.sales + item.outgoings;
+              const totalPct = maxVal > 0 ? (total / maxVal) * 100 : 0;
+              const salesRatio = total > 0 ? (item.sales / total) * 100 : 0;
+              const outRatio = total > 0 ? (item.outgoings / total) * 100 : 0;
+
               const dayNum = item.dateStr.split("-")[2];
               const isSelected = selectedDate === item.dateStr;
 
@@ -118,26 +122,44 @@ export default function FinancialChart({
                 >
                   {/* Tooltip عائم */}
                   {isSelected && (
-                    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-20 bg-ink text-paper text-[10px] rounded p-2 shadow-lg min-w-[110px] text-center select-text pointer-events-auto border border-hairline-2">
+                    <div className="absolute bottom-full mb-2 start-1/2 -translate-x-1/2 z-dropdown bg-ink text-paper text-[10px] rounded p-2 shadow-lg min-w-[120px] text-center select-text pointer-events-auto border border-hairline-2 animate-fade-in">
                       <p className="font-mono text-paper/70 border-b border-paper/10 pb-0.5 mb-1">{item.dateStr}</p>
-                      <p className="text-info font-bold">مبيعات: {(item.sales / 1000).toFixed(1)} د.أ</p>
-                      <p className="text-alert font-bold">تكاليف: {(item.outgoings / 1000).toFixed(1)} د.أ</p>
+                      <p className="text-info font-bold flex items-center justify-center gap-1">
+                        <span>مبيعات:</span>
+                        <AmountText amount={item.sales} />
+                      </p>
+                      <p className="text-alert font-bold flex items-center justify-center gap-1 mt-0.5">
+                        <span>تكاليف:</span>
+                        <AmountText amount={item.outgoings} />
+                      </p>
                     </div>
                   )}
 
-                  <div className="w-full flex items-end justify-center gap-0.5 flex-1 min-w-0">
-                    <div
-                      style={{ height: `${salesPct}%` }}
-                      className={`w-[6px] min-w-[4px] bg-info rounded-t-[2px] transition-all duration-150
-                        ${isSelected ? "opacity-100 ring-1 ring-info/50" : "opacity-60 group-hover:opacity-90"}
-                      `}
-                    />
-                    <div
-                      style={{ height: `${outPct}%` }}
-                      className={`w-[6px] min-w-[4px] bg-alert rounded-t-[2px] transition-all duration-150
-                        ${isSelected ? "opacity-100 ring-1 ring-alert/50" : "opacity-60 group-hover:opacity-90"}
-                      `}
-                    />
+                  {/* عمود مكدس واحد */}
+                  <div className="w-full flex items-end justify-center flex-1 min-w-0">
+                    {total > 0 ? (
+                      <div
+                        style={{ height: `${totalPct}%` }}
+                        className={`w-3.5 rounded-t-[3px] overflow-hidden flex flex-col justify-end transition-all duration-150
+                          ${isSelected ? "opacity-100 ring-2 ring-ink/30" : "opacity-70 group-hover:opacity-90"}
+                        `}
+                      >
+                        {item.sales > 0 && (
+                          <div
+                            style={{ height: `${salesRatio}%` }}
+                            className="w-full bg-info transition-all"
+                          />
+                        )}
+                        {item.outgoings > 0 && (
+                          <div
+                            style={{ height: `${outRatio}%` }}
+                            className="w-full bg-alert transition-all"
+                          />
+                        )}
+                      </div>
+                    ) : (
+                      <div className="w-3.5 h-[2px] bg-hairline rounded-sm" />
+                    )}
                   </div>
                   <span className="text-[11px] text-ink/40 font-mono mt-1.5 select-none leading-none block h-3">
                     {showLabel ? dayNum : ""}

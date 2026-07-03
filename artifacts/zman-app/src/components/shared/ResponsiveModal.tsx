@@ -45,7 +45,7 @@ export function ResponsiveModal({
     >
       {/* الخلفية الداكنة */}
       <div
-        className="absolute inset-0 bg-ink/40"
+        className="absolute inset-0 bg-ink/40 animate-fade-in"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -53,7 +53,7 @@ export function ResponsiveModal({
       {/* نافذة المودال */}
       <div
         className={cn(
-          "relative w-full bg-paper z-modal flex flex-col focus:outline-none",
+          "relative w-full bg-paper z-modal flex flex-col focus:outline-none animate-slide-up",
           // موبايل: شيت من الأسفل — يترك مسافة 4rem للنافبار السفلي
           "rounded-t-2xl max-h-[calc(100dvh-4.5rem)]",
           // ديسكتوب: مودال متمركز

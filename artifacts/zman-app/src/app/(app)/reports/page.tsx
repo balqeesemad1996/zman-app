@@ -18,21 +18,17 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AppShellHeader } from "@/providers/app-shell-context";
 import { AmountText } from "@/components/shared/AmountText";
+import { Button } from "@/components/shared/Button";
+import { SegmentedControl } from "@/components/shared/SegmentedControl";
+import { SkeletonList } from "@/components/shared/SkeletonList";
+import { STATUS_COLORS } from "@/lib/status-colors";
 import {
   downloadReport,
   getAllReportData,
   type StructuredReportData,
 } from "@/features/reports/actions";
 
-const statusColors: Record<string, string> = {
-  draft: "bg-warn-soft text-warn-deep",
-  sent: "bg-info-soft text-info",
-  confirmed: "bg-info-soft text-info",
-  delivered: "bg-info-soft text-info",
-  cancelled: "bg-alert-soft text-alert",
-};
-
-const DONUT_COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6", "#6b7280"];
+const DONUT_COLORS = ["#1565c0", "#0f9d58", "#9f7300", "#c0392b"];
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
@@ -140,22 +136,17 @@ export default function ReportsPage() {
       <AppShellHeader
         title="التقارير المالية والتشغيلية"
         action={
-          <button
-            type="button"
+          <Button
             onClick={() => void refetch()}
-            disabled={isLoading}
-            className="h-10 min-h-[44px] px-3 bg-canvas border border-hairline text-ink rounded-md flex items-center gap-1.5 text-xs font-semibold disabled:opacity-50"
+            isLoading={isLoading}
+            variant="secondary"
           >
-            <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
-            <span className="hidden sm:inline">تحديث</span>
-          </button>
+            تحديث
+          </Button>
         }
       />
       {isLoading ? (
-        <div className="flex flex-col items-center justify-center gap-3 py-20 text-ink/40">
-          <Loader2 className="h-8 w-8 animate-spin" />
-          <span className="text-sm">جارٍ تحميل التقارير…</span>
-        </div>
+        <SkeletonList count={4} />
       ) : !data ? (
         <div className="flex flex-col items-center justify-center gap-4 py-20">
           <p className="text-sm text-ink/60">تعذّر تحميل البيانات</p>
@@ -171,32 +162,21 @@ export default function ReportsPage() {
         <div className="space-y-8">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-hairline">
             <div>
-              <h2 className="text-xl font-bold text-ink">التقارير المالية والتشغيلية</h2>
-              <p className="text-xs text-ink/50 mt-1">
+              <p className="text-xs text-ink/50">
                 آخر تحديث: {new Date().toLocaleString("ar-JO", { dateStyle: "medium", timeStyle: "short" })}
               </p>
             </div>
 
             {/* فلتر فترة التقارير */}
-            <div className="flex gap-2 bg-canvas p-1 rounded-lg border border-hairline w-fit">
-              {[
-                { v: "all", l: "كل الفترات" },
-                { v: "month", l: "هذا الشهر" },
-                { v: "30d", l: "آخر 30 يوم" },
-              ].map((opt) => (
-                <button
-                  key={opt.v}
-                  onClick={() => setDateRange(opt.v as any)}
-                  className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all min-h-[38px] ${
-                    dateRange === opt.v
-                      ? "bg-paper text-ink shadow-sm border border-hairline-2"
-                      : "text-ink/60 hover:text-ink"
-                  }`}
-                >
-                  {opt.l}
-                </button>
-              ))}
-            </div>
+            <SegmentedControl
+              value={dateRange}
+              onChange={(val) => setDateRange(val as any)}
+              options={[
+                { value: "all", label: "كل الفترات" },
+                { value: "month", label: "هذا الشهر" },
+                { value: "30d", label: "آخر 30 يوم" },
+              ]}
+            />
           </div>
 
           {/* ===== ١ — ملخص الأرباح والخسائر ===== */}
@@ -436,7 +416,7 @@ export default function ReportsPage() {
               <div className="divide-y divide-hairline">
                 {data.ordersByStatus.map((row) => (
                   <div key={row.status} className="flex items-center gap-4 py-3">
-                    <span className={`px-2.5 py-1 rounded text-[11px] font-bold flex-shrink-0 ${statusColors[row.status] ?? "bg-canvas text-ink/60"}`}>
+                    <span className={`px-2.5 py-1 rounded text-[11px] font-bold border flex-shrink-0 ${STATUS_COLORS[row.status] ?? "bg-canvas text-ink/60 border-hairline"}`}>
                       {row.label}
                     </span>
                     <div className="flex-1 min-w-0">

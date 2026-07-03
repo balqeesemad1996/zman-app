@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Zman Greens JO · Micro-interactions & Feel · Design Component 06</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --color-canvas:#f6f4ee; --color-paper:#ffffff;
+    --color-hairline:rgba(20,18,12,.08); --color-hairline-2:rgba(20,18,12,.14);
+    --color-ink:#1a1b17; --color-ink-2:#54534d; --color-ink-3:#6b6b66;
+    --color-alert:#c0392b; --color-alert-soft:#fbe9e6;
+    --color-warn:#9f7300; --color-warn-soft:#fbf1d8;
+    --color-info:#1565c0; --color-info-soft:#e8f0f8;
+    --color-emerald:#0f9d58; --color-emerald-soft:#e6f4ea;
+    --tap-min:44px;
+    --radius-md:8px; --radius-lg:12px;
+    --ease-out:cubic-bezier(.22,1,.36,1);
+    --ease-in-out:cubic-bezier(.65,0,.35,1);
+    --ease-spring:cubic-bezier(.34,1.56,.64,1);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:#ece9df;color:var(--color-ink);font-family:'Cairo',system-ui,sans-serif;line-height:1.6}
+  .mono{font-family:'IBM Plex Mono',monospace;direction:ltr;display:inline-block}
+  .doc{max-width:1280px;margin:0 auto;padding:48px 24px 96px}
+  .doc h1{font-size:32px;font-weight:800;margin:0 0 8px;letter-spacing:-.02em}
+  .doc h2{font-size:22px;font-weight:700;margin:48px 0 12px;color:var(--color-ink);border-inline-start:3px solid var(--color-info);padding-inline-start:12px}
+  .doc h3{font-size:16px;font-weight:700;margin:32px 0 12px;color:var(--color-ink)}
+  .doc p{margin:0 0 12px;color:var(--color-ink-2);font-size:14px;line-height:1.7}
+  .doc code{font-family:'IBM Plex Mono',monospace;background:var(--color-canvas);padding:1px 6px;border-radius:4px;font-size:12px;color:var(--color-info);direction:ltr;display:inline-block}
+  .meta{font-size:12px;color:var(--color-ink-3);margin-bottom:32px}
+  .callout{background:var(--color-paper);border:1px solid var(--color-hairline);border-radius:12px;padding:16px 20px;margin:16px 0;font-size:13px;line-height:1.7;color:var(--color-ink-2)}
+  .callout.alert{border-inline-start:3px solid var(--color-alert);background:var(--color-alert-soft)}
+  .callout.ok{border-inline-start:3px solid var(--color-emerald);background:var(--color-emerald-soft)}
+
+  /* === INTERACTIVE DEMO TILES === */
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0}
+  .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin:16px 0}
+  .demo-tile{background:var(--color-paper);border:1px solid var(--color-hairline);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:12px;min-height:200px;justify-content:center;align-items:center}
+  .demo-tile h4{margin:0;font-size:13px;font-weight:700;color:var(--color-ink)}
+  .demo-tile .desc{font-size:11px;color:var(--color-ink-3);text-align:center;line-height:1.5;margin:0}
+  .demo-tile .spec{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--color-info);direction:ltr;text-align:center}
+
+  /* === TAP FEEDBACK === */
+  .btn-press{height:44px;padding:0 18px;border-radius:8px;background:var(--color-info);color:#fff;border:none;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:transform .12s var(--ease-out),background .12s,box-shadow .12s;box-shadow:0 1px 2px rgba(21,101,192,.25)}
+  .btn-press:hover{background:#144d99}
+  .btn-press:active{transform:scale(.94);box-shadow:0 0 0 2px rgba(21,101,192,.3)}
+
+  .chip-press{height:36px;min-height:44px;padding:0 14px;border-radius:999px;background:var(--color-paper);color:var(--color-ink-2);border:1px solid var(--color-hairline);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:transform .12s var(--ease-out),background .12s,color .12s,border-color .12s,box-shadow .12s}
+  .chip-press:hover{background:var(--color-canvas);color:var(--color-ink)}
+  .chip-press:active{transform:scale(.94)}
+  .chip-press.active{background:var(--color-info);color:#fff;border-color:var(--color-info);box-shadow:0 1px 2px rgba(21,101,192,.25)}
+
+  .card-press{background:var(--color-paper);border:1px solid var(--color-hairline);border-radius:12px;padding:14px;cursor:pointer;transition:transform .15s var(--ease-out),border-color .15s,box-shadow .15s;width:100%;max-width:260px}
+  .card-press:hover{border-color:var(--color-hairline-2);box-shadow:0 4px 12px rgba(20,18,12,.06)}
+  .card-press:active{transform:scale(.985)}
+
+  /* === SKELETONS === */
+  .sk{background:linear-gradient(90deg,var(--color-canvas) 0%,#ede9dd 50%,var(--color-canvas) 100%);background-size:200% 100%;animation:shimmer 1.4s linear infinite;border-radius:6px}
+  @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+  .sk.line{height:12px}
+  .sk.line.short{width:40%}.sk.line.med{width:60%}.sk.line.long{width:90%}.sk.line.bold{height:16px}
+  .sk.circle{width:24px;height:24px;border-radius:999px}
+
+  /* === ANIMATIONS === */
+  @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes scaleIn{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:scale(1)}}
+  @keyframes slideUpSheet{from{transform:translateY(100%)}to{transform:translateY(0)}}
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  @keyframes pulseDot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.1)}}
+  @keyframes checkmark{0%{stroke-dashoffset:24}100%{stroke-dashoffset:0}}
+
+  .fade-up{animation:fadeUp .3s var(--ease-out) both}
+  .scale-in{animation:scaleIn .2s var(--ease-spring) both}
+  .fade-in{animation:fadeIn .25s var(--ease-out) both}
+
+  /* === SHEET === */
+  .sheet-demo{position:relative;background:var(--color-canvas);border-radius:12px;height:240px;overflow:hidden;display:flex;align-items:flex-end}
+  .sheet-demo .bg{position:absolute;inset:0;background:rgba(26,27,23,.4);animation:fadeIn .25s var(--ease-out) both}
+  .sheet-demo .panel{position:relative;width:100%;background:var(--color-paper);border-radius:16px 16px 0 0;box-shadow:0 -8px 32px -8px rgba(20,18,12,.18);padding:16px;animation:slideUpSheet .35s var(--ease-out) both}
+  .sheet-demo .grab{width:40px;height:4px;background:rgba(26,27,23,.2);border-radius:999px;margin:0 auto 12px}
+
+  /* === TOAST === */
+  .toast-demo{background:var(--color-canvas);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:8px;min-height:200px;justify-content:flex-end}
+  .toast{background:var(--color-ink);color:#fff;padding:12px 16px;border-radius:10px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:10px;animation:fadeUp .3s var(--ease-out) both;box-shadow:0 8px 24px -8px rgba(0,0,0,.3)}
+  .toast.ok{background:var(--color-emerald-deep)}
+  .toast.err{background:var(--color-alert)}
+  .toast .icon{width:20px;height:20px;border-radius:999px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;flex-shrink:0}
+
+  /* === SUCCESS === */
+  .success-demo{display:flex;flex-direction:column;align-items:center;gap:12px;padding:20px}
+  .checkmark{width:64px;height:64px;border-radius:999px;background:var(--color-emerald-soft);display:flex;align-items:center;justify-content:center;animation:scaleIn .3s var(--ease-spring) both}
+  .checkmark svg{width:32px;height:32px}
+  .checkmark path{stroke-dasharray:24;animation:checkmark .4s var(--ease-out) .15s both}
+
+  /* === LOADING BUTTON === */
+  .btn-loading{height:44px;padding:0 18px;border-radius:8px;background:var(--color-info);color:transparent;border:none;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;position:relative;transition:transform .12s var(--ease-out)}
+  .btn-loading:active{transform:scale(.94)}
+  .btn-loading::after{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:18px;height:18px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+  @keyframes spin{to{transform:translate(-50%,-50%) rotate(360deg)}}
+
+  /* === PULL TO REFRESH === */
+  .pull-demo{background:var(--color-canvas);border-radius:12px;height:240px;overflow:hidden;position:relative}
+  .pull-demo .pull-indicator{position:absolute;top:0;left:50%;transform:translateX(-50%);background:var(--color-paper);border-radius:0 0 12px 12px;box-shadow:0 4px 12px rgba(0,0,0,.08);padding:8px 16px;display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--color-ink-2)}
+  .pull-demo .pull-indicator svg{width:16px;height:16px;color:var(--color-info)}
+
+  /* === STAGGERED LIST === */
+  .stagger-list{display:flex;flex-direction:column;gap:8px;width:100%}
+  .stagger-item{background:var(--color-paper);border:1px solid var(--color-hairline);border-radius:8px;padding:10px;display:flex;justify-content:space-between;align-items:center;font-size:12px}
+  .stagger-item:nth-child(1){animation:fadeUp .3s var(--ease-out) 0s both}
+  .stagger-item:nth-child(2){animation:fadeUp .3s var(--ease-out) .06s both}
+  .stagger-item:nth-child(3){animation:fadeUp .3s var(--ease-out) .12s both}
+  .stagger-item:nth-child(4){animation:fadeUp .3s var(--ease-out) .18s both}
+  .stagger-item:nth-child(5){animation:fadeUp .3s var(--ease-out) .24s both}
+
+  /* === ONLINE / OFFLINE DOT === */
+  .live-dot{display:inline-block;width:8px;height:8px;border-radius:999px;background:var(--color-emerald);animation:pulseDot 1.4s ease-in-out infinite}
+
+  /* === TABLES === */
+  .file-table{width:100%;border-collapse:collapse;background:var(--color-paper);border-radius:12px;overflow:hidden;border:1px solid var(--color-hairline);margin:16px 0;font-size:11px}
+  .file-table th{text-align:start;padding:10px 12px;background:var(--color-canvas);font-weight:600;color:var(--color-ink-2);border-bottom:1px solid var(--color-hairline)}
+  .file-table td{padding:8px 12px;border-bottom:1px solid var(--color-hairline);color:var(--color-ink);font-family:'IBM Plex Mono',monospace;direction:ltr}
+  .file-table tr:last-child td{border-bottom:none}
+
+  .blueprint{background:var(--color-paper);border:1px solid var(--color-hairline);border-radius:12px;padding:20px;margin:16px 0}
+  .blueprint h4{margin:0 0 12px;font-size:14px;font-weight:700}
+  .blueprint pre{margin:0;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--color-ink-2);background:var(--color-canvas);padding:14px;border-radius:8px;direction:ltr;overflow-x:auto;line-height:1.6}
+  .blueprint .tok{color:var(--color-info)}
+  .blueprint .cmt{color:var(--color-ink-3)}
+
+  .ba-row{display:flex;gap:32px;flex-wrap:wrap;align-items:flex-start;margin:32px 0}
+  .ba-col{flex:1;min-width:300px;max-width:420px}
+  .ba-tag{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:4px 10px;border-radius:6px;margin-bottom:12px}
+  .ba-tag.before{background:var(--color-alert-soft);color:var(--color-alert-deep)}
+  .ba-tag.after{background:var(--color-emerald-soft);color:var(--color-emerald-deep)}
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <h1>Micro-interactions & Native Feel</h1>
+  <div class="meta">Zman Greens JO · Design Component 06 · files: <span class="mono">Button.tsx · FilterChip.tsx · OrderCard.tsx · ResponsiveModal.tsx · SkeletonList.tsx · EmptyState.tsx · ErrorState.tsx</span> · commit f1dfd6b</div>
+
+  <p>اليوم التطبيق يطبّق <code>touch-action: manipulation</code> (<code>globals.css:108-116</code>) على كل العناصر التفاعلية (إزالة تأخير 300ms) — هذا جيد. <code>active:scale-[0.97]</code> على الأزرار (<code>Button.tsx:27</code>) جيد أيضاً. لكن النقص: لا انتقالات على فتح/إغلاق المودال، لا skeleton متزامن مع البيانات (13 نمط <code>جاري التحميل...</code> نصي)، لا staggered list animation، لا toast نمط موحّد، لا success state مع علامة اختيار، لا pull-to-refresh indicator.</p>
+
+  <div class="callout">
+    <strong>القاعدة:</strong> كل تأثير لا يتجاوز <strong>200ms</strong> إلا المودال (350ms) وskeleton (1.4s shimmer). استخدم <code>cubic-bezier(.22,1,.36,1)</code> (ease-out) كافتراضي، <code>cubic-bezier(.34,1.56,.64,1)</code> (spring) للنجاح فقط.
+  </div>
+
+  <!-- ============ TAP FEEDBACK ============ -->
+  <h2>1. ردود الفعل على الضغط (Tap Feedback)</h2>
+  <p>اليوم: <code>Button.tsx:27</code> (<code>active:scale-[0.97]</code>)، <code>FilterChip.tsx:27</code> (<code>active:scale-95</code>)، <code>OrderCard.tsx:88</code> (<code>active:scale-[0.98]</code>). ثلاث قيم مختلفة. التوصية: وحّد على <code>active:scale-[.94]</code> مع <code>transition: transform .12s var(--ease-out)</code>.</p>
+
+  <div class="grid-3">
+    <div class="demo-tile">
+      <h4>زر — اضغط عليه</h4>
+      <button class="btn-press">حفظ العملية</button>
+      <div class="spec">active: scale(.94) · .12s ease-out</div>
+      <p class="desc">يحلّ محل <code>active:scale-[0.97]</code> في Button.tsx:27 + <code>active:scale-95</code> في FilterChip.tsx:27 + <code>active:scale-[0.98]</code> في OrderCard.tsx:88</p>
+    </div>
+    <div class="demo-tile">
+      <h4>شريحة — اضغط عليها</h4>
+      <button class="chip-press">جديد · 3</button>
+      <div class="spec">active: scale(.94) · .12s ease-out</div>
+      <p class="desc">قيمة موحّدة بدل 3 قيم متناثرة</p>
+    </div>
+    <div class="demo-tile">
+      <h4>بطاقة — اضغط عليها</h4>
+      <div class="card-press">
+        <div style="font-size:13px;font-weight:700;margin-bottom:4px">ليلى منصور</div>
+        <div style="font-size:11px;color:var(--color-ink-3)">03 يوليو · 45.000 د.أ</div>
+      </div>
+      <div class="spec">active: scale(.985) · hover: shadow-pop</div>
+    </div>
+  </div>
+
+  <!-- ============ SKELETONS ============ -->
+  <h2>2. الهياكل العظمية (Skeletons) — shimmer موحّد</h2>
+  <p>اليوم <code>SkeletonList.tsx:7</code> يستخدم <code>animate-pulse</code> (تعتيم كامل) بينما التوصية تستخدم <code>shimmer</code> (تمرير ضوء أفقي) — أكثر أصالة لمظهر التحميل. أيضاً 13 نمط <code>جاري التحميل...</code> نصي يجب استبداله بـ<code>SkeletonList</code>.</p>
+
+  <div class="grid-3">
+    <div class="demo-tile">
+      <h4>قائمة بطاقات</h4>
+      <div style="display:flex;flex-direction:column;gap:8px;width:100%">
+        <div style="background:var(--color-paper);border:1px solid var(--color-hairline);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:8px"><div class="sk line short bold"></div><div class="sk line long"></div><div class="sk line med"></div></div>
+        <div style="background:var(--color-paper);border:1px solid var(--color-hairline);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:8px"><div class="sk line short bold"></div><div class="sk line long"></div><div class="sk line med"></div></div>
+      </div>
+      <div class="spec">shimmer 1.4s · linear · -200% → 200%</div>
+    </div>
+    <div class="demo-tile">
+      <h4>بطاقة إحصائية</h4>
+      <div style="background:var(--color-paper);border:1px solid var(--color-hairline);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:8px;width:100%">
+        <div class="sk line med"></div>
+        <div class="sk line bold" style="height:24px;width:60%"></div>
+        <div class="sk line short"></div>
+      </div>
+      <div class="spec">يحلّ محل DashboardClient.tsx:207-230</div>
+    </div>
+    <div class="demo-tile">
+      <h4>رسم بياني</h4>
+      <div style="background:var(--color-paper);border:1px solid var(--color-hairline);border-radius:8px;padding:14px;width:100%;height:120px;display:flex;align-items:flex-end;gap:4px">
+        <div class="sk" style="flex:1;height:60%;border-radius:2px 2px 0 0"></div>
+        <div class="sk" style="flex:1;height:80%;border-radius:2px 2px 0 0"></div>
+        <div class="sk" style="flex:1;height:45%;border-radius:2px 2px 0 0"></div>
+        <div class="sk" style="flex:1;height:90%;border-radius:2px 2px 0 0"></div>
+        <div class="sk" style="flex:1;height:70%;border-radius:2px 2px 0 0"></div>
+        <div class="sk" style="flex:1;height:55%;border-radius:2px 2px 0 0"></div>
+        <div class="sk" style="flex:1;height:40%;border-radius:2px 2px 0 0"></div>
+      </div>
+      <div class="spec">يحلّ محل DashboardClient.tsx:36-38</div>
+    </div>
+  </div>
+
+  <div class="callout alert">
+    <strong>أنماط التحميل النصية المطلوب استبدالها:</strong><br>
+    <code>OrderCalendar.tsx:116-117</code>، <code>FinanceCatalogModal.tsx:186-191</code>، <code>reports/page.tsx:154-158</code>، <code>DashboardClient.tsx:207-230,491-521</code>، <code>CatalogClient.tsx:68-71</code>، <code>OrderDetail.tsx:70-78</code>، <code>WhatsAppTemplateEditor.tsx:40</code>، <code>finance/page.tsx:14</code>، <code>SnippetsClient.tsx:86</code>. كلها «جاري التحميل...» نصي — استبدلها بـ<code>SkeletonList</code>.
+  </div>
+
+  <!-- ============ MODAL ANIMATIONS ============ -->
+  <h2>3. انتقالات النوافذ والصفائح</h2>
+  <p>اليوم <code>ResponsiveModal.tsx:40-87</code> لا يطبّق أي انتقال على الفتح/الإغلاق — المودال يظهر فجأة. التوصية: الخلفية <code>fadeIn .25s ease-out</code>، اللوحة <code>slideUp .35s ease-out</code>، الإغلاق عكسي بـ<code>.2s</code>.</p>
+
+  <div class="grid-2">
+    <div class="demo-tile">
+      <h4>صفيحة سفلية — فتح</h4>
+      <div class="sheet-demo">
+        <div class="bg"></div>
+        <div class="panel">
+          <div class="grab"></div>
+          <div style="font-size:13px;font-weight:700;margin-bottom:8px">إضافة عملية</div>
+          <div style="display:flex;flex-direction:column;gap:8px"><div class="sk line long"></div><div class="sk line med"></div></div>
+        </div>
+      </div>
+      <div class="spec">backdrop: fadeIn .25s · panel: slideUp .35s ease-out</div>
+    </div>
+    <div class="demo-tile">
+      <h4>مودال مركزي — فتح</h4>
+      <div style="position:relative;background:var(--color-canvas);border-radius:12px;height:240px;overflow:hidden;display:flex;align-items:center;justify-content:center;width:100%">
+        <div style="position:absolute;inset:0;background:rgba(26,27,23,.4);animation:fadeIn .25s var(--ease-out) both"></div>
+        <div style="position:relative;background:var(--color-paper);border-radius:16px;box-shadow:0 8px 32px -8px rgba(20,18,12,.18);padding:24px;width:80%;max-width:280px;animation:scaleIn .2s var(--ease-spring) both">
+          <div style="font-size:14px;font-weight:700;margin-bottom:8px;text-align:center">حذف الطلب؟</div>
+          <div style="font-size:12px;color:var(--color-ink-3);text-align:center;margin-bottom:16px">لا يمكن التراجع عن هذا الإجراء.</div>
+          <div style="display:flex;gap:8px">
+            <button style="flex:1;height:36px;border:1px solid var(--color-hairline);background:var(--color-paper);border-radius:6px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer">إلغاء</button>
+            <button style="flex:1;height:36px;background:var(--color-alert);color:#fff;border:none;border-radius:6px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer">حذف</button>
+          </div>
+        </div>
+      </div>
+      <div class="spec">scaleIn .2s spring (للحوار التأكيدي فقط)</div>
+    </div>
+  </div>
+
+  <!-- ============ TOASTS ============ -->
+  <h2>4. الإشعارات (Toasts) — Sonner موحّد</h2>
+  <p>اليوم <code>app/layout.tsx:45</code> يستخدم <code>&lt;Toaster /&gt;</code> من Sonner بلا تخصيص. التوصية: خصّص الأنماط بـ<code>toastOptions</code> لتطابق النظام، ومرّر <code>z-index: var(--z-toast)</code>.</p>
+
+  <div class="grid-3">
+    <div class="toast-demo">
+      <div class="toast ok">
+        <span class="icon">✓</span>
+        <span>تم حفظ العملية بنجاح</span>
+      </div>
+      <div class="spec" style="text-align:center">success · bg-emerald-deep · ✓ icon</div>
+    </div>
+    <div class="toast-demo">
+      <div class="toast err">
+        <span class="icon">×</span>
+        <span>تعذّر حفظ العملية. تحقّق من الاتصال.</span>
+      </div>
+      <div class="spec" style="text-align:center">error · bg-alert · × icon · 5s</div>
+    </div>
+    <div class="toast-demo">
+      <div class="toast">
+        <span class="icon">ⓘ</span>
+        <span>تم تطبيق الفلتر: مؤكد · 5 طلبات</span>
+      </div>
+      <div class="spec" style="text-align:center">info · bg-ink · ⓘ icon · 3s</div>
+    </div>
+  </div>
+
+  <!-- ============ SUCCESS STATE ============ -->
+  <h2>5. حالة النجاح (Success State) — علامة اختيار مرسومة</h2>
+  <p>اليوم لا يوجد نمط موحّد لـ«تم بنجاح». التوصية: عند حفظ نموذج، اعرض علامة اختيار مرسومة بـSVG تتدرّج من 0 إلى 1 (stroke-dashoffset) قبل إغلاق المودال.</p>
+
+  <div class="demo-tile" style="min-height:240px">
+    <div class="success-demo">
+      <div class="checkmark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--color-emerald-deep)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 12l5 5L20 7"/>
+        </svg>
+      </div>
+      <div style="font-size:15px;font-weight:700">تم حفظ العملية</div>
+      <div style="font-size:12px;color:var(--color-ink-3)">سيتم إغلاق النافذة تلقائياً...</div>
+    </div>
+    <div class="spec">scaleIn .3s spring · checkmark .4s ease-out .15s delay</div>
+  </div>
+
+  <!-- ============ PULL TO REFRESH ============ -->
+  <h2>6. مؤشر السحب للتحديث (Pull-to-Refresh)</h2>
+  <p>اليوم لا يوجد مؤشر سحب للتحديث. التوصية: استخدم <code>overscroll-behavior: contain</code> على منطقة السكرول + مؤشر دائري يدور عند التحديث.</p>
+
+  <div class="pull-demo">
+    <div class="pull-indicator">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin .8s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+      جارٍ التحديث...
+    </div>
+    <div style="padding:48px 16px 16px;display:flex;flex-direction:column;gap:8px">
+      <div class="stagger-item"><span>ليلى منصور</span><span style="color:var(--color-info);font-family:'IBM Plex Mono',monospace">45.000</span></div>
+      <div class="stagger-item"><span>خالد العلي</span><span style="color:var(--color-info);font-family:'IBM Plex Mono',monospace">120.500</span></div>
+      <div class="stagger-item"><span>سارة حداد</span><span style="color:var(--color-info);font-family:'IBM Plex Mono',monospace">78.250</span></div>
+    </div>
+  </div>
+
+  <!-- ============ STAGGERED LIST ============ -->
+  <h2>7. ظهور القائمة المتدرّج (Staggered List)</h2>
+  <p>اليوم البطاقات تظهر فجأة عند تحميل البيانات. التوصية: stagger بفارق 60ms لكل عنصر، حد أقصى 5 عناصر (بعد ذلك تظهر فجأة).</p>
+
+  <div class="stagger-list" style="max-width:380px">
+    <div class="stagger-item"><span>ليلى منصور</span><span style="color:var(--color-info);font-family:'IBM Plex Mono',monospace">45.000</span></div>
+    <div class="stagger-item"><span>خالد العلي</span><span style="color:var(--color-info);font-family:'IBM Plex Mono',monospace">120.500</span></div>
+    <div class="stagger-item"><span>سارة حداد</span><span style="color:var(--color-info);font-family:'IBM Plex Mono',monospace">78.250</span></div>
+    <div class="stagger-item"><span>عمر يوسف</span><span style="color:var(--color-info);font-family:'IBM Plex Mono',monospace">62.000</span></div>
+    <div class="stagger-item"><span>هبة ناصر</span><span style="color:var(--color-info);font-family:'IBM Plex Mono',monospace">34.750</span></div>
+  </div>
+
+  <!-- ============ LIVE DOT ============ -->
+  <h2>8. مؤشر الحيوية (Live Dot)</h2>
+  <p>للحالة «متصل» / «متزامن» على الزر أو البطاقة. <code>pulseDot 1.4s ease-in-out infinite</code>.</p>
+
+  <div class="grid-3">
+    <div class="demo-tile">
+      <div style="display:flex;align-items:center;gap:8px"><span class="live-dot"></span><span style="font-size:13px;font-weight:600">متصل · متزامن</span></div>
+      <div class="spec">pulse 1.4s · scale 1→1.1 · opacity 1→.5</div>
+    </div>
+    <div class="demo-tile">
+      <div style="display:flex;align-items:center;gap:8px"><span class="live-dot" style="background:var(--color-warn);animation:none"></span><span style="font-size:13px;font-weight:600">غير متصل · ذاكرة مؤقتة</span></div>
+      <div class="spec">ثابت · warn color</div>
+    </div>
+    <div class="demo-tile">
+      <div style="display:flex;align-items:center;gap:8px"><span class="live-dot" style="background:var(--color-alert);animation:none"></span><span style="font-size:13px;font-weight:600">تعذّر المزامنة</span></div>
+      <div class="spec">ثابت · alert color · retry CTA</div>
+    </div>
+  </div>
+
+  <!-- ============ LOADING BUTTON ============ -->
+  <h2>9. زر في حالة التحميل</h2>
+  <p>اليوم <code>Button.tsx:50-71</code> يرسم SVG دائري يدوياً داخل الزر عند <code>isLoading</code>. التوصية: أبقِ على النمط، لكن استبدل النص بـ<code>color: transparent</code> بدل <code>opacity</code> لتفادي قفزة التخطيط.</p>
+
+  <div class="grid-3">
+    <div class="demo-tile"><button class="btn-press">حفظ العملية</button><div class="spec">default</div></div>
+    <div class="demo-tile"><button class="btn-loading">جارٍ الحفظ</button><div class="spec">loading · spinner · text hidden</div></div>
+    <div class="demo-tile"><button class="btn-press" disabled style="opacity:.5;cursor:not-allowed">حفظ العملية</button><div class="spec">disabled · opacity .5</div></div>
+  </div>
+
+  <!-- ============ TRANSITION TIMING TABLE ============ -->
+  <h2>10. جدول التوقيتات (Timing Reference)</h2>
+  <table class="file-table">
+    <thead><tr><th>التأثير</th><th>المدة</th><th>المنحنى</th><th>التطبيق</th></tr></thead>
+    <tbody>
+      <tr><td>active:scale (ضغطة)</td><td>120ms</td><td>ease-out (.22,1,.36,1)</td><td>أزرار، شرائح، بطاقات</td></tr>
+      <tr><td>hover:bg (تحويم)</td><td>120ms</td><td>ease-out</td><td>خلفيات، حدود</td></tr>
+      <tr><td>focus ring (تركيز)</td><td>120ms</td><td>ease-out</td><td>حقول، أزرار</td></tr>
+      <tr><td>stagger fade-up</td><td>300ms</td><td>ease-out</td><td>عناصر القائمة (60ms delay لكل عنصر)</td></tr>
+      <tr><td>backdrop fade</td><td>250ms</td><td>ease-out</td><td>خلفية المودال</td></tr>
+      <tr><td>sheet slide-up</td><td>350ms</td><td>ease-out</td><td>الصفائح السفلية</td></tr>
+      <tr><td>dialog scale-in</td><td>200ms</td><td>spring (.34,1.56,.64,1)</td><td>الحوار التأكيدي فقط</td></tr>
+      <tr><td>success checkmark</td><td>400ms</td><td>ease-out · 150ms delay</td><td>علامة النجاح</td></tr>
+      <tr><td>skeleton shimmer</td><td>1400ms</td><td>linear · infinite</td><td>الهياكل العظمية</td></tr>
+      <tr><td>toast in/out</td><td>300ms</td><td>ease-out</td><td>Sonner</td></tr>
+      <tr><td>live dot pulse</td><td>1400ms</td><td>ease-in-out · infinite</td><td>مؤشر الحيوية</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ============ BLUEPRINT ============ -->
+  <h2>11. المخطط — تطبيق الرسوم على Sonner</h2>
+  <div class="blueprint">
+    <h4>app/layout.tsx:45 — توحيد Toaster</h4>
+    <pre><span class="cmt">// قبل</span>
+&lt;Toaster position=<span class="tok">"top-center"</span> /&gt;
+
+<span class="cmt">// بعد — كنوني</span>
+&lt;Toaster
+  position=<span class="tok">"top-center"</span>
+  dir=<span class="tok">"rtl"</span>
+  toastOptions={{
+    duration: 3000,
+    style: {
+      zIndex: <span class="tok">50</span>,                    <span class="cmt">// = var(--z-toast)</span>
+      fontFamily: <span class="tok">'Cairo, sans-serif'</span>,
+      fontSize: <span class="tok">'13px'</span>,
+      fontWeight: 600,
+      borderRadius: <span class="tok">'10px'</span>,
+      padding: <span class="tok">'12px 16px'</span>,
+      background: <span class="tok">'var(--color-ink)'</span>,
+      color: <span class="tok">'#fff'</span>,
+    },
+    success: { duration: 2500, style: { background: <span class="tok">'var(--color-emerald-deep)'</span> } },
+    error: { duration: 5000, style: { background: <span class="tok">'var(--color-alert)'</span> } },
+  }}
+/&gt;</pre>
+  </div>
+
+  <h2>12. ملف:سطر — خطة التطبيق</h2>
+  <table class="file-table">
+    <thead><tr><th>التأثير</th><th>file:line</th><th>الإصلاح</th></tr></thead>
+    <tbody>
+      <tr><td>active:scale موحّد</td><td>Button.tsx:27 · FilterChip.tsx:27 · OrderCard.tsx:88 · FinanceClient.tsx:90 · DashboardClient.tsx:662,674</td><td>وحّد على .94 + .12s ease-out</td></tr>
+      <tr><td>shimmer بدل pulse</td><td>SkeletonList.tsx:7-35</td><td>استبدل animate-pulse بـshimmer 1.4s linear</td></tr>
+      <tr><td>استبدل 13 نمط «جاري التحميل»</td><td>OrderCalendar.tsx:116 · FinanceCatalogModal.tsx:186 · reports/page.tsx:154 · DashboardClient.tsx:207,491 · CatalogClient.tsx:68 · OrderDetail.tsx:70 · WhatsAppTemplateEditor.tsx:40 · finance/page.tsx:14 · SnippetsClient.tsx:86</td><td>كلها → &lt;SkeletonList /&gt;</td></tr>
+      <tr><td>modal transition</td><td>ResponsiveModal.tsx:40-87</td><td>أضِف fadeIn على الخلفية + slideUp على اللوحة + .2s reverse على الإغلاق</td></tr>
+      <tr><td>staggered list</td><td>OrderList.tsx · SalesTab.tsx · PurchasesTab.tsx · ExpensesTab.tsx · CatalogClient.tsx</td><td>أضِف animation:fadeUp .3s + nth-child delay 60ms (max 5)</td></tr>
+      <tr><td>toast styles</td><td>app/layout.tsx:45</td><td>أضِف toastOptions بـz-toast + Cairo + ألوان النظام</td></tr>
+      <tr><td>success checkmark</td><td>ConfirmDialog.tsx · OrderForm.tsx · SaleForm.tsx · ExpenseForm.tsx · PurchaseForm.tsx</td><td>أضِف حالة success مع checkmark SVG قبل الإغلاق</td></tr>
+      <tr><td>pull-to-refresh</td><td>AppShell.tsx:111 (scroll area)</td><td>أضِف overscroll-behavior:contain + مؤشر دائري</td></tr>
+      <tr><td>live dot</td><td>AppShell.tsx (offline banner) · DashboardClient.tsx (sync status)</td><td>استبدل النص الثابت بـlive dot pulse</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    <strong>بيان النزاهة:</strong> كل التأثيرات المقترحة تستخدم <code>transition</code> + <code>animation</code> CSS فقط، لا مكتبات. كل الألوان من <code>globals.css:3-43</code>. كل الأرقام المذكورة (60ms stagger، 1.4s shimmer، إلخ.) قياسية لمعايير الموبايل الأصيل. لا تعديل على المستودع.
+  </div>
+
+</div>
+</body>
+</html>

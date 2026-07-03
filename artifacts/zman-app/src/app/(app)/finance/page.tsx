@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { SkeletonList } from "@/components/shared/SkeletonList";
 import FinanceClient from "./FinanceClient";
 
 export const metadata = {
@@ -10,8 +11,8 @@ export default function FinancePage() {
   return (
     <Suspense
       fallback={
-        <div className="p-8 text-center text-sm text-ink/60">
-          جاري تحميل الصفحة المالية...
+        <div className="space-y-4 p-4">
+          <SkeletonList count={4} />
         </div>
       }
     >

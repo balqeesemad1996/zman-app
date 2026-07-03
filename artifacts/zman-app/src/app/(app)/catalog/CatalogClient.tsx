@@ -1,7 +1,7 @@
 "use client";
 
 import { Edit3, Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { toast } from "sonner";
 import { AppShellHeader } from "@/providers/app-shell-context";
@@ -11,6 +11,10 @@ import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Button } from "@/components/shared/Button";
 import { TextField } from "@/components/shared/TextField";
+import { Select } from "@/components/shared/Select";
+import { TextArea } from "@/components/shared/TextArea";
+import { SkeletonList } from "@/components/shared/SkeletonList";
+import { AmountText } from "@/components/shared/AmountText";
 import {
   useCatalogComponents,
   useCreateCatalogComponent,
@@ -31,11 +35,19 @@ interface FormValues {
 
 export default function CatalogClient({ hideHeader = false }: { hideHeader?: boolean }) {
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [editing, setEditing] = useState<CatalogComponent | null>(null);
   const [creating, setCreating] = useState(false);
 
-  // جلب البيانات عبر React Query لضمان الاستجابة الفورية (§10.1)
-  const { data: items = [], isLoading } = useCatalogComponents(search);
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 400);
+    return () => clearTimeout(handler);
+  }, [search]);
+
+  // جلب المكونات
+  const { data: items = [], isLoading } = useCatalogComponents(debouncedSearch);
 
   const createMutation = useCreateCatalogComponent();
   const updateMutation = useUpdateCatalogComponent();
@@ -66,9 +78,7 @@ export default function CatalogClient({ hideHeader = false }: { hideHeader?: boo
 
         {/* قائمة المكوّنات */}
         {isLoading ? (
-          <div className="flex-1 flex items-center justify-center text-ink/40 text-sm">
-            جاري التحميل...
-          </div>
+          <SkeletonList />
         ) : items.length === 0 ? (
           <EmptyState
             title="المكوّنات فارغة"
@@ -76,55 +86,60 @@ export default function CatalogClient({ hideHeader = false }: { hideHeader?: boo
           />
         ) : (
           <ul className="flex flex-col gap-2">
-            {items.map((item) => (
-              <CatalogCard
+            {items.map((item, idx) => (
+              <div
                 key={item.id}
-                item={item}
-                onEdit={() => setEditing(item)}
-              />
+                style={{ animationDelay: `${Math.min(idx, 4) * 60}ms` }}
+                className="animate-fade-slide-in"
+              >
+                <CatalogCard
+                  item={item}
+                  onEdit={() => setEditing(item)}
+                />
+              </div>
             ))}
           </ul>
         )}
       </div>
 
-      {/* نافذة الإضافة */}
+      {/* مودال إنشاء مكوّن جديد */}
       <ResponsiveModal
         isOpen={creating}
         onClose={() => setCreating(false)}
-        title="إضافة مكوّن"
+        title="إضافة مكوّن جديد"
       >
         <CatalogForm
-          onSubmit={async (values) => {
-            const res = await createMutation.mutateAsync(values);
-            if (res.status === "error") {
-              toast.error(res.message);
-            } else {
-              toast.success("تمت الإضافة");
+          onSubmit={async (vals) => {
+            const res = await createMutation.mutateAsync(vals);
+            if (res.status === "ok") {
+              toast.success("تم الحفظ بنجاح");
               setCreating(false);
+            } else {
+              toast.error(res.message);
             }
           }}
         />
       </ResponsiveModal>
 
-      {/* نافذة التعديل */}
+      {/* مودال تعديل مكوّن موجود */}
       <ResponsiveModal
-        isOpen={!!editing}
+        isOpen={editing !== null}
         onClose={() => setEditing(null)}
         title="تعديل المكوّن"
       >
         {editing && (
           <CatalogForm
             initialData={editing}
-            onSubmit={async (values) => {
+            onSubmit={async (vals) => {
               const res = await updateMutation.mutateAsync({
                 ...editing,
-                ...values,
+                ...vals,
               });
-              if (res.status === "error") {
-                toast.error(res.message);
-              } else {
-                toast.success("تم الحفظ");
+              if (res.status === "ok") {
+                toast.success("تم التعديل بنجاح");
                 setEditing(null);
+              } else {
+                toast.error(res.message);
               }
             }}
             onDelete={async () => {
@@ -132,11 +147,11 @@ export default function CatalogClient({ hideHeader = false }: { hideHeader?: boo
                 ? editing.updatedAt.toISOString()
                 : String(editing.updatedAt);
               const res = await deleteMutation.mutateAsync({ id: editing.id, updatedAt });
-              if (res.status === "error") {
-                toast.error(res.message);
-              } else {
-                toast.success("تم الحذف");
+              if (res.status === "ok") {
+                toast.success("تم حذف المكوّن بنجاح");
                 setEditing(null);
+              } else {
+                toast.error(res.message);
               }
             }}
           />
@@ -153,23 +168,22 @@ function CatalogCard({
   item: CatalogComponent;
   onEdit: () => void;
 }) {
-  const costJOD = (item.defaultCostCents / 1000).toFixed(3);
   return (
     <li className="bg-paper border border-hairline rounded-lg shadow-sm p-4 flex items-center justify-between gap-3">
       <div className="flex flex-col gap-0.5 min-w-0">
         <span className="font-bold text-ink text-sm truncate">{item.name}</span>
-        <span className="text-xs text-ink/60">
-          {costJOD} د.أ / {item.unit}
+        <span className="text-xs text-ink/60 flex items-center gap-1">
+          <AmountText amount={item.defaultCostCents} />
+          <span> د.أ / {item.unit}</span>
           {item.notes ? ` · ${item.notes}` : ""}
         </span>
       </div>
-      <button
-        type="button"
+      <Button
+        variant="icon"
         onClick={onEdit}
-        className="shrink-0 w-11 h-11 min-w-[44px] min-h-[44px] rounded-lg border border-hairline flex items-center justify-center text-ink/50 hover:text-ink hover:border-ink/30 transition-colors"
       >
         <Edit3 className="w-4 h-4" />
-      </button>
+      </Button>
     </li>
   );
 }
@@ -245,28 +259,21 @@ function CatalogForm({
             />
           )}
         />
-        <div>
-          <label className="text-xs font-semibold text-ink/60 block mb-1">الوحدة</label>
-          <select
-            {...register("unit")}
-            className="w-full h-12 px-4 rounded-md border border-hairline focus:outline-none focus:ring-2 focus:ring-ink bg-paper text-base"
-          >
-            {UNITS.map((u) => (
-              <option key={u} value={u}>{u}</option>
-            ))}
-          </select>
-        </div>
+        <Select
+          label="الوحدة"
+          {...register("unit")}
+        >
+          {UNITS.map((u) => (
+            <option key={u} value={u}>{u}</option>
+          ))}
+        </Select>
       </div>
 
-      <div>
-        <label className="text-xs font-semibold text-ink/60 block mb-1">ملاحظات (اختياري)</label>
-        <textarea
-          {...register("notes")}
-          placeholder="ملاحظات اختيارية..."
-          rows={2}
-          className="w-full px-4 py-3 rounded-md border border-hairline focus:outline-none focus:ring-2 focus:ring-ink bg-paper text-base resize-none"
-        />
-      </div>
+      <TextArea
+        label="ملاحظات (اختياري)"
+        {...register("notes")}
+        placeholder="ملاحظات اختيارية..."
+      />
 
       <div className="flex gap-3 pt-2">
         <Button
@@ -278,21 +285,23 @@ function CatalogForm({
         </Button>
         {onDelete && (
           <Button
+            type="button"
             variant="destructive"
             onClick={handleDelete}
             isLoading={isSubmitting}
-            icon={<Trash2 className="w-4 h-4" />}
-            className="px-4"
-          />
+            className="flex-1"
+          >
+            حذف المكوّن
+          </Button>
         )}
       </div>
+
       <ConfirmDialog
         isOpen={confirmOpen}
-        title="تأكيد الحذف"
-        message="هل أنت متأكد من حذف هذا المكوّن؟"
+        title="حذف مكوّن الكتالوج"
+        message="هل أنت متأكد من حذف هذا المكوّن نهائياً؟ قد يؤثر ذلك على كشوفات حساب الطلبات المرتبطة به."
         onConfirm={handleConfirmDelete}
         onCancel={() => setConfirmOpen(false)}
-        isLoading={isSubmitting}
       />
     </form>
   );

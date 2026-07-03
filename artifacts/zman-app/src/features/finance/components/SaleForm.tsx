@@ -6,6 +6,8 @@ import Link from "next/link";
 import { useEffect, useId } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { MoneyInput } from "@/components/shared/MoneyInput";
+import { Button } from "@/components/shared/Button";
+import { TextArea } from "@/components/shared/TextArea";
 import { saleInputSchema } from "../schema";
 import type { NewSale, Sale } from "../types";
 
@@ -76,7 +78,7 @@ export function SaleForm({
             id={`${formId}-date`}
             type="date"
             {...register("date")}
-            className={`flex h-11 w-full rounded-md border border-hairline bg-paper px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-ink ${
+            className={`flex h-12 w-full rounded-md border border-hairline bg-paper px-3 py-2 text-base text-ink focus:outline-none focus:ring-2 focus:ring-ink ${
               errors.date ? "border-alert" : ""
             }`}
           />
@@ -140,52 +142,35 @@ export function SaleForm({
         </div>
 
         {/* الوصف */}
-        <div className="space-y-2 flex flex-col">
-          <label
-            htmlFor={`${formId}-description`}
-            className="text-sm font-bold text-ink/75"
-          >
-            بيان وتفاصيل البيع
-          </label>
-          <textarea
-            id={`${formId}-description`}
-            placeholder=""
-            {...register("description")}
-            className={`flex min-h-[80px] w-full rounded-md border border-hairline bg-paper px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-ink ${
-              errors.description ? "border-alert" : ""
-            }`}
-          />
-          {errors.description && (
-            <p className="text-xs text-alert mt-1">
-              {errors.description.message as string}
-            </p>
-          )}
-        </div>
+        <TextArea
+          label="بيان وتفاصيل البيع"
+          id={`${formId}-description`}
+          placeholder=""
+          {...register("description")}
+          error={errors.description?.message as string}
+        />
       </div>
 
       <div className="flex gap-3">
-        <button
+        <Button
           type="submit"
-          disabled={isSubmitting}
-          className="flex-1 h-12 bg-ink text-paper rounded-md flex items-center justify-center gap-1.5 text-md font-bold shadow-sm hover:bg-ink/90 disabled:opacity-50 transition-colors"
+          variant="ink"
+          isLoading={isSubmitting}
+          className="flex-1"
         >
-          {isSubmitting
-            ? "جاري الحفظ..."
-            : initialData
-              ? "حفظ التعديلات"
-              : "إضافة مبيعات"}
-        </button>
+          {initialData ? "حفظ التعديلات" : "إضافة مبيعات"}
+        </Button>
 
         {initialData && onDelete && (
-          <button
-            type="button"
+          <Button
+            variant="icon"
             onClick={onDelete}
             disabled={isSubmitting}
-            className="h-12 w-12 border border-alert text-alert rounded-md flex items-center justify-center hover:bg-alert/5 disabled:opacity-50 transition-colors"
+            className="text-alert border-alert hover:bg-alert/5"
             title="حذف المبيعات"
           >
             <Trash2 className="h-5 w-5" />
-          </button>
+          </Button>
         )}
       </div>
     </form>

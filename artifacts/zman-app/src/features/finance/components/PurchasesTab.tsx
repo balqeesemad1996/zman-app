@@ -2,7 +2,7 @@
 
 import { Boxes, Plus, Search } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { toast } from "sonner";
 import { AmountText } from "@/components/shared/AmountText";
 import { DateText } from "@/components/shared/DateText";
@@ -31,10 +31,26 @@ export function PurchasesTab() {
   const [_isPending, startTransition] = useTransition();
 
   const search = searchParams.get("search") || "";
+  const [searchInput, setSearchInput] = useState(search);
   const newPurchase = searchParams.get("newPurchase") === "true";
   const editId = searchParams.get("editPurchase");
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+
+  useEffect(() => {
+    setSearchInput(search);
+  }, [search]);
+
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      if (searchInput !== search) {
+        startTransition(() => {
+          updateUrl({ search: searchInput || null });
+        });
+      }
+    }, 400);
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchInput, search]);
 
   // هوك جلب البيانات اللانهائي (§10.1)
   const {
@@ -67,9 +83,7 @@ export function PurchasesTab() {
   };
 
   const handleSearchChange = (val: string) => {
-    startTransition(() => {
-      updateUrl({ search: val || null });
-    });
+    setSearchInput(val);
   };
 
   const handleCreate = async (fields: NewPurchase) => {
@@ -87,10 +101,13 @@ export function PurchasesTab() {
   };
 
   const handleUpdate = async (fields: NewPurchase) => {
-    if (!editId || !activePurchase) return;
+    if (!editId) return;
+    const updatedAt = activePurchase?.updatedAt instanceof Date
+      ? activePurchase.updatedAt.toISOString()
+      : String(activePurchase?.updatedAt || "");
     const res = await updateMutation.mutateAsync({
       id: editId,
-      updatedAt: activePurchase.updatedAt.toISOString(),
+      updatedAt,
       values: fields,
     });
     if (res.status === "ok") {
@@ -102,21 +119,16 @@ export function PurchasesTab() {
     }
   };
 
-  const handleDelete = () => {
-    setDeleteConfirmOpen(true);
-  };
-
   const handleConfirmDelete = async () => {
-    if (!editId || !activePurchase) return;
-    setDeleteConfirmOpen(false);
-
-    const res = await deleteMutation.mutateAsync({
-      id: editId,
-      updatedAt: activePurchase.updatedAt.toISOString(),
-    });
+    if (!editId) return;
+    const updatedAt = activePurchase?.updatedAt instanceof Date
+      ? activePurchase.updatedAt.toISOString()
+      : String(activePurchase?.updatedAt || "");
+    const res = await deleteMutation.mutateAsync({ id: editId, updatedAt });
     if (res.status === "ok") {
       toast.success("تم حذف المشتريات بنجاح");
       updateUrl({ editPurchase: null });
+      setDeleteConfirmOpen(false);
       refetch();
     } else {
       toast.error(res.message);
@@ -125,34 +137,32 @@ export function PurchasesTab() {
 
   return (
     <div className="space-y-4 flex-1 flex flex-col">
-      {/* شريط البحث وزر الإضافة */}
       <ListHeader
-        searchValue={search}
+        searchValue={searchInput}
         onSearchChange={handleSearchChange}
-        searchPlaceholder="البحث في المشتريات والموردين..."
+        searchPlaceholder="البحث في المشتريات..."
         actions={
-          <>
-            <button
-              type="button"
+          <div className="flex gap-2">
+            <Button
               onClick={() => setIsCatalogOpen(true)}
-              className="h-12 w-12 border border-hairline hover:bg-canvas text-ink-2 rounded-lg flex items-center justify-center transition-colors shrink-0"
-              title="إدارة أصناف المشتريات"
+              variant="secondary"
+              icon={<Boxes className="h-4.5 w-4.5" />}
+              className="px-3"
             >
-              <Boxes className="h-5 w-5" />
-            </button>
+              الكتالوج
+            </Button>
             <Button
               onClick={() => updateUrl({ newPurchase: "true" })}
               icon={<Plus className="h-4.5 w-4.5" />}
             >
               مشتريات
             </Button>
-          </>
+          </div>
         }
       />
 
-      {/* قائمة المشتريات */}
       {isLoading ? (
-        <SkeletonList count={3} />
+        <SkeletonList />
       ) : isError ? (
         <ErrorState onRetry={refetch} />
       ) : purchases.length === 0 ? (
@@ -160,8 +170,8 @@ export function PurchasesTab() {
           title={search ? "لا توجد نتائج بحث مطابقة" : "لا توجد مشتريات مسجلة"}
           description={
             search
-              ? "تأكد من كتابة الكلمات بشكل صحيح."
-              : "ابدأ بتسجيل فواتير ومشتريات المواد الخام للمشروع."
+              ? "جرب تعديل كلمة البحث أو فلتر النتائج."
+              : "تسجيل المشتريات يساعد في حصر تكلفة المواد الخام وحساب صافي أرباح الورشة بدقة."
           }
           actionLabel={search ? undefined : "تسجيل أول فاتورة"}
           onAction={
@@ -171,7 +181,7 @@ export function PurchasesTab() {
       ) : (
         <div className="space-y-3 flex-1 flex flex-col">
           <div className="space-y-3">
-            {purchases.map((item) => (
+            {purchases.map((item, idx) => (
               // biome-ignore lint/a11y/useSemanticElements: card container is interactive
               <div
                 key={item.id}
@@ -184,13 +194,14 @@ export function PurchasesTab() {
                     updateUrl({ editPurchase: item.id });
                   }
                 }}
-                className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col gap-2 hover:border-ink/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info focus-visible:ring-offset-2 cursor-pointer transition-colors"
+                style={{ animationDelay: `${Math.min(idx, 4) * 60}ms` }}
+                className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col gap-2 hover:border-ink/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info focus-visible:ring-offset-2 cursor-pointer transition-all animate-fade-slide-in"
               >
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-ink text-base">
                     {item.item}
                   </span>
-                  <span className="font-bold text-ink text-md">
+                  <span className="font-bold text-ink text-base">
                     <AmountText amount={item.totalCents} />
                   </span>
                 </div>
@@ -201,70 +212,66 @@ export function PurchasesTab() {
                     <AmountText amount={item.unitCostCents} />
                   </div>
                 </div>
-                <div className="text-xs text-ink/40 border-t border-hairline/50 pt-2 flex justify-between">
-                  <DateText date={item.date} />
-                  {item.notes && (
-                    <span className="truncate max-w-[200px]">{item.notes}</span>
-                  )}
+                <div className="flex justify-between items-center pt-2 border-t border-hairline text-[10px] text-ink-3">
+                  <DateText date={item.date} relative />
+                  {item.notes && <span className="truncate max-w-[180px]">{item.notes}</span>}
                 </div>
               </div>
             ))}
           </div>
 
-          {/* زر تحميل المزيد */}
           {hasNextPage && (
-            <button
-              type="button"
-              onClick={() => fetchNextPage()}
+            <Button
+              onClick={() => void fetchNextPage()}
               disabled={isFetchingNextPage}
-              className="w-full h-11 border border-hairline text-sm font-bold text-ink/80 rounded-md hover:bg-canvas transition-colors"
+              variant="secondary"
+              className="w-full"
             >
               {isFetchingNextPage ? "جاري التحميل..." : "تحميل المزيد"}
-            </button>
+            </Button>
           )}
         </div>
       )}
 
-      {/* ورقة إدخال مشتريات جديدة */}
+      {/* مودال إنشاء مشتريات جديدة */}
       <ResponsiveModal
         isOpen={newPurchase}
         onClose={() => updateUrl({ newPurchase: null })}
         title="تسجيل مشتريات جديدة"
       >
-        <PurchaseForm
-          onSubmit={handleCreate}
-          isSubmitting={createMutation.isPending}
-        />
+        <PurchaseForm onSubmit={handleCreate} isSubmitting={createMutation.isPending} />
       </ResponsiveModal>
 
-      {/* ورقة تعديل مشتريات قائمة */}
+      {/* مودال تعديل المشتريات */}
       <ResponsiveModal
-        isOpen={!!editId}
+        isOpen={editId !== null && editId !== undefined}
         onClose={() => updateUrl({ editPurchase: null })}
-        title="تعديل تفاصيل المشتريات"
+        title="تعديل بيانات المشتريات"
       >
         {isLoadingActive ? (
-          <SkeletonList count={3} />
+          <div className="p-4 text-center text-sm text-ink-3">جاري التحميل...</div>
         ) : (
           <PurchaseForm
             initialData={activePurchase}
             onSubmit={handleUpdate}
-            onDelete={handleDelete}
-            isSubmitting={updateMutation.isPending || deleteMutation.isPending}
+            onDelete={() => setDeleteConfirmOpen(true)}
+            isSubmitting={updateMutation.isPending}
           />
         )}
       </ResponsiveModal>
 
+      {/* مودال إدارة الكتالوج المشترك */}
       <FinanceCatalogModal
         isOpen={isCatalogOpen}
         onClose={() => setIsCatalogOpen(false)}
         type="purchases"
       />
 
+      {/* تأكيد الحذف */}
       <ConfirmDialog
         isOpen={deleteConfirmOpen}
-        title="تأكيد الحذف"
-        message="هل أنت متأكد من حذف هذه المشتريات؟"
+        title="تأكيد حذف المشتريات"
+        message="هل أنت متأكد من رغبتك في حذف فاتورة الشراء هذه؟ لا يمكن التراجع عن هذا الإجراء."
         onConfirm={handleConfirmDelete}
         onCancel={() => setDeleteConfirmOpen(false)}
         isLoading={deleteMutation.isPending}

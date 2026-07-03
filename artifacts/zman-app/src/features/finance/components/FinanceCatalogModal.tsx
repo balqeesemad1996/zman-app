@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { Button } from "@/components/shared/Button";
+import { SkeletonList } from "@/components/shared/SkeletonList";
 import {
   usePurchaseItemCatalog,
   useCreatePurchaseItemCatalog,
@@ -149,22 +151,23 @@ export function FinanceCatalogModal({
               className="flex-1 h-10 px-3 rounded border border-hairline bg-paper text-sm focus:outline-none focus:ring-2 focus:ring-ink"
               required
             />
-            <button
+            <Button
               type="submit"
+              variant="ink"
               disabled={createPurchaseItem.isPending || updatePurchaseItem.isPending || createExpenseCategory.isPending || updateExpenseCategory.isPending}
-              className="h-10 px-4 rounded bg-ink hover:bg-ink/90 text-paper text-sm font-bold transition-colors shrink-0 disabled:opacity-50"
+              className="h-11 min-h-[44px] shrink-0 px-4"
             >
               {editingId ? "حفظ" : "إضافة"}
-            </button>
+            </Button>
             {editingId && (
-              <button
-                type="button"
+              <Button
+                variant="icon"
                 onClick={handleCancelEdit}
-                className="h-10 w-10 rounded border border-hairline hover:bg-canvas text-ink-2 flex items-center justify-center shrink-0"
+                className="h-11 w-11 min-h-[44px] min-w-[44px] shrink-0"
                 title="إلغاء التعديل"
               >
                 <X className="w-4 h-4" />
-              </button>
+              </Button>
             )}
           </div>
         </form>
@@ -177,14 +180,16 @@ export function FinanceCatalogModal({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={searchPlaceholder}
-            className="w-full h-10 ps-9 pe-4 rounded border border-hairline bg-paper text-sm focus:outline-none focus:ring-2 focus:ring-ink"
+            className="w-full h-11 ps-9 pe-4 rounded border border-hairline bg-paper text-base focus:outline-none focus:ring-2 focus:ring-ink"
           />
         </div>
 
         {/* القائمة */}
         <div className="max-h-[300px] overflow-y-auto divide-y divide-hairline border border-hairline rounded-lg">
           {query.isLoading ? (
-            <div className="py-8 text-center text-sm text-ink-3">جاري التحميل...</div>
+            <div className="p-3">
+              <SkeletonList count={3} />
+            </div>
           ) : filteredItems.length === 0 ? (
             <div className="py-8 text-center text-sm text-ink-3">
               {search ? "لا توجد نتائج للبحث" : emptyLabel}
@@ -199,22 +204,21 @@ export function FinanceCatalogModal({
                   {item.name}
                 </span>
                 <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    type="button"
+                  <Button
+                    variant="icon"
                     onClick={() => handleEditClick(item)}
-                    className="p-2 rounded hover:bg-canvas text-ink-2 min-h-[40px] min-w-[40px] flex items-center justify-center"
                     title="تعديل"
                   >
                     <Edit className="w-4 h-4" />
-                  </button>
-                  <button
-                    type="button"
+                  </Button>
+                  <Button
+                    variant="icon"
                     onClick={() => handleDeleteClick(item.id)}
-                    className="p-2 rounded hover:bg-alert-soft text-alert min-h-[40px] min-w-[40px] flex items-center justify-center"
+                    className="hover:bg-alert-soft text-alert"
                     title="حذف"
                   >
                     <Trash2 className="w-4 h-4" />
-                  </button>
+                  </Button>
                 </div>
               </div>
             ))

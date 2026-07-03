@@ -1,10 +1,12 @@
 import { cn } from "@/lib/utils";
 import React from "react";
+import { Check } from "lucide-react";
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "primary" | "secondary" | "ghost" | "destructive";
-  size?: "sm" | "md" | "lg";
+  variant?: "primary" | "secondary" | "ghost" | "destructive" | "ink" | "icon";
+  size?: "sm" | "md" | "lg" | "icon";
   isLoading?: boolean;
+  isSuccess?: boolean;
   icon?: React.ReactNode;
 }
 
@@ -15,6 +17,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       variant = "primary",
       size = "md",
       isLoading = false,
+      isSuccess = false,
       icon,
       children,
       disabled,
@@ -24,30 +27,37 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ) => {
     const baseStyles =
-      "inline-flex items-center justify-center rounded-md font-semibold transition-all duration-200 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 select-none";
+      "inline-flex items-center justify-center rounded-md font-semibold transition-all duration-[120ms] ease-out active:scale-[0.94] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 select-none";
 
     const variants = {
       primary: "bg-info text-paper hover:bg-info/90 focus-visible:ring-info",
       secondary: "bg-paper border border-hairline-2 text-ink hover:bg-canvas focus-visible:ring-ink",
       ghost: "bg-transparent text-ink hover:bg-canvas focus-visible:ring-ink",
       destructive: "bg-alert text-paper hover:bg-alert/90 focus-visible:ring-alert",
+      ink: "bg-ink text-paper hover:bg-ink/90 focus-visible:ring-ink",
+      icon: "bg-transparent border border-hairline text-ink-3 hover:text-ink hover:bg-canvas focus-visible:ring-ink p-0 rounded-lg",
     };
 
     const sizes = {
       sm: "h-9 px-3 text-xs gap-1.5",
       md: "h-11 px-4 text-sm gap-2 min-h-[44px]", // Minimum 44px touch target
       lg: "h-12 px-6 text-base gap-2",
+      icon: "h-11 w-11 p-0 min-h-[44px] min-w-[44px]",
     };
+
+    const sizeStyle = size === "icon" || variant === "icon" ? sizes.icon : sizes[size];
 
     return (
       <button
         ref={ref}
         type={type}
-        disabled={disabled || isLoading}
-        className={cn(baseStyles, variants[variant], sizes[size], className)}
+        disabled={disabled || isLoading || isSuccess}
+        className={cn(baseStyles, variants[variant], sizeStyle, className)}
         {...props}
       >
-        {isLoading ? (
+        {isSuccess ? (
+          <Check className="h-4.5 w-4.5 text-current shrink-0 scale-up-center animate-fadeIn" />
+        ) : isLoading ? (
           <svg
             className="animate-spin h-4 w-4 text-current shrink-0"
             fill="none"
@@ -72,7 +82,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ) : (
           icon && <span className="shrink-0">{icon}</span>
         )}
-        <span>{children}</span>
+        {(!isSuccess && children) && <span className={cn(icon && "ms-1")}>{children}</span>}
       </button>
     );
   }

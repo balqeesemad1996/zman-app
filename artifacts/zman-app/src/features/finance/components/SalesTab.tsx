@@ -1,19 +1,19 @@
 "use client";
 
-import { Landmark, Plus, Search, ShoppingBag } from "lucide-react";
+import { Plus } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import { toast } from "sonner";
 import { AmountText } from "@/components/shared/AmountText";
 import { DateText } from "@/components/shared/DateText";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ErrorState } from "@/components/shared/ErrorState";
-import { Button } from "@/components/shared/Button";
 import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
 import { SkeletonList } from "@/components/shared/SkeletonList";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { FilterChip } from "@/components/shared/FilterChip";
 import { ListHeader } from "@/components/shared/ListHeader";
+import { Button } from "@/components/shared/Button";
 import {
   useCreateSale,
   useDeleteSale,
@@ -31,10 +31,26 @@ export function SalesTab() {
   const [_isPending, startTransition] = useTransition();
 
   const search = searchParams.get("search") || "";
+  const [searchInput, setSearchInput] = useState(search);
   const source = searchParams.get("source") || "all";
   const newSale = searchParams.get("newSale") === "true";
   const editId = searchParams.get("editSale");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+
+  useEffect(() => {
+    setSearchInput(search);
+  }, [search]);
+
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      if (searchInput !== search) {
+        startTransition(() => {
+          updateUrl({ search: searchInput || null });
+        });
+      }
+    }, 400);
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchInput, search]);
 
   // الفلاتر المتاحة للمصدر
   const sourceFilters = [
@@ -64,6 +80,7 @@ export function SalesTab() {
 
   const sales = data?.pages.flatMap((page) => page.items) || [];
 
+  // تحديث محددات الـ URL
   const updateUrl = (params: Record<string, string | null>) => {
     const next = new URLSearchParams(searchParams.toString());
     Object.entries(params).forEach(([key, val]) => {
@@ -74,9 +91,7 @@ export function SalesTab() {
   };
 
   const handleSearchChange = (val: string) => {
-    startTransition(() => {
-      updateUrl({ search: val || null });
-    });
+    setSearchInput(val);
   };
 
   const handleSourceFilter = (src: string) => {
@@ -100,14 +115,17 @@ export function SalesTab() {
   };
 
   const handleUpdate = async (fields: NewSale) => {
-    if (!editId || !activeSale) return;
+    if (!editId) return;
+    const updatedAt = activeSale?.updatedAt instanceof Date
+      ? activeSale.updatedAt.toISOString()
+      : String(activeSale?.updatedAt || "");
     const res = await updateMutation.mutateAsync({
       id: editId,
-      updatedAt: activeSale.updatedAt.toISOString(),
+      updatedAt,
       values: fields,
     });
     if (res.status === "ok") {
-      toast.success("تم تحديث المبيعات بنجاح");
+      toast.success("تم تحديث بيانات المبيعات بنجاح");
       updateUrl({ editSale: null });
       refetch();
     } else {
@@ -115,21 +133,16 @@ export function SalesTab() {
     }
   };
 
-  const handleDelete = () => {
-    setDeleteConfirmOpen(true);
-  };
-
   const handleConfirmDelete = async () => {
-    if (!editId || !activeSale) return;
-    setDeleteConfirmOpen(false);
-
-    const res = await deleteMutation.mutateAsync({
-      id: editId,
-      updatedAt: activeSale.updatedAt.toISOString(),
-    });
+    if (!editId) return;
+    const updatedAt = activeSale?.updatedAt instanceof Date
+      ? activeSale.updatedAt.toISOString()
+      : String(activeSale?.updatedAt || "");
+    const res = await deleteMutation.mutateAsync({ id: editId, updatedAt });
     if (res.status === "ok") {
       toast.success("تم حذف المبيعات بنجاح");
       updateUrl({ editSale: null });
+      setDeleteConfirmOpen(false);
       refetch();
     } else {
       toast.error(res.message);
@@ -139,7 +152,7 @@ export function SalesTab() {
   return (
     <div className="space-y-4 flex-1 flex flex-col">
       <ListHeader
-        searchValue={search}
+        searchValue={searchInput}
         onSearchChange={handleSearchChange}
         searchPlaceholder="البحث في بيان المبيعات..."
         actions={
@@ -164,9 +177,8 @@ export function SalesTab() {
         }
       />
 
-      {/* قائمة المبيعات */}
       {isLoading ? (
-        <SkeletonList count={3} />
+        <SkeletonList />
       ) : isError ? (
         <ErrorState onRetry={refetch} />
       ) : sales.length === 0 ? (
@@ -191,7 +203,7 @@ export function SalesTab() {
       ) : (
         <div className="space-y-3 flex-1 flex flex-col">
           <div className="space-y-3">
-            {sales.map((item) => (
+            {sales.map((item, idx) => (
               // biome-ignore lint/a11y/useSemanticElements: card container is interactive
               <div
                 key={item.id}
@@ -204,83 +216,80 @@ export function SalesTab() {
                     updateUrl({ editSale: item.id });
                   }
                 }}
-                className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col gap-2 hover:border-ink/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info focus-visible:ring-offset-2 cursor-pointer transition-colors"
+                style={{ animationDelay: `${Math.min(idx, 4) * 60}ms` }}
+                className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col gap-2 hover:border-ink/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info focus-visible:ring-offset-2 cursor-pointer transition-colors animate-fade-slide-in"
               >
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-ink text-base">
                     {item.description || "عملية بيع"}
                   </span>
-                  <span className="font-bold text-ink text-md">
+                  <span className="font-bold text-ink text-base">
                     <AmountText amount={item.amountCents} />
                   </span>
                 </div>
                 <div className="flex justify-between items-center text-xs text-ink/60">
                   <span className="flex items-center gap-1">
                     {item.source === "order" ? (
-                      <>
-                        <ShoppingBag className="h-3.5 w-3.5 text-info" />
-                        <span className="text-info font-bold">عن طريق طلب</span>
-                      </>
+                      <span className="px-2 py-0.5 bg-info-soft text-info rounded text-[10px] font-bold">
+                        طلب محوّل
+                      </span>
                     ) : (
-                      <>
-                        <Landmark className="h-3.5 w-3.5 text-ink/60" />
-                        <span>يدوي مباشر</span>
-                      </>
+                      <span className="px-2 py-0.5 bg-canvas text-ink-2 rounded text-[10px] font-bold">
+                        بيع مباشر
+                      </span>
                     )}
                   </span>
-                  <DateText date={item.date} />
+                  <DateText date={item.date} relative />
                 </div>
               </div>
             ))}
           </div>
 
-          {/* زر تحميل المزيد */}
           {hasNextPage && (
-            <button
-              type="button"
-              onClick={() => fetchNextPage()}
+            <Button
+              onClick={() => void fetchNextPage()}
               disabled={isFetchingNextPage}
-              className="w-full h-11 border border-hairline text-sm font-bold text-ink/80 rounded-md hover:bg-canvas transition-colors"
+              variant="secondary"
+              className="w-full"
             >
               {isFetchingNextPage ? "جاري التحميل..." : "تحميل المزيد"}
-            </button>
+            </Button>
           )}
         </div>
       )}
 
-      {/* ورقة إدخال مبيعات جديدة */}
+      {/* مودال إنشاء مبيعات جديدة */}
       <ResponsiveModal
         isOpen={newSale}
         onClose={() => updateUrl({ newSale: null })}
-        title="تسجيل إيراد مبيعات مباشر"
+        title="تسجيل مبيعات جديدة"
       >
-        <SaleForm
-          onSubmit={handleCreate}
-          isSubmitting={createMutation.isPending}
-        />
+        <SaleForm onSubmit={handleCreate} isSubmitting={createMutation.isPending} />
       </ResponsiveModal>
 
-      {/* ورقة تعديل مبيعات قائمة */}
+      {/* مودال تعديل المبيعات */}
       <ResponsiveModal
-        isOpen={!!editId}
+        isOpen={editId !== null && editId !== undefined}
         onClose={() => updateUrl({ editSale: null })}
-        title="تعديل تفاصيل المبيعات"
+        title="تعديل بيانات المبيعات"
       >
         {isLoadingActive ? (
-          <SkeletonList count={3} />
+          <div className="p-4 text-center text-sm text-ink-3">جاري التحميل...</div>
         ) : (
           <SaleForm
             initialData={activeSale}
             onSubmit={handleUpdate}
-            onDelete={handleDelete}
-            isSubmitting={updateMutation.isPending || deleteMutation.isPending}
+            onDelete={() => setDeleteConfirmOpen(true)}
+            isSubmitting={updateMutation.isPending}
           />
         )}
       </ResponsiveModal>
+
+      {/* تأكيد الحذف */}
       <ConfirmDialog
         isOpen={deleteConfirmOpen}
-        title="تأكيد الحذف"
-        message="هل أنت متأكد من حذف عملية البيع هذه؟"
+        title="تأكيد حذف المبيعات"
+        message="هل أنت متأكد من رغبتك في حذف عملية البيع هذه؟ لا يمكن التراجع عن هذا الإجراء."
         onConfirm={handleConfirmDelete}
         onCancel={() => setDeleteConfirmOpen(false)}
         isLoading={deleteMutation.isPending}

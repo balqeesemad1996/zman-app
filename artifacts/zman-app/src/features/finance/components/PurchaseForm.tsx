@@ -6,6 +6,9 @@ import { useEffect, useId, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { AmountText } from "@/components/shared/AmountText";
 import { MoneyInput } from "@/components/shared/MoneyInput";
+import { Button } from "@/components/shared/Button";
+import { Select } from "@/components/shared/Select";
+import { TextArea } from "@/components/shared/TextArea";
 import { purchaseInputSchema } from "../schema";
 import type { NewPurchase, Purchase } from "../types";
 import { usePurchaseItemCatalog } from "../hooks";
@@ -24,8 +27,10 @@ export function PurchaseForm({
   isSubmitting,
 }: PurchaseFormProps) {
   const formId = useId();
+  const [isCustomItem, setIsCustomItem] = useState(!initialData?.item);
+
+  // جلب العناصر الشائعة للمشتريات
   const { data: catalogItems = [] } = usePurchaseItemCatalog();
-  const [isCustomItem, setIsCustomItem] = useState(false);
 
   const defaultValues = {
     date: initialData
@@ -35,6 +40,7 @@ export function PurchaseForm({
     supplier: initialData?.supplier || "",
     quantity: initialData?.quantity || 1,
     unitCostCents: initialData?.unitCostCents || 0,
+    totalCents: initialData?.totalCents || 0,
     notes: initialData?.notes || "",
   };
 
@@ -42,18 +48,22 @@ export function PurchaseForm({
     register,
     handleSubmit,
     control,
-    watch,
     setValue,
+    watch,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(purchaseInputSchema),
     defaultValues,
   });
 
-  const quantity = watch("quantity");
-  const unitCostCents = watch("unitCostCents");
-  const calculatedTotal =
-    (Number(quantity) || 0) * (Number(unitCostCents) || 0);
+  const watchQty = watch("quantity") || 0;
+  const watchUnitCost = watch("unitCostCents") || 0;
+
+  // مزامنة المجموع تلقائياً وحساب القيمة
+  useEffect(() => {
+    const total = Math.round(watchQty * watchUnitCost);
+    setValue("totalCents", total);
+  }, [watchQty, watchUnitCost, setValue]);
 
   useEffect(() => {
     if (initialData) {
@@ -62,15 +72,12 @@ export function PurchaseForm({
         new Date(initialData.date).toISOString().split("T")[0] ?? "",
       );
       setValue("item", initialData.item);
-      setValue("supplier", initialData.supplier);
+      setValue("supplier", initialData.supplier || "");
       setValue("quantity", initialData.quantity);
       setValue("unitCostCents", initialData.unitCostCents);
-      setValue("notes", initialData.notes);
-
-      const inCatalog = catalogItems.some((c) => c.name === initialData.item);
-      if (!inCatalog && catalogItems.length > 0) {
-        setIsCustomItem(true);
-      }
+      setValue("totalCents", initialData.totalCents);
+      setValue("notes", initialData.notes || "");
+      setIsCustomItem(!catalogItems.some((c) => c.name === initialData.item));
     }
   }, [initialData, setValue, catalogItems]);
 
@@ -83,13 +90,13 @@ export function PurchaseForm({
             htmlFor={`${formId}-date`}
             className="text-sm font-bold text-ink/75"
           >
-            تاريخ العملية
+            تاريخ الشراء
           </label>
           <input
             id={`${formId}-date`}
             type="date"
             {...register("date")}
-            className={`flex h-11 w-full rounded-md border border-hairline bg-paper px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-ink ${
+            className={`flex h-12 w-full rounded-md border border-hairline bg-paper px-3 py-2 text-base text-ink focus:outline-none focus:ring-2 focus:ring-ink ${
               errors.date ? "border-alert" : ""
             }`}
           />
@@ -109,7 +116,7 @@ export function PurchaseForm({
             بيان المواد / الأصناف
           </label>
           {!isCustomItem && catalogItems.length > 0 ? (
-            <select
+            <Select
               id={`${formId}-item-select`}
               value={watch("item")}
               onChange={(e) => {
@@ -121,9 +128,7 @@ export function PurchaseForm({
                   setValue("item", val);
                 }
               }}
-              className={`flex h-11 w-full rounded-md border border-hairline bg-paper px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-ink ${
-                errors.item ? "border-alert" : ""
-              }`}
+              error={errors.item?.message as string}
             >
               <option value="">-- اختر الصنف --</option>
               {catalogItems.map((c) => (
@@ -132,7 +137,7 @@ export function PurchaseForm({
                 </option>
               ))}
               <option value="custom">أخرى (إدخال يدوي) ...</option>
-            </select>
+            </Select>
           ) : (
             <div className="flex gap-2 items-center">
               <input
@@ -142,25 +147,25 @@ export function PurchaseForm({
                 autoCapitalize="words"
                 placeholder="أدخل اسم الصنف..."
                 {...register("item")}
-                className={`flex-1 h-11 px-3 py-2 rounded-md border border-hairline bg-paper text-sm text-ink focus:outline-none focus:ring-2 focus:ring-ink ${
+                className={`flex-1 h-12 px-4 py-2 rounded-md border border-hairline-2 bg-paper text-base text-ink focus:outline-none focus:ring-2 focus:ring-ink/10 ${
                   errors.item ? "border-alert" : ""
                 }`}
               />
               {catalogItems.length > 0 && (
-                <button
-                  type="button"
+                <Button
                   onClick={() => {
                     setIsCustomItem(false);
                     setValue("item", catalogItems[0]?.name || "");
                   }}
-                  className="h-11 px-3 border border-hairline hover:bg-canvas rounded-md text-xs text-ink-2 shrink-0"
+                  variant="secondary"
+                  className="h-12 text-xs text-ink-2 shrink-0 px-3"
                 >
                   اختر من القائمة
-                </button>
+                </Button>
               )}
             </div>
           )}
-          {errors.item && (
+          {isCustomItem && errors.item && (
             <p className="text-xs text-alert mt-1">
               {errors.item.message as string}
             </p>
@@ -178,10 +183,9 @@ export function PurchaseForm({
           <input
             id={`${formId}-supplier`}
             type="text"
-            inputMode="text"
-            placeholder=""
+            placeholder="مثال: مشتل الأردن"
             {...register("supplier")}
-            className={`flex h-11 w-full rounded-md border border-hairline bg-paper px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-ink ${
+            className={`flex h-12 w-full rounded-md border border-hairline-2 bg-paper px-4 py-2 text-base text-ink focus:outline-none focus:ring-2 focus:ring-ink/10 ${
               errors.supplier ? "border-alert" : ""
             }`}
           />
@@ -192,22 +196,22 @@ export function PurchaseForm({
           )}
         </div>
 
+        {/* الكمية وسعر الوحدة */}
         <div className="grid grid-cols-2 gap-4">
-          {/* الكمية */}
           <div className="space-y-2 flex flex-col">
             <label
-              htmlFor={`${formId}-quantity`}
+              htmlFor={`${formId}-qty`}
               className="text-sm font-bold text-ink/75"
             >
               الكمية
             </label>
             <input
-              id={`${formId}-quantity`}
+              id={`${formId}-qty`}
               type="number"
               inputMode="numeric"
-              pattern="[0-9]*"
-              {...register("quantity")}
-              className={`flex h-11 w-full rounded-md border border-hairline bg-paper px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-ink ${
+              step="any"
+              {...register("quantity", { valueAsNumber: true })}
+              className={`flex h-12 w-full rounded-md border border-hairline-2 bg-paper px-4 py-2 text-base text-ink focus:outline-none focus:ring-2 focus:ring-ink/10 ${
                 errors.quantity ? "border-alert" : ""
               }`}
             />
@@ -218,7 +222,6 @@ export function PurchaseForm({
             )}
           </div>
 
-          {/* سعر الوحدة */}
           <div className="space-y-2 flex flex-col">
             <label
               htmlFor={`${formId}-unitCost`}
@@ -233,7 +236,6 @@ export function PurchaseForm({
                 <MoneyInput
                   value={Number(field.value) || 0}
                   onChange={field.onChange}
-                  disabled={isSubmitting}
                   error={errors.unitCostCents?.message as string}
                 />
               )}
@@ -246,63 +248,44 @@ export function PurchaseForm({
           </div>
         </div>
 
-        {/* المجموع المحتسب */}
-        <div className="p-4 bg-canvas/40 rounded-lg flex items-center justify-between border border-hairline">
-          <span className="text-sm font-medium text-ink/60">
-            المجموع الكلي التقديري (محتسب):
-          </span>
-          <span className="text-lg font-bold text-ink">
-            <AmountText amount={calculatedTotal} />
+        {/* الإجمالي */}
+        <div className="p-3.5 bg-canvas/30 rounded-lg border border-hairline flex items-center justify-between">
+          <span className="text-sm font-bold text-ink-2">إجمالي التكلفة:</span>
+          <span className="text-lg font-extrabold text-alert">
+            <AmountText amount={watch("totalCents")} />
           </span>
         </div>
 
         {/* ملاحظات */}
-        <div className="space-y-2 flex flex-col">
-          <label
-            htmlFor={`${formId}-notes`}
-            className="text-sm font-bold text-ink/75"
-          >
-            ملاحظات إضافية
-          </label>
-          <textarea
-            id={`${formId}-notes`}
-            placeholder=""
-            {...register("notes")}
-            className={`flex min-h-[80px] w-full rounded-md border border-hairline bg-paper px-3 py-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-ink ${
-              errors.notes ? "border-alert" : ""
-            }`}
-          />
-          {errors.notes && (
-            <p className="text-xs text-alert mt-1">
-              {errors.notes.message as string}
-            </p>
-          )}
-        </div>
+        <TextArea
+          label="ملاحظات إضافية"
+          id={`${formId}-notes`}
+          placeholder=""
+          {...register("notes")}
+          error={errors.notes?.message as string}
+        />
       </div>
 
       <div className="flex gap-3">
-        <button
+        <Button
           type="submit"
-          disabled={isSubmitting}
-          className="flex-1 h-12 bg-ink text-paper rounded-md flex items-center justify-center gap-1.5 text-md font-bold shadow-sm hover:bg-ink/90 disabled:opacity-50 transition-colors"
+          variant="ink"
+          isLoading={isSubmitting}
+          className="flex-1"
         >
-          {isSubmitting
-            ? "جاري الحفظ..."
-            : initialData
-              ? "حفظ التعديلات"
-              : "إضافة المشتريات"}
-        </button>
+          {initialData ? "حفظ التعديلات" : "إضافة المشتريات"}
+        </Button>
 
         {initialData && onDelete && (
-          <button
-            type="button"
+          <Button
+            variant="icon"
             onClick={onDelete}
             disabled={isSubmitting}
-            className="h-12 w-12 border border-alert text-alert rounded-md flex items-center justify-center hover:bg-alert/5 disabled:opacity-50 transition-colors"
+            className="text-alert border-alert hover:bg-alert/5"
             title="حذف المشتريات"
           >
             <Trash2 className="h-5 w-5" />
-          </button>
+          </Button>
         )}
       </div>
     </form>

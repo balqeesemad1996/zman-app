@@ -199,7 +199,7 @@ export function OrderList({
           {/* عرض الديسكتوب: جدول منسق وقابل للتصفح (§10.2) */}
           <div className="hidden lg:block overflow-x-auto rounded-lg border border-hairline bg-paper shadow-sm">
             <table className="w-full border-collapse text-start text-sm">
-              <thead className="bg-canvas border-b border-hairline text-ink-2 sticky top-0 z-sticky">
+              <thead className="bg-canvas border-b border-hairline text-ink-2">
                 <tr>
                   <th className="px-6 py-4 text-start font-bold">العميل</th>
                   <th className="px-6 py-4 text-start font-bold">المنتج</th>

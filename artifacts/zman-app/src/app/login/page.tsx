@@ -1,9 +1,11 @@
 "use client";
 
-import { Lock, RefreshCw, ShieldCheck } from "lucide-react";
+import { Lock, ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { loginAction } from "./actions";
+import { Button } from "@/components/shared/Button";
+import { TextField } from "@/components/shared/TextField";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -16,7 +18,7 @@ export default function LoginPage() {
     setError(null);
 
     if (!passcode) {
-      setError("الرجاء إدخال رمز الدخول");
+      setError("الرجاء إدخل رمز الدخول");
       return;
     }
 
@@ -48,48 +50,25 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <label
-              htmlFor="passcode"
-              className="text-xs font-semibold text-ink-2"
-            >
-              رمز الدخول السري
-            </label>
-            <div className="relative">
-              <span className="absolute inset-y-0 start-0 flex items-center ps-3 text-ink-2">
-                <Lock className="w-4 h-4" />
-              </span>
-              <input
-                id="passcode"
-                type="password"
-                value={passcode}
-                onChange={(e) => setPasscode(e.target.value)}
-                placeholder="••••••••"
-                className="min-h-[44px] ps-10 pe-3 py-2 border border-hairline rounded-md bg-canvas focus:ring-2 focus:ring-ink focus:outline-none w-full text-sm"
-                disabled={isPending}
-              />
-            </div>
-            {error && (
-              <p className="text-xs font-bold text-alert mt-1 flex items-center gap-1">
-                <span>{error}</span>
-              </p>
-            )}
-          </div>
-
-          <button
-            type="submit"
-            className="min-h-[44px] w-full px-4 py-2 bg-info hover:bg-info/90 text-paper rounded-md font-bold text-sm transition-colors flex items-center justify-center gap-2"
+          <TextField
+            id="passcode"
+            type="password"
+            label="رمز الدخول السري"
+            value={passcode}
+            onChange={(e) => setPasscode(e.target.value)}
+            placeholder="••••••••"
             disabled={isPending}
+            error={error || undefined}
+            icon={<Lock className="w-4 h-4" />}
+          />
+
+          <Button
+            type="submit"
+            isLoading={isPending}
+            className="w-full"
           >
-            {isPending ? (
-              <>
-                <RefreshCw className="w-4 h-4 animate-spin" />
-                <span>جاري التحقق...</span>
-              </>
-            ) : (
-              <span>دخول</span>
-            )}
-          </button>
+            دخول
+          </Button>
         </form>
 
         <div className="text-center">

@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
 import { useState } from "react";
 import { AmountText } from "@/components/shared/AmountText";
 import { cn } from "@/lib/utils";
+import { SkeletonList } from "@/components/shared/SkeletonList";
 import { useOrderDatesForMonth, useOrders } from "../hooks";
 import type { Order } from "../types";
 
@@ -89,7 +90,7 @@ function DayOrdersPanel({ dateStr, onClose, onViewDetail, onCreateNew }: DayOrde
     <>
       {/* طبقة شفافة خلف اللوحة */}
       <div
-        className="fixed inset-0 z-dropdown bg-ink/20 backdrop-blur-[1px]"
+        className="fixed inset-0 z-sheet bg-ink/20 backdrop-blur-[1px]"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -114,7 +115,9 @@ function DayOrdersPanel({ dateStr, onClose, onViewDetail, onCreateNew }: DayOrde
         {/* قائمة الطلبات */}
         <div className="overflow-y-auto flex-1">
           {isLoading ? (
-            <div className="py-6 text-center text-sm text-ink-3">جاري التحميل...</div>
+            <div className="p-4">
+              <SkeletonList count={3} />
+            </div>
           ) : orders.length === 0 ? (
             <div className="py-8 text-center text-sm text-ink-3">
               لا توجد طلبات في هذا اليوم

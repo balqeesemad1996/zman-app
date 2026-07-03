@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Zman Greens JO · Spacing & Typography System · Design Component 04</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --color-canvas:#f6f4ee; --color-paper:#ffffff;
+    --color-hairline:rgba(20,18,12,.08); --color-hairline-2:rgba(20,18,12,.14);
+    --color-ink:#1a1b17; --color-ink-2:#54534d; --color-ink-3:#6b6b66;
+    --color-alert:#c0392b; --color-alert-soft:#fbe9e6;
+    --color-info:#1565c0; --color-info-soft:#e8f0f8;
+    --color-emerald:#0f9d58; --color-emerald-soft:#e6f4ea;
+
+    /* === NEW canonical scale — expressed as semantic tokens === */
+    --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px;
+    --space-5:20px; --space-6:24px; --space-8:32px; --space-10:40px;
+    --space-12:48px; --space-16:64px; --space-20:80px;
+
+    /* === Type scale — Cairo-based === */
+    --text-2xs:10px; --text-xs:11px; --text-sm:12px; --text-md:13px;
+    --text-base:14px; --text-md-lg:15px; --text-lg:16px; --text-xl:17px;
+    --text-2xl:20px; --text-3xl:24px; --text-4xl:32px; --text-5xl:40px;
+
+    /* === Line heights === */
+    --lh-tight:1.2; --lh-snug:1.35; --lh-normal:1.5; --lh-relaxed:1.7;
+
+    /* === Letter spacing === */
+    --ls-tight:-.02em; --ls-snug:-.01em; --ls-normal:0; --ls-wide:.02em;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:#ece9df;color:var(--color-ink);font-family:'Cairo',system-ui,sans-serif;line-height:1.6}
+  .mono{font-family:'IBM Plex Mono',monospace;direction:ltr;display:inline-block}
+  .doc{max-width:1280px;margin:0 auto;padding:48px 24px 96px}
+  .doc h1{font-size:32px;font-weight:800;margin:0 0 8px;letter-spacing:-.02em}
+  .doc h2{font-size:22px;font-weight:700;margin:48px 0 12px;color:var(--color-ink);border-inline-start:3px solid var(--color-info);padding-inline-start:12px}
+  .doc h3{font-size:16px;font-weight:700;margin:32px 0 12px;color:var(--color-ink)}
+  .doc p{margin:0 0 12px;color:var(--color-ink-2);font-size:14px;line-height:1.7}
+  .doc code{font-family:'IBM Plex Mono',monospace;background:var(--color-canvas);padding:1px 6px;border-radius:4px;font-size:12px;color:var(--color-info);direction:ltr;display:inline-block}
+  .meta{font-size:12px;color:var(--color-ink-3);margin-bottom:32px}
+  .callout{background:var(--color-paper);border:1px solid var(--color-hairline);border-radius:12px;padding:16px 20px;margin:16px 0;font-size:13px;line-height:1.7;color:var(--color-ink-2)}
+  .callout.alert{border-inline-start:3px solid var(--color-alert);background:var(--color-alert-soft)}
+  .callout.ok{border-inline-start:3px solid var(--color-emerald);background:var(--color-emerald-soft)}
+
+  /* === Spacing scale visualization === */
+  .scale-table{width:100%;border-collapse:collapse;background:var(--color-paper);border-radius:12px;overflow:hidden;border:1px solid var(--color-hairline);margin:16px 0}
+  .scale-table th{text-align:start;padding:12px 16px;background:var(--color-canvas);font-size:11px;font-weight:600;color:var(--color-ink-2);border-bottom:1px solid var(--color-hairline)}
+  .scale-table td{padding:10px 16px;border-bottom:1px solid var(--color-hairline);font-size:12px;color:var(--color-ink);vertical-align:middle}
+  .scale-table tr:last-child td{border-bottom:none}
+  .scale-table .token{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--color-info);direction:ltr}
+  .scale-table .px{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--color-ink-3);direction:ltr}
+  .scale-table .vis{height:24px;background:var(--color-info);border-radius:3px}
+  .scale-table .bad{color:var(--color-alert);font-weight:600}
+  .scale-table .good{color:var(--color-emerald-deep);font-weight:600}
+
+  /* === Type specimen === */
+  .specimen{background:var(--color-paper);border:1px solid var(--color-hairline);border-radius:12px;padding:24px;margin:16px 0}
+  .ts-row{display:grid;grid-template-columns:140px 1fr 200px;gap:16px;align-items:baseline;padding:12px 0;border-bottom:1px solid var(--color-hairline)}
+  .ts-row:last-child{border-bottom:none}
+  .ts-token{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--color-info);direction:ltr}
+  .ts-sample{color:var(--color-ink)}
+  .ts-spec{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--color-ink-3);direction:ltr;text-align:end}
+
+  /* === Drift tables === */
+  .drift-table{width:100%;border-collapse:collapse;background:var(--color-paper);border-radius:12px;overflow:hidden;border:1px solid var(--color-hairline);margin:16px 0;font-size:11px}
+  .drift-table th{text-align:start;padding:10px 12px;background:var(--color-canvas);font-weight:600;color:var(--color-ink-2);border-bottom:1px solid var(--color-hairline)}
+  .drift-table td{padding:8px 12px;border-bottom:1px solid var(--color-hairline);color:var(--color-ink);font-family:'IBM Plex Mono',monospace;direction:ltr}
+  .drift-table tr:last-child td{border-bottom:none}
+  .drift-table .bad{color:var(--color-alert)}
+  .drift-table .good{color:var(--color-emerald-deep)}
+
+  /* === Demo card showing scale applied === */
+  .demo{background:var(--color-canvas);border-radius:12px;padding:24px;margin:16px 0}
+  .demo-card{background:var(--color-paper);border:1px solid var(--color-hairline);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px;max-width:380px}
+  .demo-card h4{margin:0;font-size:15px;font-weight:700}
+  .demo-card .stat{font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:800;letter-spacing:-.02em;color:var(--color-info);direction:ltr}
+  .demo-card .meta-row{display:flex;justify-content:space-between;font-size:12px;color:var(--color-ink-3)}
+
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0}
+  .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin:16px 0}
+
+  .anno{position:relative}
+  .anno::before{content:attr(data-anno);position:absolute;inset-block-start:-8px;inset-inline-end:-8px;background:var(--color-info);color:#fff;font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;font-family:'IBM Plex Mono',monospace;z-index:1}
+
+  .compare-side{background:var(--color-paper);border:1px solid var(--color-hairline);border-radius:12px;padding:20px}
+  .compare-side h4{margin:0 0 12px;font-size:14px;font-weight:700}
+  .compare-side.bad{border-inline-start:3px solid var(--color-alert)}
+  .compare-side.good{border-inline-start:3px solid var(--color-emerald)}
+
+  .ratio-block{background:var(--color-paper);border:1px solid var(--color-hairline);border-radius:12px;padding:20px;font-size:12px}
+  .ratio-block b{display:block;font-size:13px;margin-bottom:8px}
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <h1>Spacing & Typography — Canonical Scales</h1>
+  <div class="meta">Zman Greens JO · Design Component 04 · files: <span class="mono">globals.css · tokens.ts · 25+ component files</span> · commit f1dfd6b</div>
+
+  <p>اليوم لا يوجد <strong>أي توكن للتباعد</strong> (<code>--space-*</code>) ولا <strong>أي توكن لحجم الخط</strong> (<code>--text-*</code>) ولا <strong>أي توكن للانحناء</strong> (<code>--radius-*</code>) ولا <strong>أي توكن للظل</strong> (<code>--shadow-*</code>). الاعتماد كلياً على مقياس Tailwind الافتراضي + قيم اعتباطية كثيرة (<code>min-h-[44px]</code> في 55 موضعاً، <code>min-h-[38px]</code>، <code>min-h-[40px]</code>، <code>min-h-[48px]</code>، <code>min-h-[52px]</code>، <code>text-[9px]</code>، <code>text-[10px]</code>، <code>text-[11px]</code>، <code>text-md</code> غير الصالح). هذا الملف يقدّم المقاييس الكنسونية.</p>
+
+  <div class="callout alert">
+    <strong>أكبر مخالفة:</strong> <code>text-md</code> يظهر في 7 ملفات (<code>ExpenseForm.tsx:219</code>، <code>SaleForm.tsx:170</code>، <code>PurchaseForm.tsx:287</code>، <code>ExpensesTab.tsx:241</code>، <code>PurchasesTab.tsx:193</code>، <code>SalesTab.tsx:213</code>، <code>FinanceClient.tsx:90</code>) — وهو <strong>ليس كلاس Tailwind صالحاً</strong>. يُحلّ بصمت إلى <code>text-base</code> الموروث، فيظهر النص أصغر من المطلوب بصمت. هذا يعني أن مبالغ بنود المالية (المبيعات/المشتريات/المصاريف) أصغر من مثيلاتها في الطلبات بصمت.
+  </div>
+
+  <!-- ============ SPACING SCALE ============ -->
+  <h2>1. مقياس التباعد (Spacing Scale) — 11 توكن</h2>
+  <p>مقياس Tailwind الافتراضي موجود أصلاً، لكنه غير مُسمّى دلالياً. التوصية: أضِف أسماء دلالية على نفس القيم (لا اختراع قيم جديدة) لتسهيل المراجعة وضمان الاتساق.</p>
+
+  <table class="scale-table">
+    <thead><tr><th>التوكن</th><th>px</th><th>القيمة</th><th>الاستخدام الكنوني</th></tr></thead>
+    <tbody>
+      <tr><td class="token">--space-1</td><td class="px">4px</td><td><div class="vis" style="width:4px"></div></td><td>الفجوة داخل أيقونة + نص (chip icon gap)</td></tr>
+      <tr><td class="token">--space-2</td><td class="px">8px</td><td><div class="vis" style="width:8px"></div></td><td>الفجوة بين عناصر بطاقة (gap-2)</td></tr>
+      <tr><td class="token">--space-3</td><td class="px">12px</td><td><div class="vis" style="width:12px"></div></td><td>الفجوة بين البطاقات في القائمة (space-y-3)</td></tr>
+      <tr><td class="token">--space-4</td><td class="px">16px</td><td><div class="vis" style="width:16px"></div></td><td>الحشو الأفقي للصفحة (px-4) — الأكثر استخداماً</td></tr>
+      <tr><td class="token">--space-5</td><td class="px">20px</td><td><div class="vis" style="width:20px"></div></td><td>حشو قسم التقارير (p-5) — توحيد المقاس الشاذ</td></tr>
+      <tr><td class="token">--space-6</td><td class="px">24px</td><td><div class="vis" style="width:24px"></div></td><td>حشو بطاقة بارزة (p-6) + فجوة أقسام النموذج</td></tr>
+      <tr><td class="token">--space-8</td><td class="px">32px</td><td><div class="vis" style="width:32px"></div></td><td>فاصل بين الأقسام الكبرى (space-y-8)</td></tr>
+      <tr><td class="token">--space-10</td><td class="px">40px</td><td><div class="vis" style="width:40px"></div></td><td>الحشو العلوي لحالة الفراغ (empty state)</td></tr>
+      <tr><td class="token">--space-12</td><td class="px">48px</td><td><div class="vis" style="width:48px"></div></td><td>الحشو الكبير لحالة الفراغ</td></tr>
+      <tr><td class="token">--space-16</td><td class="px">64px</td><td><div class="vis" style="width:64px"></div></td><td>التباعد بين الأقسام في صفحة طويلة</td></tr>
+      <tr><td class="token">--space-20</td><td class="px">80px</td><td><div class="vis" style="width:80px"></div></td><td>التباعد العلوي للشاشة الفارغة الكاملة</td></tr>
+    </tbody>
+  </table>
+
+  <div class="grid-2">
+    <div class="ratio-block">
+      <b>قواعد التطبيق</b>
+      <ul style="margin:0;padding-inline-start:18px;line-height:1.8">
+        <li><code>space-2</code>: فجوة داخل بطاقة (أيقونة + نص)</li>
+        <li><code>space-3</code>: فجوة بين البطاقات في القائمة</li>
+        <li><code>space-4</code>: حشو أفقي للصفحة (دائماً)</li>
+        <li><code>space-5</code>: حشو القسم في التقارير فقط</li>
+        <li><code>space-6</code>: حشو البطاقة البارزة (hero)</li>
+        <li><code>space-8</code>: فاصل بين أقسام الصفحة</li>
+      </ul>
+    </div>
+    <div class="ratio-block">
+      <b>قيم ممنوعة (القيم الاعتباطية)</b>
+      <ul style="margin:0;padding-inline-start:18px;line-height:1.8;color:var(--color-alert)">
+        <li><code>min-h-[38px]</code> · reports/page.tsx:190</li>
+        <li><code>min-h-[40px]</code> · FinanceCatalogModal.tsx:205,213</li>
+        <li><code>min-h-[48px]</code> · OrderCalendar.tsx:154</li>
+        <li><code>min-h-[52px]</code> · OrderCalendar.tsx:250,265</li>
+        <li><code>min-h-[80px]</code> · DashboardClient.tsx:690,698,706,714</li>
+        <li><code>min-h-[44px]</code> · 55 موضعاً → <code>var(--tap-min)</code></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ============ TOUCH TOKEN ============ -->
+  <h2>2. توكن اللمس (Touch Target) — يلغي 55 تكراراً</h2>
+  <p>اليوم <code>min-h-[44px]</code> مكرّر 55 مرة عبر 21 ملفاً. التوصية: عرّف <code>--tap-min: 44px</code> في <code>globals.css:3-43</code> ومرّره عبر <code>@theme</code> كـ<code>tap-min</code> ليُستخدم كـ<code>min-h-tap</code>. هذا يرفع 4 مخالفات (38px، 40px، 48px، 52px) إلى المعيار.</p>
+
+  <div class="callout ok">
+    <strong>القاعدة الكنسونية:</strong> كل عنصر تفاعلي (زر، شريحة، رابط، خانة اختيار) <code>min-height: var(--tap-min) = 44px</code>. لا استثناء. زر الأيقونة مربّع <code>44×44</code>. الشريحة الدائرية مرئياً 36px لكن <code>min-h: 44px</code> لمنطقة اللمس.
+  </div>
+
+  <!-- ============ TYPE SCALE ============ -->
+  <h2>3. مقياس الخط (Type Scale) — 12 درجة</h2>
+  <p>اليوم يوجد 8+ قيم نص اعتباطية متناثرة: <code>text-[9px]</code>، <code>text-[10px]</code>، <code>text-[11px]</code>، <code>text-md</code> (غير صالح). التوصية: 12 درجة كنسونية بأسماء دلالية. الخط <strong>Cairo</strong> (مُحمّل في <code>app/layout.tsx</code> عبر <code>next/font</code>).</p>
+
+  <div class="specimen">
+    <div class="ts-row">
+      <span class="ts-token">--text-2xs · 10px</span>
+      <span class="ts-sample" style="font-size:10px;font-weight:700">عدّاد الشريحة · 12 طلب</span>
+      <span class="ts-spec">Cairo · 700 · lh 1.2</span>
+    </div>
+    <div class="ts-row">
+      <span class="ts-token">--text-xs · 11px</span>
+      <span class="ts-sample" style="font-size:11px;font-weight:700">شارة الحالة · مؤكد</span>
+      <span class="ts-spec">Cairo · 700 · lh 1.2</span>
+    </div>
+    <div class="ts-row">
+      <span class="ts-token">--text-sm · 12px</span>
+      <span class="ts-sample" style="font-size:12px;font-weight:600">شريحة فلترة · جديد</span>
+      <span class="ts-spec">Cairo · 600 · lh 1.35</span>
+    </div>
+    <div class="ts-row">
+      <span class="ts-token">--text-md · 13px</span>
+      <span class="ts-sample" style="font-size:13px;font-weight:700">زر · حفظ العملية</span>
+      <span class="ts-spec">Cairo · 700 · lh 1.35</span>
+    </div>
+    <div class="ts-row">
+      <span class="ts-token">--text-base · 14px</span>
+      <span class="ts-sample" style="font-size:14px;font-weight:400">نص أساسي للقوائم · ليلى منصور</span>
+      <span class="ts-spec">Cairo · 400 · lh 1.5</span>
+    </div>
+    <div class="ts-row">
+      <span class="ts-token">--text-md-lg · 15px</span>
+      <span class="ts-sample" style="font-size:15px;font-weight:700">عنوان النموذج · إضافة عملية مبيعات</span>
+      <span class="ts-spec">Cairo · 700 · lh 1.35</span>
+    </div>
+    <div class="ts-row">
+      <span class="ts-token">--text-lg · 16px</span>
+      <span class="ts-sample" style="font-size:16px;font-weight:700">حقل إدخال · اسم العميل</span>
+      <span class="ts-spec">Cairo · 700 · lh 1.5</span>
+    </div>
+    <div class="ts-row">
+      <span class="ts-token">--text-xl · 17px</span>
+      <span class="ts-sample" style="font-size:17px;font-weight:700">عنوان الرأس · الطلبات الجارية</span>
+      <span class="ts-spec">Cairo · 700 · lh 1.3</span>
+    </div>
+    <div class="ts-row">
+      <span class="ts-token">--text-2xl · 20px</span>
+      <span class="ts-sample" style="font-size:20px;font-weight:700">عنوان قسم · ملخص المبيعات</span>
+      <span class="ts-spec">Cairo · 700 · lh 1.3</span>
+    </div>
+    <div class="ts-row">
+      <span class="ts-token">--text-3xl · 24px</span>
+      <span class="ts-sample" style="font-size:24px;font-weight:800">رقم في بطاقة إحصائية</span>
+      <span class="ts-spec">Cairo · 800 · lh 1.2</span>
+    </div>
+    <div class="ts-row">
+      <span class="ts-token">--text-4xl · 32px</span>
+      <span class="ts-sample" style="font-size:32px;font-weight:800;letter-spacing:-.02em">صافي الربح 3,450.750</span>
+      <span class="ts-spec">Cairo · 800 · lh 1.2 · ls -0.02em</span>
+    </div>
+    <div class="ts-row">
+      <span class="ts-token">--text-5xl · 40px</span>
+      <span class="ts-sample" style="font-size:40px;font-weight:900;letter-spacing:-.03em">450.000 د.أ</span>
+      <span class="ts-spec">Cairo · 900 · lh 1.0 · ls -0.03em (hero only)</span>
+    </div>
+  </div>
+
+  <!-- ============ TYPE HIERARCHY ============ -->
+  <h2>4. الهرمية الطباعية (Hierarchy)</h2>
+  <p>اليوم الهرمية غامضة في صفحات كثيرة. مثلاً <code>reports/page.tsx:174</code> يكرّر عنوان الرأس كـ<code>&lt;h2&gt;</code> داخل الصفحة. التوصية: 5 مستويات واضحة، لا أكثر.</p>
+
+  <div class="demo">
+    <div class="demo-card">
+      <div style="font-size:11px;font-weight:600;color:var(--color-ink-3);text-transform:uppercase;letter-spacing:.06em">الديسمبر 2026 · المبيعات</div>
+      <h4 style="font-size:24px;font-weight:800;letter-spacing:-.02em;margin:0">3,450.750 د.أ</h4>
+      <div style="font-size:13px;color:var(--color-emerald-deep);font-weight:600">↑ 18% عن نوفمبر</div>
+      <div style="font-size:13px;color:var(--color-ink-2);line-height:1.7">إجمالي مبيعات الشهر من جميع المصادر (نقدًا، بطاقة، تحويل) بعد المرتجعات.</div>
+    </div>
+  </div>
+
+  <div class="grid-3">
+    <div class="ratio-block"><b>Display · 32px / 800</b><br><span style="font-size:11px;color:var(--color-ink-3)">الرقم البطولي في hero فقط. مرة واحدة لكل شاشة.</span></div>
+    <div class="ratio-block"><b>Title · 17px / 700</b><br><span style="font-size:11px;color:var(--color-ink-3)">عنوان الرأس. مرة واحدة لكل شاشة.</span></div>
+    <div class="ratio-block"><b>Section · 20px / 700</b><br><span style="font-size:11px;color:var(--color-ink-3)">عنوان قسم داخل الصفحة.</span></div>
+    <div class="ratio-block"><b>Body · 14px / 400</b><br><span style="font-size:11px;color:var(--color-ink-3)">النص الأساسي للقوائم والوصف.</span></div>
+    <div class="ratio-block"><b>Caption · 12px / 600</b><br><span style="font-size:11px;color:var(--color-ink-3)">الميتاداتا: التاريخ، الحالة الثانوية.</span></div>
+    <div class="ratio-block"><b>Micro · 10px / 700</b><br><span style="font-size:11px;color:var(--color-ink-3)">العدّاد على الشريحة، شارة الحالة.</span></div>
+  </div>
+
+  <!-- ============ FONT WEIGHTS ============ -->
+  <h2>5. أوزان الخط (Font Weights)</h2>
+  <p>خط Cairo يدعم 6 أوزان. التوصية: استخدم 4 فقط.</p>
+
+  <table class="scale-table">
+    <thead><tr><th>الوزن</th><th>الاستخدام</th><th>مثال</th></tr></thead>
+    <tbody>
+      <tr><td class="token">400 · Regular</td><td>النص الأساسي، الوصف</td><td><span style="font-weight:400;font-size:14px">ليلى منصور · قاعة الأندلس</span></td></tr>
+      <tr><td class="token">600 · SemiBold</td><td>شريحة فلترة، عنوان فرعي</td><td><span style="font-weight:600;font-size:13px">جديد · 3 طلبات</span></td></tr>
+      <tr><td class="token">700 · Bold</td><td>الأزرار، العناوين، الحقول</td><td><span style="font-weight:700;font-size:14px">حفظ العملية</span></td></tr>
+      <tr><td class="token">800 · ExtraBold</td><td>الأرقام البطولية، الأرقام في hero</td><td><span style="font-weight:800;font-size:24px">3,450.750</span></td></tr>
+    </tbody>
+  </table>
+  <div class="callout">
+    <strong>ممنوع:</strong> 500 (Medium) — لا يضيف قيمة على 400. ممنوع: 900 (Black) إلا في <code>--text-5xl</code> فقط.
+  </div>
+
+  <!-- ============ LINE HEIGHT ============ -->
+  <h2>6. ارتفاع السطر (Line Height)</h2>
+  <table class="scale-table">
+    <thead><tr><th>التوكن</th><th>القيمة</th><th>الاستخدام</th></tr></thead>
+    <tbody>
+      <tr><td class="token">--lh-tight</td><td>1.2</td><td>العناوين الكبيرة + الأرقام البطولية</td></tr>
+      <tr><td class="token">--lh-snug</td><td>1.35</td><td>العناوين الفرعية، الأزرار، الشارات</td></tr>
+      <tr><td class="token">--lh-normal</td><td>1.5</td><td>النص الأساسي، حقول الإدخال</td></tr>
+      <tr><td class="token">--lh-relaxed</td><td>1.7</td><td>الفقرات الطويلة، الوصف، الملاحظات</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ============ DRIFT TABLES ============ -->
+  <h2>7. الانحرافات المرصودة — جدول مفصّل</h2>
+
+  <h3>مسافات الصفحة الجذر (page-level spacing)</h3>
+  <table class="drift-table">
+    <thead><tr><th>الصفحة</th><th>file:line</th><th>الحالي</th><th>الكنوني</th></tr></thead>
+    <tbody>
+      <tr><td>Dashboard</td><td>DashboardClient.tsx:174</td><td class="bad">space-y-5</td><td class="good">space-y-4</td></tr>
+      <tr><td>Reports</td><td>reports/page.tsx:171</td><td class="bad">space-y-8</td><td class="good">space-y-6</td></tr>
+      <tr><td>Orders edit</td><td>OrderDetail.tsx:154</td><td class="good">space-y-6</td><td class="good">space-y-6</td></tr>
+      <tr><td>FinanceClient root</td><td>FinanceClient.tsx:79</td><td class="bad">gap-6</td><td class="good">gap-4</td></tr>
+    </tbody>
+  </table>
+
+  <h3>حشو البطاقات (card padding)</h3>
+  <table class="drift-table">
+    <thead><tr><th>الموقع</th><th>file:line</th><th>الحالي</th><th>الكنوني</th></tr></thead>
+    <tbody>
+      <tr><td>OrderCard</td><td>OrderCard.tsx:88</td><td class="good">p-4</td><td class="good">p-4 (card)</td></tr>
+      <tr><td>Finance rows</td><td>SalesTab.tsx:207, PurchasesTab.tsx:187, ExpensesTab.tsx:235</td><td class="good">p-4</td><td class="good">p-4 (card)</td></tr>
+      <tr><td>Catalog rows</td><td>CatalogClient.tsx:158</td><td class="good">p-4</td><td class="good">p-4 (card)</td></tr>
+      <tr><td>Reports sections</td><td>reports/page.tsx:203,276,365,410,463</td><td class="bad">p-5</td><td class="good">p-5 (section)</td></tr>
+      <tr><td>Dashboard hero</td><td>DashboardClient.tsx:234</td><td class="good">p-6</td><td class="good">p-6 (hero)</td></tr>
+      <tr><td>OrderDetail sections</td><td>OrderDetail.tsx:187,259,298</td><td class="good">p-6</td><td class="good">p-6 (hero)</td></tr>
+      <tr><td>Dashboard stat cards</td><td>DashboardClient.tsx:259,278,300,317,343,360,377</td><td class="good">p-4</td><td class="good">p-4 (card)</td></tr>
+    </tbody>
+  </table>
+
+  <h3>أحجام النص الاعتباطية</h3>
+  <table class="drift-table">
+    <thead><tr><th>file:line</th><th>الحالي</th><th>الكنوني</th><th>السبب</th></tr></thead>
+    <tbody>
+      <tr><td class="bad">reports/page.tsx:70,330</td><td>text-[10px]</td><td class="good">--text-2xs</td><td>عدّاد الشريحة</td></tr>
+      <tr><td class="bad">AppShell.tsx:130,146</td><td>text-[11px]</td><td class="good">--text-xs</td><td>تسمية الشريط السفلي</td></tr>
+      <tr><td class="bad">FinancialChart.tsx:88,91,94,142</td><td>text-[11px]</td><td class="good">--text-xs</td><td>تسميات المحاور</td></tr>
+      <tr><td class="bad">OrderCalendar.tsx:320</td><td>text-[9px]</td><td class="good">--text-2xs</td><td>عدّاد خلية اليوم</td></tr>
+      <tr><td class="bad">ExpenseForm.tsx:219 · SaleForm.tsx:170 · PurchaseForm.tsx:287 · ExpensesTab.tsx:241 · PurchasesTab.tsx:193 · SalesTab.tsx:213 · FinanceClient.tsx:90</td><td class="bad">text-md (غير صالح)</td><td class="good">--text-base (14px)</td><td>يُحلّ بصمت إلى inherited — خطأ صامت</td></tr>
+    </tbody>
+  </table>
+
+  <h3>انحرافات اللمس (touch target violations)</h3>
+  <table class="drift-table">
+    <thead><tr><th>file:line</th><th>الحالي</th><th>الكنوني</th></tr></thead>
+    <tbody>
+      <tr><td class="bad">reports/page.tsx:190</td><td>min-h-[38px]</td><td class="good">var(--tap-min) = 44px</td></tr>
+      <tr><td class="bad">FinanceCatalogModal.tsx:205,213</td><td>min-h-[40px]</td><td class="good">var(--tap-min) = 44px</td></tr>
+      <tr><td>55 ملفاً</td><td>min-h-[44px]</td><td class="good">var(--tap-min)</td></tr>
+      <tr><td>OrderCalendar.tsx:154</td><td>min-h-[48px]</td><td class="good">var(--tap-min) + h-12</td></tr>
+      <tr><td>OrderCalendar.tsx:250,265</td><td>min-h-[52px]</td><td class="good">h-13 (52px) as token</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ============ RADIUS ============ -->
+  <h2>8. مقياس الانحناء (Radius Scale)</h2>
+  <p>اليوم 8 قيم مختلفة للانحناء بلا توكن: <code>rounded</code>، <code>rounded-sm</code>، <code>rounded-md</code>، <code>rounded-lg</code>، <code>rounded-xl</code>، <code>rounded-2xl</code>، <code>rounded-full</code>، <code>rounded-t-[2px]</code>. التوصية: 5 قيم كنسونية.</p>
+
+  <table class="scale-table">
+    <thead><tr><th>التوكن</th><th>px</th><th>الاستخدام</th><th>مثال</th></tr></thead>
+    <tbody>
+      <tr><td class="token">--radius-sm</td><td class="px">4px</td><td>شارة، عدّاد</td><td><div style="width:48px;height:24px;background:var(--color-info);border-radius:4px"></div></td></tr>
+      <tr><td class="token">--radius-md</td><td class="px">8px</td><td>أزرار، حقول، تحكم مجزّأ</td><td><div style="width:64px;height:32px;background:var(--color-info);border-radius:8px"></div></td></tr>
+      <tr><td class="token">--radius-lg</td><td class="px">12px</td><td>بطاقات، صفوف قوائم</td><td><div style="width:80px;height:48px;background:var(--color-info);border-radius:12px"></div></td></tr>
+      <tr><td class="token">--radius-xl</td><td class="px">16px</td><td>بطاقات hero، صناديق فارغة</td><td><div style="width:96px;height:64px;background:var(--color-info);border-radius:16px"></div></td></tr>
+      <tr><td class="token">--radius-2xl</td><td class="px">20px</td><td>صفائح سفلية (rounded-t-2xl)</td><td><div style="width:120px;height:80px;background:var(--color-info);border-radius:20px"></div></td></tr>
+      <tr><td class="token">--radius-full</td><td class="px">9999px</td><td>شرائح دائرية، FAB، شارات</td><td><div style="width:48px;height:48px;background:var(--color-info);border-radius:999px"></div></td></tr>
+    </tbody>
+  </table>
+
+  <!-- ============ SHADOW ============ -->
+  <h2>9. مقياس الظل (Shadow Scale)</h2>
+  <p>اليوم 3 قيم: <code>shadow-sm</code> (الأكثر)، <code>shadow-lg</code> (FAB + tooltip)، <code>shadow-xl</code> (الصفائح). التوصية: 3 توكنات.</p>
+
+  <table class="scale-table">
+    <thead><tr><th>التوكن</th><th>القيمة</th><th>الاستخدام</th></tr></thead>
+    <tbody>
+      <tr><td class="token">--shadow-hairline</td><td>0 1px 0 var(--color-hairline)</td><td>فاصل الرأس، الشريط السفلي</td></tr>
+      <tr><td class="token">--shadow-card</td><td>0 1px 2px rgba(20,18,12,.03)</td><td>البطاقات الافتراضية (shadow-sm الحالي)</td></tr>
+      <tr><td class="token">--shadow-pop</td><td>0 4px 16px -4px rgba(20,18,12,.10)</td><td>FAB، tooltip، القوائم المنسدلة</td></tr>
+      <tr><td class="token">--shadow-sheet</td><td>0 -8px 32px -8px rgba(20,18,12,.18)</td><td>الصفائح السفلية</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    <strong>بيان النزاهة:</strong> كل القيم الكنسونية أعلاه مأخوذة من القيم الموجودة فعلاً في الكود، فقط مُسمّاة. لا قيمة مُختَرعة. القاعدة 44px مذكورة صراحة في تعليق <code>OrdersClient.tsx:121</code>. كل الألوان من <code>globals.css:3-43</code>. لا تعديل على المستودع.
+  </div>
+
+</div>
+</body>
+</html>

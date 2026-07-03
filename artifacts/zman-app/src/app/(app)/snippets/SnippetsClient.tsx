@@ -10,6 +10,9 @@ import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Button } from "@/components/shared/Button";
 import { TextField } from "@/components/shared/TextField";
+import { Select } from "@/components/shared/Select";
+import { TextArea } from "@/components/shared/TextArea";
+import { SkeletonList } from "@/components/shared/SkeletonList";
 import {
   useSnippets,
   useCreateSnippet,
@@ -82,34 +85,39 @@ export default function SnippetsClient() {
 
         {/* المحتوى */}
         {isLoading ? (
-          <div className="flex-1 flex items-center justify-center text-ink/40 text-sm">
-            جاري التحميل...
-          </div>
+          <SkeletonList />
         ) : items.length === 0 ? (
           <EmptyState
             title="لا توجد ملاحظات"
-            description={search ? "لا توجد نتائج للبحث" : "أضف نصوصاً جاهزة تُستخدم بشكل متكرر"}
+            description={search ? "لا توجد نتائج بحث مطابقة" : "أضف رسائل وملاحظات جاهزة لتسهيل المراسلة وتوثيق شروط الطلبات"}
           />
         ) : (
-          <div className="flex flex-col gap-6">
-            {Object.entries(grouped).map(([category, snippets]) => (
-              <div key={category}>
-                <h3 className="text-xs font-bold text-ink/40 uppercase tracking-wider mb-2 px-1">
-                  {category}
-                </h3>
-                <ul className="flex flex-col gap-2">
-                  {snippets.map((s) => (
-                    <SnippetCard
-                      key={s.id}
-                      snippet={s}
-                      copied={copied === s.id}
-                      onCopy={() => handleCopy(s.body, s.id)}
-                      onEdit={() => setEditing(s)}
-                    />
-                  ))}
-                </ul>
-              </div>
-            ))}
+          <div className="space-y-6">
+            {CATEGORIES.map((cat) => {
+              const list = grouped[cat] || [];
+              if (list.length === 0) return null;
+              return (
+                <div key={cat} className="space-y-2">
+                  <h3 className="text-xs font-bold text-ink-3 px-1">{cat}</h3>
+                  <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {list.map((item, idx) => (
+                      <div
+                        key={item.id}
+                        style={{ animationDelay: `${Math.min(idx, 4) * 60}ms` }}
+                        className="animate-fade-slide-in"
+                      >
+                        <SnippetCard
+                          snippet={item}
+                          copied={copied === item.id}
+                          onCopy={() => handleCopy(item.body, item.id)}
+                          onEdit={() => setEditing(item)}
+                        />
+                      </div>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -196,13 +204,12 @@ function SnippetCard({
           >
             {copied ? "✓ نُسخ" : "نسخ"}
           </button>
-          <button
-            type="button"
+          <Button
+            variant="icon"
             onClick={onEdit}
-            className="w-11 h-11 min-w-[44px] min-h-[44px] rounded border border-hairline flex items-center justify-center text-ink/50 hover:text-ink hover:border-ink/30 transition-colors"
           >
             <Edit3 className="w-3.5 h-3.5" />
-          </button>
+          </Button>
         </div>
       </div>
       <p className="text-sm text-ink/70 whitespace-pre-wrap leading-relaxed line-clamp-3">
@@ -269,28 +276,21 @@ function SnippetForm({
         {...register("title", { required: "العنوان مطلوب" })}
       />
 
-      <div>
-        <label className="text-xs font-semibold text-ink/60 block mb-1">الفئة</label>
-        <select
-          {...register("category")}
-          className="w-full h-12 px-4 rounded-md border border-hairline focus:outline-none focus:ring-2 focus:ring-ink bg-paper text-base"
-        >
-          {CATEGORIES.map((c) => (
-            <option key={c} value={c}>{c}</option>
-          ))}
-        </select>
-      </div>
+      <Select
+        label="الفئة"
+        {...register("category")}
+      >
+        {CATEGORIES.map((c) => (
+          <option key={c} value={c}>{c}</option>
+        ))}
+      </Select>
 
-      <div>
-        <label className="text-xs font-semibold text-ink/60 block mb-1">النص *</label>
-        <textarea
-          {...register("body", { required: "النص مطلوب" })}
-          placeholder="اكتب النص هنا..."
-          rows={5}
-          className="w-full px-4 py-3 rounded-md border border-hairline focus:outline-none focus:ring-2 focus:ring-ink bg-paper text-base resize-none"
-        />
-        {errors.body && <span className="text-xs text-alert mt-1 block">{errors.body.message}</span>}
-      </div>
+      <TextArea
+        label="النص *"
+        {...register("body", { required: "النص مطلوب" })}
+        placeholder="اكتب النص هنا..."
+        error={errors.body?.message as string}
+      />
 
       <div className="flex gap-3 pt-2">
         <Button
@@ -298,25 +298,27 @@ function SnippetForm({
           isLoading={isSubmitting}
           className="flex-1"
         >
-          {initialData ? "حفظ التعديلات" : "إضافة الملاحظة"}
+          {initialData ? "حفظ التعديلات" : "إضافة للملاحظات"}
         </Button>
         {onDelete && (
           <Button
+            type="button"
             variant="destructive"
             onClick={handleDelete}
             isLoading={isSubmitting}
-            icon={<Trash2 className="w-4 h-4" />}
-            className="px-4"
-          />
+            className="flex-1"
+          >
+            حذف الملاحظة
+          </Button>
         )}
       </div>
+
       <ConfirmDialog
         isOpen={confirmOpen}
-        title="تأكيد الحذف"
-        message="هل أنت متأكد من حذف هذه الملاحظة؟"
+        title="حذف الملاحظة"
+        message="هل أنت متأكد من حذف هذه الملاحظة نهائياً؟"
         onConfirm={handleConfirmDelete}
         onCancel={() => setConfirmOpen(false)}
-        isLoading={isSubmitting}
       />
     </form>
   );

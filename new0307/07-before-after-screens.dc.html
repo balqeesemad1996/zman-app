@@ -1,0 +1,583 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Zman Greens JO · Before / After · Top Screens · Design Component 07</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --color-canvas:#f6f4ee; --color-paper:#ffffff;
+    --color-hairline:rgba(20,18,12,.08); --color-hairline-2:rgba(20,18,12,.14);
+    --color-ink:#1a1b17; --color-ink-2:#54534d; --color-ink-3:#6b6b66;
+    --color-alert:#c0392b; --color-alert-soft:#fbe9e6; --color-alert-deep:#8b2718;
+    --color-warn:#9f7300; --color-warn-soft:#fbf1d8; --color-warn-deep:#7a5800;
+    --color-info:#1565c0; --color-info-soft:#e8f0f8;
+    --color-emerald:#0f9d58; --color-emerald-soft:#e6f4ea; --color-emerald-deep:#0b6e3f;
+    --tap-min:44px;
+    --radius-md:8px; --radius-lg:12px; --radius-xl:16px; --radius-2xl:20px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:#ece9df;color:var(--color-ink);font-family:'Cairo',system-ui,sans-serif;line-height:1.6}
+  .mono{font-family:'IBM Plex Mono',monospace;direction:ltr;display:inline-block}
+  .doc{max-width:1480px;margin:0 auto;padding:48px 24px 96px}
+  .doc h1{font-size:32px;font-weight:800;margin:0 0 8px;letter-spacing:-.02em}
+  .doc h2{font-size:22px;font-weight:700;margin:48px 0 12px;color:var(--color-ink);border-inline-start:3px solid var(--color-info);padding-inline-start:12px}
+  .doc h3{font-size:16px;font-weight:700;margin:24px 0 8px;color:var(--color-ink)}
+  .doc p{margin:0 0 12px;color:var(--color-ink-2);font-size:14px;line-height:1.7}
+  .doc code{font-family:'IBM Plex Mono',monospace;background:var(--color-canvas);padding:1px 6px;border-radius:4px;font-size:12px;color:var(--color-info);direction:ltr;display:inline-block}
+  .meta{font-size:12px;color:var(--color-ink-3);margin-bottom:32px}
+  .callout{background:var(--color-paper);border:1px solid var(--color-hairline);border-radius:12px;padding:16px 20px;margin:16px 0;font-size:13px;line-height:1.7;color:var(--color-ink-2)}
+  .callout.ok{border-inline-start:3px solid var(--color-emerald);background:var(--color-emerald-soft)}
+
+  .device{width:390px;height:844px;background:var(--color-canvas);border-radius:48px;border:11px solid #0a0a0a;overflow:hidden;position:relative;box-shadow:0 24px 48px -16px rgba(0,0,0,.35),0 8px 16px -8px rgba(0,0,0,.2);flex-shrink:0}
+  .device-scroll{height:100%;overflow-y:auto;overflow-x:hidden;position:relative;background:var(--color-canvas)}
+  .device-scroll::-webkit-scrollbar{display:none}
+  .device-label{text-align:center;font-size:12px;font-weight:600;color:var(--color-ink-3);margin-top:8px}
+  .device-label .file{display:block;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--color-info);margin-top:2px;direction:ltr}
+
+  .statusbar{height:44px;padding:0 28px 6px;display:flex;align-items:flex-end;justify-content:space-between;font-size:14px;font-weight:600;color:var(--color-ink);background:var(--color-paper)}
+  .statusbar .right{display:flex;gap:4px;align-items:center}
+
+  /* BEFORE header — AppShell.tsx:97 */
+  .header-before{height:56px;background:rgba(255,255,255,.9);backdrop-filter:blur(4px);box-shadow:0 1px 2px rgba(0,0,0,.06);border-bottom:1px solid var(--color-hairline);display:flex;align-items:center;justify-content:space-between;padding:0 16px}
+  .header-before h1{font-size:16px;font-weight:700;margin:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .header-before .action-slot{display:flex;align-items:center;margin-inline-start:12px;gap:8px}
+  .header-before .seg{display:flex;align-items:center;border-radius:8px;border:1px solid var(--color-hairline);background:var(--color-canvas);padding:3px;gap:2px}
+  .header-before .seg button{height:34px;padding:0 12px;border:none;background:transparent;color:var(--color-ink-3);font-size:12px;font-weight:600;border-radius:6px;display:flex;align-items:center;gap:6px;cursor:pointer}
+  .header-before .seg button.active{background:var(--color-info);color:#fff}
+  .header-before .pill{height:36px;min-height:44px;padding:0 14px;display:flex;align-items:center;gap:6px;border-radius:8px;background:var(--color-info);color:#fff;font-size:13px;font-weight:700;border:none;cursor:pointer}
+
+  /* AFTER canonical header */
+  .header-after{position:sticky;top:0;z-index:10;height:56px;background:rgba(255,255,255,.85);backdrop-filter:blur(12px) saturate(180%);box-shadow:0 1px 0 var(--color-hairline);display:flex;align-items:center;padding:0 12px;gap:8px;isolation:isolate}
+  .header-after .back{width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:8px;color:var(--color-ink);background:transparent;border:none;cursor:pointer;flex-shrink:0}
+  .header-after .back:hover{background:var(--color-canvas)}
+  .header-after .title{flex:1;font-size:17px;font-weight:700;margin:0;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .header-after .icon-btn{width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:8px;color:var(--color-ink-2);background:transparent;border:none;cursor:pointer}
+  .header-after .icon-btn:hover{background:var(--color-canvas);color:var(--color-ink)}
+  .header-after .pill-btn{height:36px;padding:0 14px;display:flex;align-items:center;gap:6px;border-radius:8px;background:var(--color-info);color:#fff;font-size:13px;font-weight:700;border:none;cursor:pointer;box-shadow:0 1px 2px rgba(21,101,192,.3)}
+
+  /* BEFORE sticky filters — ListHeader.tsx:21 */
+  .filters-before{position:sticky;top:0;z-index:10;background:rgba(246,244,238,.95);backdrop-filter:blur(6px);padding:8px 16px 12px;border-bottom:1px solid var(--color-hairline)}
+  /* AFTER sticky filters */
+  .filters-after{position:sticky;top:56px;z-index:10;background:rgba(246,244,238,.95);backdrop-filter:blur(6px);padding:8px 16px 12px;border-bottom:1px solid var(--color-hairline)}
+
+  .search-before{position:relative;margin-bottom:8px}
+  .search-before svg{position:absolute;inset-inline-start:12px;top:50%;transform:translateY(-50%);color:var(--color-ink-3);width:18px;height:18px}
+  .search-before input{width:100%;height:48px;padding-inline-start:40px;padding-inline-end:12px;border-radius:10px;border:1px solid var(--color-hairline);background:var(--color-paper);font-size:14px;color:var(--color-ink);font-family:inherit;outline:none}
+  .search-after{position:relative;flex:1}
+  .search-after svg.leading{position:absolute;inset-inline-start:14px;top:50%;transform:translateY(-50%);color:var(--color-ink-3);width:18px;height:18px}
+  .search-after input{width:100%;height:48px;padding-inline-start:44px;padding-inline-end:40px;border-radius:8px;border:1px solid var(--color-hairline-2);background:var(--color-paper);font-size:16px;color:var(--color-ink);font-family:inherit;outline:none}
+  .search-after input:focus{border-color:var(--color-info);box-shadow:0 0 0 3px rgba(21,101,192,.12)}
+  .search-after .clear{position:absolute;inset-inline-end:8px;top:50%;transform:translateY(-50%);width:32px;height:32px;border:none;background:var(--color-canvas);color:var(--color-ink-3);border-radius:999px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+
+  .chips-row{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+  .chips-row::-webkit-scrollbar{display:none}
+  .chip{min-height:44px;height:36px;padding:0 14px;border-radius:999px;background:var(--color-paper);color:var(--color-ink-2);border:1px solid var(--color-hairline);font-size:12px;font-weight:600;white-space:nowrap;display:flex;align-items:center;gap:6px;cursor:pointer;font-family:inherit;transition:all .12s;flex-shrink:0}
+  .chip:hover{background:var(--color-canvas);color:var(--color-ink)}
+  .chip:active{transform:scale(.95)}
+  .chip.active{background:var(--color-info);color:#fff;border-color:var(--color-info);box-shadow:0 1px 2px rgba(21,101,192,.25)}
+  .chip .count{padding:1px 6px;border-radius:999px;font-size:10px;font-weight:700;background:var(--color-canvas);color:var(--color-ink-3)}
+  .chip.active .count{background:rgba(255,255,255,.25);color:#fff}
+
+  /* sort button */
+  .sort-btn{height:44px;min-height:44px;padding:0 14px;border-radius:8px;background:var(--color-paper);border:1px solid var(--color-hairline);color:var(--color-ink);font-size:13px;font-weight:600;font-family:inherit;display:flex;align-items:center;gap:8px;cursor:pointer;white-space:nowrap;flex-shrink:0}
+  .sort-btn:hover{background:var(--color-canvas)}
+  .sort-btn .arrow{color:var(--color-ink-3)}
+
+  /* content */
+  .content{padding:12px 16px 96px;display:flex;flex-direction:column;gap:8px}
+  .row-card{background:var(--color-paper);border:1px solid var(--color-hairline);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:6px;box-shadow:0 1px 2px rgba(0,0,0,.03);cursor:pointer;transition:all .15s}
+  .row-card:hover{border-color:var(--color-hairline-2);box-shadow:0 2px 8px rgba(20,18,12,.06)}
+  .row-card:active{transform:scale(.985)}
+  .row-card .top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .row-card .name{font-size:14px;font-weight:700;color:var(--color-ink)}
+  .row-card .sub{font-size:12px;color:var(--color-ink-3)}
+  .row-card .amt{font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:700;color:var(--color-info);direction:ltr}
+  .badge{height:22px;padding:0 8px;border-radius:999px;font-size:11px;font-weight:700;display:inline-flex;align-items:center}
+  .badge.info{background:var(--color-info);color:#fff}
+  .badge.warn{background:var(--color-warn-soft);color:var(--color-warn-deep)}
+  .badge.ok{background:var(--color-emerald-soft);color:var(--color-emerald-deep)}
+  .badge.alert{background:var(--color-alert-soft);color:var(--color-alert)}
+
+  .ba-grid{display:grid;grid-template-columns:1fr 1fr;gap:32px;justify-items:center;margin:32px 0}
+  .ba-col{display:flex;flex-direction:column;align-items:center}
+  .ba-tag{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:4px 10px;border-radius:6px;margin-bottom:12px}
+  .ba-tag.before{background:var(--color-alert-soft);color:var(--color-alert-deep)}
+  .ba-tag.after{background:var(--color-emerald-soft);color:var(--color-emerald-deep)}
+
+  .annot{font-size:11px;color:var(--color-ink-3);margin:8px 0;line-height:1.5;text-align:center;max-width:390px}
+  .annot .file{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--color-info);direction:ltr;display:block;margin-top:2px}
+
+  .delta-list{margin:16px 0;padding:0;list-style:none}
+  .delta-list li{padding:8px 14px;border-bottom:1px solid var(--color-hairline);font-size:13px;color:var(--color-ink-2);display:flex;align-items:flex-start;gap:8px}
+  .delta-list li:last-child{border-bottom:none}
+  .delta-list .ok{color:var(--color-emerald-deep);font-weight:700;flex-shrink:0}
+  .delta-list .rem{color:var(--color-alert);font-weight:700;flex-shrink:0}
+
+  /* dashboard */
+  .stat-card{background:var(--color-paper);border:1px solid var(--color-hairline);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:6px;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+  .stat-card .label{font-size:12px;font-weight:600;color:var(--color-ink-3)}
+  .stat-card .value{font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:800;letter-spacing:-.02em;color:var(--color-ink);direction:ltr;line-height:1.1}
+  .stat-card .delta{font-size:11px;font-weight:700}
+  .stat-card .delta.up{color:var(--color-emerald-deep)}
+  .stat-card .delta.down{color:var(--color-alert)}
+  .stat-card .delta.flat{color:var(--color-ink-3)}
+  .hero-stat{background:linear-gradient(135deg,var(--color-info) 0%,#0d4a91 100%);color:#fff;border:none;border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:8px;position:relative;overflow:hidden}
+  .hero-stat .label{font-size:13px;font-weight:600;opacity:.85}
+  .hero-stat .value{font-family:'IBM Plex Mono',monospace;font-size:38px;font-weight:800;letter-spacing:-.03em;line-height:1.05;direction:ltr}
+  .hero-stat .unit{font-size:14px;font-weight:600;opacity:.85;margin-inline-start:6px}
+  .hero-stat .delta{font-size:12px;font-weight:700;display:inline-flex;align-items:center;gap:4px;color:rgba(255,255,255,.9)}
+  .grid-2-mini{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0}
+
+  .chart-bars{display:flex;align-items:flex-end;gap:4px;height:100px;padding:0 4px}
+  .chart-bar{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}
+  .chart-bar .stack{display:flex;flex-direction:column-reverse;gap:1px;width:100%;align-items:center}
+  .chart-bar .seg{width:80%;border-radius:2px 2px 0 0}
+  .chart-bar .seg.sales{background:var(--color-info)}
+  .chart-bar .seg.costs{background:var(--color-alert)}
+  .chart-bar .lbl{font-size:10px;color:var(--color-ink-3)}
+  .chart-card{background:var(--color-paper);border:1px solid var(--color-hairline);border-radius:12px;padding:14px;box-shadow:0 1px 2px rgba(0,0,0,.03)}
+  .chart-card h4{margin:0 0 10px;font-size:13px;font-weight:700}
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <h1>Before / After · Top Screens (390×844)</h1>
+  <div class="meta">Zman Greens JO · Design Component 07 · commit f1dfd6b</div>
+
+  <p>أربع شاشات رئيسية معروضة جنباً إلى جنب: الطلبات، المالية، لوحة القيادة، التقارير. كل شاشة يُرى فيها الوضع الحالي (يسار) مقابل الوضع المرقّى (يمين) على إطار iPhone 14 (390×844). كل ادعاء بصري يُدعم بـملف:سطر تحت كل جهاز.</p>
+
+  <!-- ============ SCREEN 1: ORDERS ============ -->
+  <h2>1. صفحة الطلبات — OrdersClient.tsx + OrderList.tsx</h2>
+  <div class="ba-grid">
+    <div class="ba-col">
+      <span class="ba-tag before">● قبل · as-shipped</span>
+      <div class="device">
+        <div class="device-scroll">
+          <div class="statusbar"><span>9:41</span><span class="right">●●● 5G ▮▮▮</span></div>
+          <div class="header-before">
+            <h1>الطلبات الجارية</h1>
+            <div class="action-slot">
+              <div class="seg">
+                <button class="active">☰ قائمة</button>
+                <button>📅 تقويم</button>
+              </div>
+              <button class="pill">＋ طلب</button>
+            </div>
+          </div>
+          <div class="filters-before">
+            <div class="search-before">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3-3"/></svg>
+              <input placeholder="ابحث باسم العميل أو المنتج..."/>
+            </div>
+            <div class="chips-row">
+              <button class="chip active">الكل</button>
+              <button class="chip">جديد</button>
+              <button class="chip">مؤكد</button>
+              <button class="chip">قيد التنفيذ</button>
+              <button class="chip">مكتمل</button>
+              <button class="chip">ملغي</button>
+            </div>
+          </div>
+          <div class="content">
+            <div class="row-card"><div class="top"><span class="name">ليلى منصور · قاعة الأندلس</span><span class="badge info">مؤكد</span></div><div class="top"><span class="sub">03 يوليو · 7:00 م</span><span class="amt">45.000</span></div></div>
+            <div class="row-card"><div class="top"><span class="name">خالد العلي · منزل خاص</span><span class="badge warn">جديد</span></div><div class="top"><span class="sub">02 يوليو · 1:30 م</span><span class="amt">120.500</span></div></div>
+            <div class="row-card"><div class="top"><span class="name">سارة حداد · صالة الزهور</span><span class="badge ok">مكتمل</span></div><div class="top"><span class="sub">02 يوليو · 6:00 م</span><span class="amt">78.250</span></div></div>
+            <div class="row-card"><div class="top"><span class="name">عمر يوسف · قصر النخيل</span><span class="badge info">مؤكد</span></div><div class="top"><span class="sub">01 يوليو · 8:00 م</span><span class="amt">62.000</span></div></div>
+            <div class="row-card"><div class="top"><span class="name">هبة ناصر · فندق</span><span class="badge warn">جديد</span></div><div class="top"><span class="sub">30 يونيو</span><span class="amt">34.750</span></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="annot">قبل — بحث بلا مسح، شرائح بلا عدّاد، لا فرز<span class="file">OrdersClient.tsx:99 · ListHeader.tsx:25 · OrderList.tsx:151</span></div>
+    </div>
+
+    <div class="ba-col">
+      <span class="ba-tag after">● بعد · elevated</span>
+      <div class="device">
+        <div class="device-scroll">
+          <div class="statusbar"><span>9:41</span><span class="right">●●● 5G ▮▮▮</span></div>
+          <div class="header-after">
+            <button class="back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
+            <h1 class="title">الطلبات الجارية</h1>
+            <button class="icon-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="4" rx="1"/><rect x="3" y="11" width="18" height="4" rx="1"/><rect x="3" y="18" width="18" height="3" rx="1"/></svg></button>
+            <button class="pill-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>طلب</button>
+          </div>
+          <div class="filters-after">
+            <div style="display:flex;gap:8px;margin-bottom:10px">
+              <div class="search-after">
+                <svg class="leading" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3-3"/></svg>
+                <input placeholder="ابحث باسم العميل أو المنتج..."/>
+              </div>
+              <button class="sort-btn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M6 12h12M10 18h4"/></svg>
+                الأحدث
+                <svg class="arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+              </button>
+            </div>
+            <div class="chips-row">
+              <button class="chip active">الكل <span class="count">12</span></button>
+              <button class="chip">جديد <span class="count">3</span></button>
+              <button class="chip">مؤكد <span class="count">5</span></button>
+              <button class="chip">قيد التنفيذ <span class="count">2</span></button>
+              <button class="chip">مكتمل <span class="count">2</span></button>
+              <button class="chip">ملغي</button>
+            </div>
+          </div>
+          <div class="content">
+            <div class="row-card"><div class="top"><span class="name">ليلى منصور · قاعة الأندلس</span><span class="badge info">مؤكد</span></div><div class="top"><span class="sub">03 يوليو · 7:00 م · 7 مكونات</span><span class="amt">45.000 د.أ</span></div></div>
+            <div class="row-card"><div class="top"><span class="name">خالد العلي · منزل خاص</span><span class="badge warn">جديد</span></div><div class="top"><span class="sub">02 يوليو · 1:30 م · 12 مكوناً</span><span class="amt">120.500 د.أ</span></div></div>
+            <div class="row-card"><div class="top"><span class="name">سارة حداد · صالة الزهور</span><span class="badge ok">مكتمل</span></div><div class="top"><span class="sub">02 يوليو · 6:00 م · 5 مكونات</span><span class="amt">78.250 د.أ</span></div></div>
+            <div class="row-card"><div class="top"><span class="name">عمر يوسف · قصر النخيل</span><span class="badge info">مؤكد</span></div><div class="top"><span class="sub">01 يوليو · 8:00 م · 9 مكونات</span><span class="amt">62.000 د.أ</span></div></div>
+            <div class="row-card"><div class="top"><span class="name">هبة ناصر · فندق الإنتركونتيننتال</span><span class="badge warn">جديد</span></div><div class="top"><span class="sub">30 يونيو · 5:00 م · 6 مكونات</span><span class="amt">34.750 د.أ</span></div></div>
+            <div class="row-card"><div class="top"><span class="name">زياد سالم · قاعة الملكية</span><span class="badge ok">مكتمل</span></div><div class="top"><span class="sub">29 يونيو · 8:00 م · 11 مكوناً</span><span class="amt">89.500 د.أ</span></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="annot">بعد — رأس sticky + فرز + عدّادات + unit + ميتاداتا أغنى<span class="file">AppShell.tsx:97 (sticky) · ListHeader.tsx:21 (top:56)</span></div>
+    </div>
+  </div>
+
+  <ul class="delta-list">
+    <li><span class="rem">−</span> <strong>أزيل:</strong> الترويسة الثابتة بدون sticky + شريط فلترة يتصادم مع الرأس (AppShell.tsx:97 + ListHeader.tsx:21 على نفس z-sticky=10)</li>
+    <li><span class="ok">+</span> <strong>أضيف:</strong> زر رجوع 44px + sticky على header + sticky على filters بـtop:56px + زر فرز + عدّاد لكل شريحة + زر مسح البحث</li>
+    <li><span class="ok">+</span> <strong>أضيف:</strong> ميتاداتا أغنى (عدد المكونات، التوقيت الكامل، الوحدة «د.أ»)</li>
+    <li><span class="rem">−</span> <strong>أزيل:</strong> التناقض بين bg-info (الرأس) وbg-paper (الشرائح) — توحيد على نظام واحد</li>
+  </ul>
+
+  <!-- ============ SCREEN 2: FINANCE ============ -->
+  <h2>2. صفحة المالية — FinanceClient.tsx + SalesTab.tsx</h2>
+  <div class="ba-grid">
+    <div class="ba-col">
+      <span class="ba-tag before">● قبل</span>
+      <div class="device">
+        <div class="device-scroll">
+          <div class="statusbar"><span>9:41</span><span class="right">●●● 5G ▮▮▮</span></div>
+          <div class="header-before"><h1>الحسابات المالية</h1></div>
+          <div style="padding:12px 16px 0">
+            <div style="display:flex;background:var(--color-canvas);padding:3px;border-radius:8px;border:1px solid var(--color-hairline);gap:4px">
+              <button style="flex:1;height:44px;background:var(--color-info);color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">المبيعات</button>
+              <button style="flex:1;height:44px;background:transparent;color:var(--color-ink-3);border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">المشتريات</button>
+              <button style="flex:1;height:44px;background:transparent;color:var(--color-ink-3);border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">المصاريف</button>
+            </div>
+          </div>
+          <div class="filters-before">
+            <div class="search-before">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3-3"/></svg>
+              <input placeholder="البحث في بيان المبيعات..."/>
+            </div>
+            <div class="chips-row">
+              <button class="chip active">الكل</button>
+              <button class="chip">نقدًا</button>
+              <button class="chip">بطاقة</button>
+              <button class="chip">تحويل</button>
+            </div>
+          </div>
+          <div class="content">
+            <div class="row-card"><div class="top"><span class="name">مبيعات قاعة الأندلس</span><span class="amt" style="font-size:14px">450.000</span></div><div class="sub">03 يوليو · نقدًا</div></div>
+            <div class="row-card"><div class="top"><span class="name">مبيعات قصر النخيل</span><span class="amt" style="font-size:14px">1,250.500</span></div><div class="sub">02 يوليو · بطاقة</div></div>
+            <div class="row-card"><div class="top"><span class="name">مبيعات فندق</span><span class="amt" style="font-size:14px">780.250</span></div><div class="sub">01 يوليو · تحويل</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="annot">قبل — تبويب بلا زر إجراء، بحث بلا debounce، صف بلا unit<span class="file">FinanceClient.tsx:81 · SalesTab.tsx:76,213</span></div>
+    </div>
+
+    <div class="ba-col">
+      <span class="ba-tag after">● بعد</span>
+      <div class="device">
+        <div class="device-scroll">
+          <div class="statusbar"><span>9:41</span><span class="right">●●● 5G ▮▮▮</span></div>
+          <div class="header-after">
+            <button class="back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
+            <h1 class="title">الحسابات المالية</h1>
+            <button class="icon-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg></button>
+            <button class="pill-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>عملية</button>
+          </div>
+          <div style="padding:12px 16px 0">
+            <div style="display:flex;background:var(--color-canvas);padding:3px;border-radius:8px;border:1px solid var(--color-hairline);gap:2px">
+              <button style="flex:1;height:36px;min-height:44px;background:var(--color-info);color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(21,101,192,.25)">المبيعات</button>
+              <button style="flex:1;height:36px;min-height:44px;background:transparent;color:var(--color-ink-3);border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">المشتريات</button>
+              <button style="flex:1;height:36px;min-height:44px;background:transparent;color:var(--color-ink-3);border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">المصاريف</button>
+            </div>
+          </div>
+          <div class="filters-after">
+            <div style="display:flex;gap:8px;margin-bottom:10px">
+              <div class="search-after">
+                <svg class="leading" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3-3"/></svg>
+                <input placeholder="البحث في بيان المبيعات..."/>
+              </div>
+              <button class="sort-btn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M6 12h12M10 18h4"/></svg>
+                الأحدث
+                <svg class="arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+              </button>
+            </div>
+            <div class="chips-row">
+              <button class="chip active">الكل <span class="count">24</span></button>
+              <button class="chip">نقدًا <span class="count">12</span></button>
+              <button class="chip">بطاقة <span class="count">8</span></button>
+              <button class="chip">تحويل <span class="count">4</span></button>
+            </div>
+          </div>
+          <div style="padding:12px 16px;background:var(--color-paper);margin:0 16px 12px;border-radius:12px;border:1px solid var(--color-hairline);display:flex;justify-content:space-between;align-items:center">
+            <div><div style="font-size:11px;color:var(--color-ink-3);font-weight:600">إجمالي المبيعات · يوليو</div><div style="font-family:'IBM Plex Mono',monospace;font-size:18px;font-weight:800;color:var(--color-emerald-deep);direction:ltr">2,480.750 د.أ</div></div>
+            <div style="text-align:end"><div style="font-size:10px;color:var(--color-ink-3)">↗ 12%</div><div style="font-size:10px;color:var(--color-emerald-deep);font-weight:700">عن يونيو</div></div>
+          </div>
+          <div class="content">
+            <div class="row-card"><div class="top"><span class="name">قاعة الأندلس</span><span class="amt">450.000 د.أ</span></div><div class="top"><span class="sub">03 يوليو · نقدًا</span><span class="badge info-soft" style="background:var(--color-info-soft);color:var(--color-info)">نقدًا</span></div></div>
+            <div class="row-card"><div class="top"><span class="name">قصر النخيل</span><span class="amt">1,250.500 د.أ</span></div><div class="top"><span class="sub">02 يوليو · بطاقة</span><span class="badge" style="background:var(--color-warn-soft);color:var(--color-warn-deep)">بطاقة</span></div></div>
+            <div class="row-card"><div class="top"><span class="name">فندق الإنتركونتيننتال</span><span class="amt">780.250 د.أ</span></div><div class="top"><span class="sub">01 يوليو · تحويل</span><span class="badge" style="background:var(--color-emerald-soft);color:var(--color-emerald-deep)">تحويل</span></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="annot">بعد — تبويب موحّد + ملخص + شارة مصدر + unit د.أ<span class="file">FinanceClient.tsx:81 (seg) · SalesTab.tsx:76 (debounce) · AmountText.tsx:8</span></div>
+    </div>
+  </div>
+
+  <ul class="delta-list">
+    <li><span class="rem">−</span> <strong>أزيل:</strong> التبويب بـactive:scale-[0.97] + text-md غير الصالح (FinanceClient.tsx:90)</li>
+    <li><span class="ok">+</span> <strong>أضيف:</strong> بطاقة ملخص المبيعات الشهرية مع delta ملوّن أعلى القائمة</li>
+    <li><span class="ok">+</span> <strong>أضيف:</strong> شارة مصدر ملوّنة (نقدًا/بطاقة/تحويل) بدل النص الخام</li>
+    <li><span class="ok">+</span> <strong>أضيف:</strong> debounce 400ms على البحث (SalesTab.tsx:76 يستخدم startTransition فقط اليوم)</li>
+    <li><span class="ok">+</span> <strong>أضيف:</strong> unit «د.أ» على كل صف (يحلّ محل text-md الصامت في SalesTab.tsx:213)</li>
+  </ul>
+
+  <!-- ============ SCREEN 3: DASHBOARD ============ -->
+  <h2>3. لوحة القيادة — DashboardClient.tsx</h2>
+  <div class="ba-grid">
+    <div class="ba-col">
+      <span class="ba-tag before">● قبل</span>
+      <div class="device">
+        <div class="device-scroll">
+          <div class="statusbar"><span>9:41</span><span class="right">●●● 5G ▮▮▮</span></div>
+          <div class="header-before">
+            <h1>لوحة القيادة</h1>
+            <div class="action-slot">
+              <button style="height:40px;min-height:44px;padding:0 12px;background:var(--color-canvas);border:1px solid var(--color-hairline);color:var(--color-ink);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px">📅 اليوم</button>
+            </div>
+          </div>
+          <div style="padding:16px;display:flex;flex-direction:column;gap:12px">
+            <div class="stat-card" style="padding:24px">
+              <div class="label">صافي الربح · يوليو</div>
+              <div class="value" style="font-size:32px;color:var(--color-emerald-deep)">3,450.750</div>
+              <div class="delta up">↑ 18%</div>
+            </div>
+            <div class="grid-2-mini">
+              <div class="stat-card"><div class="label">المبيعات</div><div class="value" style="font-size:20px">8,920.500</div></div>
+              <div class="stat-card"><div class="label">المشتريات</div><div class="value" style="font-size:20px">4,180.250</div></div>
+              <div class="stat-card"><div class="label">المصاريف</div><div class="value" style="font-size:20px">1,289.500</div></div>
+              <div class="stat-card"><div class="label">طلبات نشطة</div><div class="value" style="font-size:20px">12</div></div>
+            </div>
+            <div class="chart-card">
+              <h4>المبيعات · 7 أيام</h4>
+              <div class="chart-bars" style="height:80px">
+                <div class="chart-bar"><div class="stack"><div class="seg sales" style="height:40px"></div></div><div class="lbl">إث</div></div>
+                <div class="chart-bar"><div class="stack"><div class="seg sales" style="height:50px"></div></div><div class="lbl">ثل</div></div>
+                <div class="chart-bar"><div class="stack"><div class="seg sales" style="height:32px"></div></div><div class="lbl">أر</div></div>
+                <div class="chart-bar"><div class="stack"><div class="seg sales" style="height:67px"></div></div><div class="lbl">خم</div></div>
+                <div class="chart-bar"><div class="stack"><div class="seg sales" style="height:76px"></div></div><div class="lbl">جم</div></div>
+                <div class="chart-bar"><div class="stack"><div class="seg sales" style="height:60px"></div></div><div class="lbl">سب</div></div>
+                <div class="chart-bar"><div class="stack"><div class="seg sales" style="height:45px"></div></div><div class="lbl">أح</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="annot">قبل — stat بلا sparkline، رسم بلا تكاليف، تلميح z-20 خام<span class="file">DashboardClient.tsx:234-391 · FinancialChart.tsx:100,121</span></div>
+    </div>
+
+    <div class="ba-col">
+      <span class="ba-tag after">● بعد</span>
+      <div class="device">
+        <div class="device-scroll">
+          <div class="statusbar"><span>9:41</span><span class="right">●●● 5G ▮▮▮</span></div>
+          <div class="header-after">
+            <button class="back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
+            <h1 class="title">لوحة القيادة</h1>
+            <button class="icon-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg></button>
+          </div>
+          <div style="padding:16px;display:flex;flex-direction:column;gap:12px">
+            <div class="hero-stat">
+              <div class="label">صافي الربح · يوليو 2026</div>
+              <div><span class="value">3,450</span><span class="unit">.750 د.أ</span></div>
+              <div class="delta">↑ 18% عن يونيو · 525.150 د.أ</div>
+              <svg viewBox="0 0 320 32" preserveAspectRatio="none" style="display:block;width:100%;height:32px;margin-top:4px">
+                <defs><linearGradient id="sg1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(255,255,255,.4)"/><stop offset="100%" stop-color="rgba(255,255,255,0)"/></linearGradient></defs>
+                <path d="M0,24 L40,18 L80,20 L120,14 L160,16 L200,8 L240,10 L280,4 L320,2 L320,32 L0,32 Z" fill="url(#sg1)"/>
+                <path d="M0,24 L40,18 L80,20 L120,14 L160,16 L200,8 L240,10 L280,4 L320,2" fill="none" stroke="rgba(255,255,255,.9)" stroke-width="1.5"/>
+              </svg>
+            </div>
+            <div class="grid-2-mini">
+              <div class="stat-card">
+                <div class="label">المبيعات</div>
+                <div class="value" style="font-size:20px">8,920.500</div>
+                <div class="delta up">↑ 12%</div>
+                <svg viewBox="0 0 60 20" preserveAspectRatio="none" style="width:100%;height:20px;margin-top:2px"><path d="M0,16 L10,14 L20,12 L30,10 L40,8 L50,4 L60,2" fill="none" stroke="var(--color-emerald)" stroke-width="1.5"/></svg>
+              </div>
+              <div class="stat-card">
+                <div class="label">المشتريات</div>
+                <div class="value" style="font-size:20px">4,180.250</div>
+                <div class="delta down">↓ 5%</div>
+                <svg viewBox="0 0 60 20" preserveAspectRatio="none" style="width:100%;height:20px;margin-top:2px"><path d="M0,4 L10,6 L20,5 L30,8 L40,10 L50,12 L60,14" fill="none" stroke="var(--color-alert)" stroke-width="1.5"/></svg>
+              </div>
+              <div class="stat-card">
+                <div class="label">المصاريف</div>
+                <div class="value" style="font-size:20px">1,289.500</div>
+                <div class="delta flat">— ثابت</div>
+                <svg viewBox="0 0 60 20" preserveAspectRatio="none" style="width:100%;height:20px;margin-top:2px"><path d="M0,10 L10,11 L20,9 L30,11 L40,10 L50,11 L60,10" fill="none" stroke="var(--color-ink-3)" stroke-width="1.5"/></svg>
+              </div>
+              <div class="stat-card">
+                <div class="label">طلبات نشطة</div>
+                <div class="value" style="font-size:20px">12</div>
+                <div class="delta up">↑ 3</div>
+                <svg viewBox="0 0 60 20" preserveAspectRatio="none" style="width:100%;height:20px;margin-top:2px"><path d="M0,18 L10,16 L20,14 L30,12 L40,8 L50,6 L60,2" fill="none" stroke="var(--color-info)" stroke-width="1.5"/></svg>
+              </div>
+            </div>
+            <div class="chart-card">
+              <h4>المبيعات والتكاليف · 7 أيام</h4>
+              <div class="chart-bars" style="height:100px">
+                <div class="chart-bar"><div class="stack"><div class="seg sales" style="height:50px"></div><div class="seg costs" style="height:18px"></div></div><div class="lbl">إث</div></div>
+                <div class="chart-bar"><div class="stack"><div class="seg sales" style="height:62px"></div><div class="seg costs" style="height:21px"></div></div><div class="lbl">ثل</div></div>
+                <div class="chart-bar"><div class="stack"><div class="seg sales" style="height:40px"></div><div class="seg costs" style="height:17px"></div></div><div class="lbl">أر</div></div>
+                <div class="chart-bar"><div class="stack"><div class="seg sales" style="height:84px"></div><div class="seg costs" style="height:28px"></div></div><div class="lbl">خم</div></div>
+                <div class="chart-bar"><div class="stack"><div class="seg sales" style="height:95px"></div><div class="seg costs" style="height:32px"></div></div><div class="lbl">جم</div></div>
+                <div class="chart-bar"><div class="stack"><div class="seg sales" style="height:75px"></div><div class="seg costs" style="height:25px"></div></div><div class="lbl">سب</div></div>
+                <div class="chart-bar"><div class="stack"><div class="seg sales" style="height:56px"></div><div class="seg costs" style="height:20px"></div></div><div class="lbl">أح</div></div>
+              </div>
+              <div style="display:flex;gap:14px;margin-top:8px;font-size:10px;color:var(--color-ink-3)">
+                <span><span style="display:inline-block;width:8px;height:8px;background:var(--color-info);border-radius:2px;margin-inline-end:4px"></span>مبيعات</span>
+                <span><span style="display:inline-block;width:8px;height:8px;background:var(--color-alert);border-radius:2px;margin-inline-end:4px"></span>تكاليف</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="annot">بعد — hero + sparklines + stacked + delta<span class="file">DashboardClient.tsx:234 (hero) · FinancialChart.tsx (z-sticky, AmountText)</span></div>
+    </div>
+  </div>
+
+  <ul class="delta-list">
+    <li><span class="rem">−</span> <strong>أزيل:</strong> بطاقة hero بلا خلفية + stat-card بلا مؤشر اتجاه (DashboardClient.tsx:234,266,284)</li>
+    <li><span class="ok">+</span> <strong>أضيف:</strong> hero-stat بتدرّج bg-info → info-deep + sparkline مدمج + delta ملوّن</li>
+    <li><span class="ok">+</span> <strong>أضيف:</strong> 4 sparklines مصغّرة (60×20) لكل stat card — مؤشر بصري فوري للاتجاه</li>
+    <li><span class="ok">+</span> <strong>أضيف:</strong> stacking bars (مبيعات + تكاليف) في FinancialChart بدل مبيعات فقط</li>
+    <li><span class="rem">−</span> <strong>أزيل:</strong> z-10/z-20 خام في FinancialChart.tsx:100,121 → z-sticky/z-dropdown</li>
+    <li><span class="rem">−</span> <strong>أزيل:</strong> (sales/1000).toFixed(1) في FinancialChart.tsx:123 → AmountText (3 منازل + Intl)</li>
+  </ul>
+
+  <!-- ============ SCREEN 4: REPORTS ============ -->
+  <h2>4. صفحة التقارير — reports/page.tsx</h2>
+  <div class="ba-grid">
+    <div class="ba-col">
+      <span class="ba-tag before">● قبل</span>
+      <div class="device">
+        <div class="device-scroll">
+          <div class="statusbar"><span>9:41</span><span class="right">●●● 5G ▮▮▮</span></div>
+          <div class="header-before">
+            <h1>التقارير المالية والتشغيلية</h1>
+            <div class="action-slot">
+              <button style="height:40px;min-height:44px;padding:0 12px;background:var(--color-canvas);border:1px solid var(--color-hairline);color:var(--color-ink);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px">↻ تحديث</button>
+            </div>
+          </div>
+          <div style="padding:16px">
+            <h2 style="margin:0 0 12px;font-size:18px;font-weight:700;color:var(--color-ink);border:none;padding:0">التقارير المالية والتشغيلية</h2>
+            <div style="display:flex;gap:8px;background:var(--color-canvas);padding:4px;border-radius:8px;border:1px solid var(--color-hairline);width:fit-content;margin-bottom:16px">
+              <button style="height:38px;min-height:38px;padding:0 12px;background:var(--color-paper);color:var(--color-ink);border:1px solid var(--color-hairline-2);border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(0,0,0,.05)">الكل</button>
+              <button style="height:38px;min-height:38px;padding:0 12px;background:transparent;color:var(--color-ink-2);border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">هذا الشهر</button>
+              <button style="height:38px;min-height:38px;padding:0 12px;background:transparent;color:var(--color-ink-2);border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">30 يوم</button>
+            </div>
+            <div style="background:var(--color-paper);border:1px solid var(--color-hairline);border-radius:12px;padding:20px;margin-bottom:12px;box-shadow:0 1px 2px rgba(0,0,0,.03)">
+              <div style="font-size:12px;color:var(--color-ink-3);font-weight:600;margin-bottom:8px">صافي الربح والخسارة</div>
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:800;color:var(--color-emerald-deep);direction:ltr">3,450.750</div>
+            </div>
+            <div style="background:var(--color-paper);border:1px solid var(--color-hairline);border-radius:12px;padding:20px;box-shadow:0 1px 2px rgba(0,0,0,.03)">
+              <h4 style="margin:0 0 12px;font-size:13px;font-weight:700">توزيع المصاريف حسب الفئة</h4>
+              <div style="display:flex;align-items:center;gap:16px">
+                <svg viewBox="0 0 100 100" style="width:100px;height:100px;transform:rotate(-90deg);flex-shrink:0">
+                  <circle cx="50" cy="50" r="40" fill="none" stroke="#10b981" stroke-width="14" stroke-dasharray="100.5 251.3"/>
+                  <circle cx="50" cy="50" r="40" fill="none" stroke="#3b82f6" stroke-width="14" stroke-dasharray="62.8 251.3" stroke-dashoffset="-100.5"/>
+                  <circle cx="50" cy="50" r="40" fill="none" stroke="#f59e0b" stroke-width="14" stroke-dasharray="50.3 251.3" stroke-dashoffset="-163.3"/>
+                </svg>
+                <div style="font-size:11px;color:var(--color-ink-2);display:flex;flex-direction:column;gap:4px">
+                  <div><span style="display:inline-block;width:8px;height:8px;background:#10b981;margin-inline-end:4px"></span>إيجار</div>
+                  <div><span style="display:inline-block;width:8px;height:8px;background:#3b82f6;margin-inline-end:4px"></span>رواتب</div>
+                  <div><span style="display:inline-block;width:8px;height:8px;background:#f59e0b;margin-inline-end:4px"></span>صيانة</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="annot">قبل — عنوان مكرر + hex خام + 38px + stat بلا delta<span class="file">reports/page.tsx:35,141,174,187,233</span></div>
+    </div>
+
+    <div class="ba-col">
+      <span class="ba-tag after">● بعد</span>
+      <div class="device">
+        <div class="device-scroll">
+          <div class="statusbar"><span>9:41</span><span class="right">●●● 5G ▮▮▮</span></div>
+          <div class="header-after">
+            <button class="back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button>
+            <h1 class="title">التقارير المالية والتشغيلية</h1>
+            <button class="icon-btn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg></button>
+          </div>
+          <div style="padding:16px">
+            <div style="display:flex;background:var(--color-canvas);padding:3px;border-radius:8px;border:1px solid var(--color-hairline);width:fit-content;margin-bottom:16px">
+              <button style="height:36px;min-height:44px;padding:0 14px;background:var(--color-info);color:#fff;border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 1px 2px rgba(21,101,192,.25)">الكل</button>
+              <button style="height:36px;min-height:44px;padding:0 14px;background:transparent;color:var(--color-ink-3);border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">هذا الشهر</button>
+              <button style="height:36px;min-height:44px;padding:0 14px;background:transparent;color:var(--color-ink-3);border:none;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">30 يوم</button>
+            </div>
+            <div class="hero-stat" style="margin-bottom:12px">
+              <div class="label">صافي الربح والخسارة · يوليو 2026</div>
+              <div><span class="value">3,450</span><span class="unit">.750 د.أ</span></div>
+              <div class="delta">↑ 18% عن يونيو · 525.150 د.أ</div>
+            </div>
+            <div class="grid-2-mini" style="margin-bottom:12px">
+              <div class="stat-card"><div class="label">إجمالي المبيعات</div><div class="value" style="font-size:18px">8,920.500</div><div class="delta up">↑ 12%</div></div>
+              <div class="stat-card"><div class="label">إجمالي المصاريف</div><div class="value" style="font-size:18px">1,289.500</div><div class="delta down">↓ 3%</div></div>
+            </div>
+            <div style="background:var(--color-paper);border:1px solid var(--color-hairline);border-radius:12px;padding:16px;box-shadow:0 1px 2px rgba(0,0,0,.03)">
+              <h4 style="margin:0 0 12px;font-size:13px;font-weight:700">توزيع المصاريف حسب الفئة</h4>
+              <div style="display:flex;align-items:center;gap:16px">
+                <svg viewBox="0 0 100 100" style="width:100px;height:100px;transform:rotate(-90deg);flex-shrink:0">
+                  <circle cx="50" cy="50" r="40" fill="none" stroke="var(--color-info)" stroke-width="14" stroke-dasharray="100.5 251.3"/>
+                  <circle cx="50" cy="50" r="40" fill="none" stroke="var(--color-emerald)" stroke-width="14" stroke-dasharray="62.8 251.3" stroke-dashoffset="-100.5"/>
+                  <circle cx="50" cy="50" r="40" fill="none" stroke="var(--color-warn)" stroke-width="14" stroke-dasharray="50.3 251.3" stroke-dashoffset="-163.3"/>
+                  <circle cx="50" cy="50" r="40" fill="none" stroke="var(--color-alert)" stroke-width="14" stroke-dasharray="37.7 251.3" stroke-dashoffset="-213.6"/>
+                </svg>
+                <div style="font-size:11px;color:var(--color-ink);display:flex;flex-direction:column;gap:6px;flex:1">
+                  <div style="display:flex;justify-content:space-between"><span><span style="display:inline-block;width:8px;height:8px;background:var(--color-info);margin-inline-end:6px;border-radius:2px"></span>إيجار</span><span style="font-family:'IBM Plex Mono',monospace;color:var(--color-ink-2);direction:ltr">515.800</span></div>
+                  <div style="display:flex;justify-content:space-between"><span><span style="display:inline-block;width:8px;height:8px;background:var(--color-emerald);margin-inline-end:6px;border-radius:2px"></span>رواتب</span><span style="font-family:'IBM Plex Mono',monospace;color:var(--color-ink-2);direction:ltr">322.375</span></div>
+                  <div style="display:flex;justify-content:space-between"><span><span style="display:inline-block;width:8px;height:8px;background:var(--color-warn);margin-inline-end:6px;border-radius:2px"></span>صيانة</span><span style="font-family:'IBM Plex Mono',monospace;color:var(--color-ink-2);direction:ltr">257.900</span></div>
+                  <div style="display:flex;justify-content:space-between"><span><span style="display:inline-block;width:8px;height:8px;background:var(--color-alert);margin-inline-end:6px;border-radius:2px"></span>أخرى</span><span style="font-family:'IBM Plex Mono',monospace;color:var(--color-ink-2);direction:ltr">193.425</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="annot">بعد — عنوان واحد + توكنات النظام + 44px + delta<span class="file">reports/page.tsx:35 → tokens · :174 deleted · :187 raised</span></div>
+    </div>
+  </div>
+
+  <ul class="delta-list">
+    <li><span class="rem">−</span> <strong>أزيل:</strong> العنوان المكرر (h2 في reports/page.tsx:174 — الرأس يعرضه بالفعل في L141)</li>
+    <li><span class="rem">−</span> <strong>أزيل:</strong> 8 قيم hex خام في DONUT_COLORS (reports/page.tsx:35) — استبدالها بـ4 توكنات النظام</li>
+    <li><span class="rem">−</span> <strong>أزيل:</strong> min-h-[38px] المخالف للّمس (reports/page.tsx:187) → 44px</li>
+    <li><span class="rem">−</span> <strong>أزيل:</strong> bg-paper text-ink border-hairline-2 (النشط الوحيد بلا bg-info في L185) → bg-info text-paper موحّد</li>
+    <li><span class="ok">+</span> <strong>أضيف:</strong> hero-stat كنوني بدل stat-card مبسّط (reports/page.tsx:233)</li>
+    <li><span class="ok">+</span> <strong>أضيف:</strong> stat cards مكمّلة (مبيعات + مصاريف) مع delta ملوّن</li>
+    <li><span class="ok">+</span> <strong>أضيف:</strong> قيم عددية في legend الدائري بدل النص فقط</li>
+  </ul>
+
+  <div class="callout ok">
+    <strong>الخلاصة:</strong> أربع شاشات، أربع تطويرات. كل واحدة منها تأخذ النمط الكنوني من المكوّنات 01-06 وتطبّقه على صفحة فعلية. لا اختراع — كل قرار تصميمي يستند إلى ملف:سطر.
+  </div>
+
+</div>
+</body>
+</html>
