@@ -271,6 +271,57 @@ export function DashboardClient() {
           </div>
         ) : (
           <div className="space-y-4">
+            {/* طلبات للتسليم (الأهم — أول عنصر في الصفحة) */}
+            {stats && (
+              <div className="bg-paper p-6 rounded-lg border border-hairline shadow-sm space-y-4">
+                <div className={
+                  stats.upcomingOrders.length > 0
+                    ? `flex items-center justify-between p-3.5 -mx-6 -mt-6 rounded-t-lg text-white font-bold ${glowClass}`
+                    : "flex items-center justify-between border-b border-hairline pb-3"
+                }>
+                  <h3 className={`text-base font-bold flex items-center gap-1.5 min-w-0 ${stats.upcomingOrders.length > 0 ? "text-white" : "text-ink"}`}>
+                    <Calendar className={`h-4.5 w-4.5 shrink-0 ${stats.upcomingOrders.length > 0 ? "text-white" : "text-info"}`} />
+                    <span className="truncate">طلبات يستحق تسليمها (خلال 7 أيام)</span>
+                  </h3>
+                  <span className={`text-xs shrink-0 ${stats.upcomingOrders.length > 0 ? "text-white/90" : "text-ink/45"}`}>
+                    {stats.upcomingOrders.length} طلبات
+                  </span>
+                </div>
+                {stats.upcomingOrders.length === 0 ? (
+                  <p className="text-sm text-ink/45 text-center py-6 bg-canvas rounded-lg border border-hairline">لا توجد طلبات يستحق تسليمها هذا الأسبوع</p>
+                ) : (
+                  <div className="divide-y divide-hairline">
+                    {stats.upcomingOrders.map((o) => (
+                      <Link
+                        key={o.id}
+                        href={`/orders?view=${o.id}`}
+                        className="flex items-center justify-between gap-3 py-3 hover:bg-canvas px-2 -mx-2 rounded transition-colors"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="font-bold text-ink text-sm truncate">{o.customerName}</p>
+                          <p className="text-xs text-ink/50 mt-0.5 truncate">{o.productName}</p>
+                        </div>
+                        <div className="text-end shrink-0">
+                          <p className="text-xs text-ink/45 whitespace-nowrap">
+                            {o.deliveryDate
+                              ? new Date(o.deliveryDate).toLocaleDateString("ar-JO", {
+                                  year: "numeric",
+                                  month: "short",
+                                  day: "numeric",
+                                })
+                              : "تاريخ غير محدد"}
+                          </p>
+                          <p className="text-sm font-bold text-info mt-0.5 whitespace-nowrap">
+                            <AmountText amount={o.totalPriceCents} />
+                          </p>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* بطاقة هيرو عريضة لصافي الأرباح والخسائر (§H3) */}
             <div className="p-6 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col justify-between w-full">
               <div className="flex items-center justify-between border-b border-hairline pb-2.5">
@@ -283,12 +334,12 @@ export function DashboardClient() {
                 </span>
               </div>
               <div className="mt-4 flex items-center justify-between gap-3">
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 flex-1 overflow-hidden">
                   <span
-                    className={`text-2xl sm:text-3xl font-bold flex items-baseline gap-1.5 ${netColorClass} whitespace-nowrap`}
+                    className={`text-xl sm:text-2xl lg:text-3xl font-bold flex items-baseline gap-1.5 ${netColorClass} whitespace-nowrap max-w-full`}
                   >
                     <span className="font-mono shrink-0">{netSign}</span>
-                    <AmountText amount={Math.abs(net)} />
+                    <span className="truncate"><AmountText amount={Math.abs(net)} /></span>
                   </span>
                   <p className="text-xs text-ink/50 mt-2 truncate">
                     صافي الأرباح التشغيلية للفترة
@@ -307,57 +358,6 @@ export function DashboardClient() {
                 )}
               </div>
             </div>
-
-            {/* طلبات للتسليم قريباً */}
-            {stats && (
-              <div className="bg-paper p-6 rounded-lg border border-hairline shadow-sm space-y-4">
-                <div className={
-                  stats.upcomingOrders.length > 0
-                    ? `flex items-center justify-between p-3.5 -mx-6 -mt-6 rounded-t-lg text-white font-bold animate-delivery-hue ${glowClass}`
-                    : "flex items-center justify-between border-b border-hairline pb-3"
-                }>
-                  <h3 className={`text-base font-bold flex items-center gap-1.5 ${stats.upcomingOrders.length > 0 ? "text-white" : "text-ink"}`}>
-                    <Calendar className={`h-4.5 w-4.5 ${stats.upcomingOrders.length > 0 ? "text-white" : "text-info"}`} />
-                    <span className="truncate">طلبات يستحق تسليمها قريباً (خلال 7 أيام)</span>
-                  </h3>
-                  <span className={`text-xs ${stats.upcomingOrders.length > 0 ? "text-white/90" : "text-ink/45"} truncate`}>
-                    {stats.upcomingOrders.length} طلبات
-                  </span>
-                </div>
-                {stats.upcomingOrders.length === 0 ? (
-                  <p className="text-sm text-ink/45 text-center py-6 bg-canvas rounded-lg border border-hairline">لا توجد طلبات يستحق تسليمها هذا الأسبوع</p>
-                ) : (
-                  <div className="divide-y divide-hairline">
-                    {stats.upcomingOrders.map((o) => (
-                      <Link
-                        key={o.id}
-                        href={`/orders?view=${o.id}`}
-                        className="flex items-center justify-between py-3 hover:bg-canvas px-2 -mx-2 rounded transition-colors"
-                      >
-                        <div>
-                          <p className="font-bold text-ink text-sm">{o.customerName}</p>
-                          <p className="text-xs text-ink/50 mt-0.5">{o.productName}</p>
-                        </div>
-                        <div className="text-end">
-                          <p className="text-xs text-ink/45">
-                            {o.deliveryDate
-                              ? new Date(o.deliveryDate).toLocaleDateString("ar-JO", {
-                                  year: "numeric",
-                                  month: "short",
-                                  day: "numeric",
-                                })
-                              : "تاريخ غير محدد"}
-                          </p>
-                          <p className="text-sm font-bold text-info mt-0.5">
-                            <AmountText amount={o.totalPriceCents} />
-                          </p>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {/* صافي الأرباح (أزرق في الربح، أحمر في الخسارة - غير معتمد على اللون فقط) */}
