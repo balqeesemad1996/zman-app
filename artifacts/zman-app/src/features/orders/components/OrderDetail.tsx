@@ -422,8 +422,7 @@ export function OrderDetail({ orderId, onEdit, onBack }: OrderDetailProps) {
           </div>
 
           <p className="text-sm text-ink-2">
-            هل أنت متأكد من رغبتك في حذف طلب العميل{" "}
-            <strong>{orderData.customerName}</strong> للمنتج{" "}
+            هل أنت متأكد من رغبتك في حذف هذا الطلب للمنتج{" "}
             <strong>{orderData.productName}</strong>؟
           </p>
 

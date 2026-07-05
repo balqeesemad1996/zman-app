@@ -14,6 +14,10 @@ import {
   TrendingUp,
   Landmark,
   Wallet,
+  AlertCircle,
+  Settings,
+  ArrowLeftRight,
+  User,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -33,6 +37,7 @@ import {
   useCashSummary,
   useAccountBalances,
 } from "../hooks";
+import { useOpeningBalance } from "@/features/finance/hooks";
 
 /**
  * اتجاه سلسلة قيم عبر الفترة: نقارن مجموع النصف الأول بالنصف الثاني.
@@ -161,6 +166,7 @@ export function DashboardClient() {
     data: accountBalances,
     refetch: refetchBalances,
   } = useAccountBalances();
+  const { data: openingBal } = useOpeningBalance();
 
   const handleRetryAll = () => {
     refetchSummary();
@@ -314,6 +320,23 @@ export function DashboardClient() {
           </div>
         ) : (
           <div className="space-y-4">
+            {/* لافتة الإعداد الأولي — تظهر فقط قبل إدخال الأرصدة الافتتاحية */}
+            {openingBal === null && (
+              <Link
+                href="/finance?tab=opening"
+                className="flex items-center justify-between gap-3 p-4 rounded-lg border border-warn/40 bg-warn-soft hover:bg-warn/10 transition-colors"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <AlertCircle className="h-5 w-5 text-warn-deep shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-ink truncate">أكمل الإعداد الأولي للمشروع</p>
+                    <p className="text-xs text-ink-2 truncate">يرجى تسجيل الأرصدة الافتتاحية ورأس المال لضبط الحسابات</p>
+                  </div>
+                </div>
+                <Settings className="h-5 w-5 text-warn-deep shrink-0" />
+              </Link>
+            )}
+
             {/* طلبات للتسليم (الأهم — أول عنصر في الصفحة) */}
             {stats && (
               <div className="bg-paper p-6 rounded-lg border border-hairline shadow-sm space-y-4">
@@ -477,12 +500,18 @@ export function DashboardClient() {
               </h3>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {/* كاش الصندوق */}
-                <div className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col justify-between">
-                  <span className="text-xs font-bold text-ink/65 flex items-center gap-1 truncate">
-                    <Wallet className="h-4 w-4 text-info" />
-                    كاش الصندوق
-                  </span>
+                {/* كاش الصندوق — تحويل سريع */}
+                <Link
+                  href="/finance?tab=accounts&newTransfer=true"
+                  className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col justify-between hover:border-info/40 hover:shadow-md transition-all group"
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <span className="text-xs font-bold text-ink/65 flex items-center gap-1 truncate">
+                      <Wallet className="h-4 w-4 text-info animate-pulse" />
+                      كاش الصندوق
+                    </span>
+                    <ArrowLeft className="h-4 w-4 text-info/0 group-hover:text-info transition-all transform group-hover:-translate-x-1" />
+                  </div>
                   <div className="mt-2 flex flex-col min-w-0">
                     <span className="text-lg lg:text-xl font-bold text-info flex items-baseline gap-1 whitespace-nowrap min-w-0">
                       <span className="font-mono text-base shrink-0">+</span>
@@ -492,14 +521,20 @@ export function DashboardClient() {
                       رصيد النقدية الحالي
                     </span>
                   </div>
-                </div>
+                </Link>
 
-                {/* رصيد البنك */}
-                <div className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col justify-between">
-                  <span className="text-xs font-bold text-ink/65 flex items-center gap-1 truncate">
-                    <Landmark className="h-4 w-4 text-info" />
-                    رصيد البنك
-                  </span>
+                {/* رصيد البنك — تحويل سريع */}
+                <Link
+                  href="/finance?tab=accounts&newTransfer=true"
+                  className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col justify-between hover:border-info/40 hover:shadow-md transition-all group"
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <span className="text-xs font-bold text-ink/65 flex items-center gap-1 truncate">
+                      <Landmark className="h-4 w-4 text-info" />
+                      رصيد البنك
+                    </span>
+                    <ArrowLeft className="h-4 w-4 text-info/0 group-hover:text-info transition-all transform group-hover:-translate-x-1" />
+                  </div>
                   <div className="mt-2 flex flex-col min-w-0">
                     <span className="text-lg lg:text-xl font-bold text-info flex items-baseline gap-1 whitespace-nowrap min-w-0">
                       <span className="font-mono text-base shrink-0">+</span>
@@ -509,14 +544,20 @@ export function DashboardClient() {
                       إجمالي حسابات البنك
                     </span>
                   </div>
-                </div>
+                </Link>
 
-                {/* العربون بحوزتك */}
-                <div className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col justify-between">
-                  <span className="text-xs font-bold text-ink/65 flex items-center gap-1 truncate">
-                    <TrendingUp className="h-4 w-4 text-info" />
-                    العربون بحوزتك
-                  </span>
+                {/* العربون بحوزتك — سحب مالك */}
+                <Link
+                  href="/finance?tab=owner&newOwnerTx=true"
+                  className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col justify-between hover:border-info/40 hover:shadow-md transition-all group"
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <span className="text-xs font-bold text-ink/65 flex items-center gap-1 truncate">
+                      <TrendingUp className="h-4 w-4 text-info" />
+                      العربون بحوزتك
+                    </span>
+                    <ArrowLeft className="h-4 w-4 text-info/0 group-hover:text-info transition-all transform group-hover:-translate-x-1" />
+                  </div>
                   <div className="mt-2 flex flex-col min-w-0">
                     <span className="text-lg lg:text-xl font-bold text-info flex items-baseline gap-1 whitespace-nowrap min-w-0">
                       <span className="font-mono text-base shrink-0">+</span>
@@ -526,9 +567,9 @@ export function DashboardClient() {
                       عربون محتجَز للطلبات
                     </span>
                   </div>
-                </div>
+                </Link>
 
-                {/* مبالغ متوقعة (متبقي الطلبات) */}
+                {/* مبالغ متوقعة (متبقي الطلبات) — display only */}
                 <div className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col justify-between">
                   <span className="text-xs font-bold text-ink/65 flex items-center gap-1 truncate">
                     <Calendar className="h-4 w-4 text-ink-3" />
@@ -768,11 +809,11 @@ export function DashboardClient() {
         </div>
       </ResponsiveModal>
 
-      {/* الزر العائم للهواتف المحمولة (FAB) (§H3) */}
+      {/* الزر العائم للهواتف المحمولة والديسكتوب (FAB) (§H3) */}
       <button
         type="button"
         onClick={() => setIsFabOpen(true)}
-        className="fixed bottom-20 inset-s-4 lg:hidden z-dropdown h-14 w-14 rounded-full bg-ink text-paper shadow-lg flex items-center justify-center hover:bg-ink/90 active:scale-95 transition-all"
+        className="fixed bottom-20 lg:bottom-6 inset-s-4 z-dropdown h-14 w-14 rounded-full bg-ink text-paper shadow-lg flex items-center justify-center hover:bg-ink/90 active:scale-95 transition-all"
         aria-label="إضافة عملية جديدة"
       >
         <Plus className="h-6 w-6" />
@@ -784,14 +825,15 @@ export function DashboardClient() {
         onClose={() => setIsFabOpen(false)}
         title="إضافة عملية جديدة"
       >
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-3">
+          {/* العمليات اليومية */}
           <Link
             href="/orders?new=true"
             onClick={() => setIsFabOpen(false)}
             className="flex flex-col items-center justify-center p-4 bg-canvas rounded-lg border border-hairline hover:border-ink/20 transition-colors gap-2 min-h-[80px]"
           >
             <ClipboardList className="h-6 w-6 text-info" />
-            <span className="text-sm font-bold text-ink">طلب جديد</span>
+            <span className="text-xs font-bold text-ink">طلب جديد</span>
           </Link>
           <Link
             href="/finance?tab=sales&newSale=true"
@@ -799,7 +841,7 @@ export function DashboardClient() {
             className="flex flex-col items-center justify-center p-4 bg-canvas rounded-lg border border-hairline hover:border-ink/20 transition-colors gap-2 min-h-[80px]"
           >
             <ShoppingBag className="h-6 w-6 text-info" />
-            <span className="text-sm font-bold text-ink">عملية بيع</span>
+            <span className="text-xs font-bold text-ink">عملية بيع</span>
           </Link>
           <Link
             href="/finance?tab=expenses&newExpense=true"
@@ -807,7 +849,7 @@ export function DashboardClient() {
             className="flex flex-col items-center justify-center p-4 bg-canvas rounded-lg border border-hairline hover:border-ink/20 transition-colors gap-2 min-h-[80px]"
           >
             <ArrowDownRight className="h-6 w-6 text-alert" />
-            <span className="text-sm font-bold text-ink">مصروف جديد</span>
+            <span className="text-xs font-bold text-ink">مصروف جديد</span>
           </Link>
           <Link
             href="/finance?tab=purchases&newPurchase=true"
@@ -815,7 +857,48 @@ export function DashboardClient() {
             className="flex flex-col items-center justify-center p-4 bg-canvas rounded-lg border border-hairline hover:border-ink/20 transition-colors gap-2 min-h-[80px]"
           >
             <ShoppingCart className="h-6 w-6 text-alert" />
-            <span className="text-sm font-bold text-ink">تسجيل مشتريات</span>
+            <span className="text-xs font-bold text-ink">تسجيل مشتريات</span>
+          </Link>
+
+          {/* فاصل بصري */}
+          <div className="col-span-2 flex items-center gap-2 py-1">
+            <div className="flex-1 h-px bg-hairline" />
+            <span className="text-[10px] text-ink-3 font-bold">إجراءات مالية</span>
+            <div className="flex-1 h-px bg-hairline" />
+          </div>
+
+          {/* الإجراءات المالية الجديدة */}
+          <Link
+            href="/finance?tab=accounts&newAccount=true"
+            onClick={() => setIsFabOpen(false)}
+            className="flex flex-col items-center justify-center p-4 bg-canvas rounded-lg border border-hairline hover:border-ink/20 transition-colors gap-2 min-h-[80px]"
+          >
+            <Landmark className="h-6 w-6 text-info" />
+            <span className="text-xs font-bold text-ink">حساب جديد</span>
+          </Link>
+          <Link
+            href="/finance?tab=accounts&newTransfer=true"
+            onClick={() => setIsFabOpen(false)}
+            className="flex flex-col items-center justify-center p-4 bg-canvas rounded-lg border border-hairline hover:border-ink/20 transition-colors gap-2 min-h-[80px]"
+          >
+            <ArrowLeftRight className="h-6 w-6 text-info" />
+            <span className="text-xs font-bold text-ink">تحويل بيني</span>
+          </Link>
+          <Link
+            href="/finance?tab=owner&newOwnerTx=true"
+            onClick={() => setIsFabOpen(false)}
+            className="flex flex-col items-center justify-center p-4 bg-canvas rounded-lg border border-hairline hover:border-ink/20 transition-colors gap-2 min-h-[80px]"
+          >
+            <User className="h-6 w-6 text-alert" />
+            <span className="text-xs font-bold text-ink">سحب / حقن مالك</span>
+          </Link>
+          <Link
+            href="/finance?tab=opening"
+            onClick={() => setIsFabOpen(false)}
+            className="flex flex-col items-center justify-center p-4 bg-canvas rounded-lg border border-hairline hover:border-ink/20 transition-colors gap-2 min-h-[80px]"
+          >
+            <Settings className="h-6 w-6 text-warn-deep" />
+            <span className="text-xs font-bold text-ink">أرصدة البداية</span>
           </Link>
         </div>
       </ResponsiveModal>

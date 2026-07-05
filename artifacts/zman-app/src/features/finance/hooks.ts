@@ -26,6 +26,9 @@ import {
   updateExpenseCategoryCatalog,
   deleteExpenseCategoryCatalog,
   createAccount,
+  archiveAccount,
+  unarchiveAccount,
+  deleteAccount,
   getAccounts,
   getAccountBalances,
   transferBetweenAccounts,
@@ -473,6 +476,48 @@ export function useCreateAccount() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: createAccount,
+    onSuccess: (res) => {
+      if (res.status === "ok") {
+        queryClient.invalidateQueries({ queryKey: ["finance", "accounts"] });
+        queryClient.invalidateQueries({ queryKey: ["finance", "account-balances"] });
+        queryClient.invalidateQueries({ queryKey: ["dashboard", "balances"] });
+      }
+    },
+  });
+}
+
+export function useArchiveAccount() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: archiveAccount,
+    onSuccess: (res) => {
+      if (res.status === "ok") {
+        queryClient.invalidateQueries({ queryKey: ["finance", "accounts"] });
+        queryClient.invalidateQueries({ queryKey: ["finance", "account-balances"] });
+        queryClient.invalidateQueries({ queryKey: ["dashboard", "balances"] });
+      }
+    },
+  });
+}
+
+export function useUnarchiveAccount() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: unarchiveAccount,
+    onSuccess: (res) => {
+      if (res.status === "ok") {
+        queryClient.invalidateQueries({ queryKey: ["finance", "accounts"] });
+        queryClient.invalidateQueries({ queryKey: ["finance", "account-balances"] });
+        queryClient.invalidateQueries({ queryKey: ["dashboard", "balances"] });
+      }
+    },
+  });
+}
+
+export function useDeleteAccount() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteAccount,
     onSuccess: (res) => {
       if (res.status === "ok") {
         queryClient.invalidateQueries({ queryKey: ["finance", "accounts"] });

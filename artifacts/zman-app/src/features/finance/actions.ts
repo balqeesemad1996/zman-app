@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, isNull, sql, sum, desc } from "drizzle-orm";
+import { and, eq, isNull, sql, sum, desc, ne } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { db } from "@/lib/db/client";
@@ -1015,7 +1015,7 @@ export async function convertOrderToSale(
           source: "order",
           orderId: orderId,
           amountCents: orderRow.totalPriceCents,
-          description: `مبيعات الطلب #${orderId.slice(0, 8)} - العميل ${orderRow.customerName}`,
+          description: `مبيعات الطلب #${orderId.slice(0, 8)}`,
         })
         .returning();
 
@@ -1034,7 +1034,7 @@ export async function convertOrderToSale(
           amountCents: remainderCents,
           sourceType: "sale",
           sourceId: newSale.id,
-          description: `متبقي مبيعات الطلب #${orderId.slice(0, 8)} - العميل ${orderRow.customerName}`,
+          description: `متبقي مبيعات الطلب #${orderId.slice(0, 8)}`,
         });
       }
 
@@ -1310,6 +1310,111 @@ export async function createAccount(rawInput: unknown): Promise<ActionResponse> 
 
       revalidatePath("/finance");
       return { status: "ok", data: newAcc };
+    });
+  } catch (error) {
+    return { status: "error", message: mapDbError(error) };
+  }
+}
+
+export async function archiveAccount(id: string): Promise<ActionResponse> {
+  const { success } = await checkRateLimit();
+  if (!success) {
+    return { status: "error", message: "تجاوزت الحد المسموح للعمليات — حاول بعد دقيقة" };
+  }
+
+  try {
+    const [updated] = await db
+      .update(account)
+      .set({ isArchived: true, updatedAt: new Date() })
+      .where(and(eq(account.id, id), isNull(account.deletedAt)))
+      .returning();
+
+    if (!updated) {
+      return { status: "error", message: "الحساب غير موجود" };
+    }
+
+    revalidatePath("/finance");
+    return { status: "ok", data: updated };
+  } catch (error) {
+    return { status: "error", message: mapDbError(error) };
+  }
+}
+
+export async function unarchiveAccount(id: string): Promise<ActionResponse> {
+  const { success } = await checkRateLimit();
+  if (!success) {
+    return { status: "error", message: "تجاوزت الحد المسموح للعمليات — حاول بعد دقيقة" };
+  }
+
+  try {
+    const [updated] = await db
+      .update(account)
+      .set({ isArchived: false, updatedAt: new Date() })
+      .where(and(eq(account.id, id), isNull(account.deletedAt)))
+      .returning();
+
+    if (!updated) {
+      return { status: "error", message: "الحساب غير موجود" };
+    }
+
+    revalidatePath("/finance");
+    return { status: "ok", data: updated };
+  } catch (error) {
+    return { status: "error", message: mapDbError(error) };
+  }
+}
+
+export async function deleteAccount(id: string): Promise<ActionResponse> {
+  const { success } = await checkRateLimit();
+  if (!success) {
+    return { status: "error", message: "تجاوزت الحد المسموح للعمليات — حاول بعد دقيقة" };
+  }
+
+  try {
+    return await db.transaction(async (tx) => {
+      // تحقق من عدم وجود حركات نشطة مرتبطة بالحساب (عدا الأرصدة الافتتاحية إن وجدت)
+      const [movementsCount] = await tx
+        .select({ count: sql<number>`count(*)::int` })
+        .from(cashMovement)
+        .where(
+          and(
+            eq(cashMovement.accountId, id),
+            isNull(cashMovement.deletedAt),
+            ne(cashMovement.sourceType, "opening")
+          )
+        );
+
+      if ((movementsCount?.count ?? 0) > 0) {
+        return {
+          status: "error",
+          message: "لا يمكن حذف حساب به حركات مالية نشطة. استخدم الأرشفة بدلاً من ذلك.",
+        };
+      }
+
+      // حذف حركات الرصيد الافتتاحي المرتبطة بالحساب soft delete
+      await tx
+        .update(cashMovement)
+        .set({ deletedAt: new Date(), updatedAt: new Date() })
+        .where(
+          and(
+            eq(cashMovement.accountId, id),
+            eq(cashMovement.sourceType, "opening"),
+            isNull(cashMovement.deletedAt)
+          )
+        );
+
+      const [deleted] = await tx
+        .update(account)
+        .set({ deletedAt: new Date(), updatedAt: new Date() })
+        .where(and(eq(account.id, id), isNull(account.deletedAt)))
+        .returning();
+
+      if (!deleted) {
+        return { status: "error", message: "الحساب غير موجود" };
+      }
+
+      revalidatePath("/finance");
+      return { status: "ok", data: deleted };
     });
   } catch (error) {
     return { status: "error", message: mapDbError(error) };

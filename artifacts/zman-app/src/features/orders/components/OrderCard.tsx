@@ -335,7 +335,7 @@ export function OrderCard({
         {pendingStatus && (
           <div className="space-y-4">
             <p className="text-sm text-ink-2 leading-relaxed">
-              تغيير حالة طلب <span className="font-bold text-ink">{order.customerName}</span> إلى{" "}
+              تغيير حالة هذا الطلب إلى{" "}
               <span
                 className={cn(
                   "px-2 py-0.5 rounded-full text-xs font-bold border",
@@ -381,7 +381,7 @@ export function OrderCard({
       >
         <div className="space-y-4 p-4 font-medium text-ink">
           <p className="text-sm text-ink-2 leading-relaxed">
-            هل أنت متأكد من تحويل طلب العميل <span className="font-bold text-ink">{order.customerName}</span> إلى مبيعات (تسجيل إيراد)؟
+            هل أنت متأكد من تحويل هذا الطلب إلى مبيعات (تسجيل إيراد)؟
           </p>
           <p className="text-xs text-ink-3">
             سيتم ترحيل كامل المبلغ المتبقي (<AmountText amount={order.totalPriceCents - (order.depositCents || 0)} />) إلى الصندوق كإيراد مبيعات، وتحديث حالة الطلب إلى مكتمل.

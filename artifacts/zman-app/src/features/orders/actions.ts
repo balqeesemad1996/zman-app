@@ -138,7 +138,7 @@ export async function createOrder(rawInput: unknown): Promise<ActionResponse> {
           amountCents: newOrder.depositCents,
           sourceType: "deposit",
           sourceId: newOrder.id,
-          description: `عربون طلب للعميل ${newOrder.customerName} - منتج: ${newOrder.productName}`,
+          description: `عربون طلب - منتج: ${newOrder.productName}`,
         });
       }
 
@@ -310,7 +310,7 @@ export async function updateOrder(rawInput: unknown): Promise<ActionResponse> {
                 amountCents: depositCents,
                 date: movDate,
                 accountId: defaultAccountId,
-                description: `عربون طلب للعميل ${customerName} - منتج: ${productName}`,
+                description: `عربون طلب - منتج: ${productName}`,
                 updatedAt: new Date(),
               })
               .where(eq(cashMovement.id, existingDepositMov.id));
@@ -322,7 +322,7 @@ export async function updateOrder(rawInput: unknown): Promise<ActionResponse> {
               amountCents: depositCents,
               sourceType: "deposit",
               sourceId: id,
-              description: `عربون طلب للعميل ${customerName} - منتج: ${productName}`,
+              description: `عربون طلب - منتج: ${productName}`,
             });
           }
         } else if (existingDepositMov) {

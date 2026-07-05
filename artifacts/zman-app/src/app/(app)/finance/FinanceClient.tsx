@@ -10,6 +10,7 @@ import { SegmentedControl } from "@/components/shared/SegmentedControl";
 import { PageToolbar, type ToolbarFilterGroup, type ToolbarMenuItem } from "@/components/shared/PageToolbar";
 import { Button } from "@/components/shared/Button";
 import { FinanceCatalogModal } from "@/features/finance/components/FinanceCatalogModal";
+import { useOpeningBalance } from "@/features/finance/hooks";
 
 // استيراد تبويبات المالية ديناميكياً لتقسيم الحزم البرمجية (§12.1)
 const PurchasesTab = dynamic(
@@ -94,7 +95,10 @@ export default function FinanceClient() {
   const [_isPending, startTransition] = useTransition();
 
   // الحصول على التبويب النشط من محددات الـ URL (§7.3)
-  const activeTab = searchParams.get("tab") || "purchases";
+  // التقصير ذكي: افتح على الافتتاحي أولاً إذا لم تُدخل أي أرصدة بعد لتوجيه المستخدم
+  const { data: opBal } = useOpeningBalance();
+  const defaultTab = opBal === null ? "opening" : "purchases";
+  const activeTab = searchParams.get("tab") || defaultTab;
 
   const tabs = [
     { id: "purchases", label: "المشتريات", icon: ShoppingCart },

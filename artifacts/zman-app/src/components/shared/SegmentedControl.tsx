@@ -48,7 +48,7 @@ export function SegmentedControl<T = string>({
             )}
           >
             {opt.icon && <span className="shrink-0">{opt.icon}</span>}
-            {opt.label && <span>{opt.label}</span>}
+            {opt.label && <span className="hidden sm:inline">{opt.label}</span>}
           </button>
         );
       })}

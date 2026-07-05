@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Landmark, ArrowLeftRight, Plus, Loader2 } from "lucide-react";
+import { Landmark, ArrowLeftRight, Plus, Loader2, Archive, ArchiveRestore, Trash2 } from "lucide-react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { useAccountBalancesQuery, useCreateAccount, useTransferBetweenAccounts } from "../hooks";
+import { useAccountBalancesQuery, useCreateAccount, useTransferBetweenAccounts, useArchiveAccount, useUnarchiveAccount, useDeleteAccount } from "../hooks";
 import { AmountText } from "@/components/shared/AmountText";
 import { Button } from "@/components/shared/Button";
 import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
@@ -17,6 +17,37 @@ export function AccountsTab() {
   const { data: accounts, isLoading, refetch } = useAccountBalancesQuery();
   const createAccountMutation = useCreateAccount();
   const transferMutation = useTransferBetweenAccounts();
+  const archiveMutation = useArchiveAccount();
+  const unarchiveMutation = useUnarchiveAccount();
+  const deleteMutation = useDeleteAccount();
+
+  const handleArchive = (id: string) => {
+    archiveMutation.mutate(id, {
+      onSuccess: (res) => {
+        if (res.status === "ok") toast.success("تمت أرشفة الحساب بنجاح");
+        else toast.error(res.message);
+      },
+    });
+  };
+
+  const handleUnarchive = (id: string) => {
+    unarchiveMutation.mutate(id, {
+      onSuccess: (res) => {
+        if (res.status === "ok") toast.success("تم إلغاء أرشفة الحساب بنجاح");
+        else toast.error(res.message);
+      },
+    });
+  };
+
+  const handleDelete = (id: string) => {
+    if (!confirm("هل أنت متأكد من حذف هذا الحساب؟")) return;
+    deleteMutation.mutate(id, {
+      onSuccess: (res) => {
+        if (res.status === "ok") toast.success("تم حذف الحساب بنجاح");
+        else toast.error(res.message);
+      },
+    });
+  };
 
   const isAddOpen = searchParams.get("newAccount") === "true";
   const isTransferOpen = searchParams.get("newTransfer") === "true";
@@ -147,12 +178,18 @@ export function AccountsTab() {
       {/* قائمة الحسابات */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {accounts?.map((acc) => (
-          <div key={acc.id} className="bg-paper p-5 rounded-lg border border-hairline shadow-sm flex flex-col justify-between space-y-4">
+          <div
+            key={acc.id}
+            className={`bg-paper p-5 rounded-lg border shadow-sm flex flex-col justify-between space-y-4 transition-all ${
+              acc.isArchived ? "border-hairline-2 opacity-60" : "border-hairline"
+            }`}
+          >
             <div className="flex items-start justify-between">
               <div>
                 <h3 className="font-bold text-sm text-ink">{acc.name}</h3>
                 <span className="text-[10px] bg-canvas px-2 py-0.5 rounded-full border border-hairline font-bold text-ink/60 mt-1 inline-block">
                   {acc.type === "cash" ? "صندوق نقدية" : "حساب بنكي"}
+                  {acc.isArchived && " • مؤرشف"}
                 </span>
               </div>
               <Landmark className="h-5 w-5 text-info" />
@@ -162,6 +199,39 @@ export function AccountsTab() {
               <span className="text-xl font-bold font-mono text-ink">
                 <AmountText amount={acc.balanceCents} />
               </span>
+            </div>
+            {/* أزرار الإجراءات - أيقونات فقط بدون أي نصوص لتفادي ازدحام الواجهة */}
+            <div className="flex gap-2 pt-2 border-t border-hairline justify-end">
+              {!acc.isArchived ? (
+                <button
+                  type="button"
+                  onClick={() => handleArchive(acc.id)}
+                  disabled={archiveMutation.isPending}
+                  title="أرشفة"
+                  className="p-2.5 rounded-md border border-hairline-2 text-ink-2 hover:bg-canvas transition-colors disabled:opacity-50 flex items-center justify-center"
+                >
+                  <Archive className="h-4 w-4" />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleUnarchive(acc.id)}
+                  disabled={unarchiveMutation.isPending}
+                  title="إلغاء الأرشفة"
+                  className="p-2.5 rounded-md border border-info/30 text-info hover:bg-info-soft transition-colors disabled:opacity-50 flex items-center justify-center"
+                >
+                  <ArchiveRestore className="h-4 w-4" />
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => handleDelete(acc.id)}
+                disabled={deleteMutation.isPending}
+                title="حذف"
+                className="p-2.5 rounded-md border border-alert/30 text-alert hover:bg-alert-soft transition-colors disabled:opacity-50 flex items-center justify-center"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
             </div>
           </div>
         ))}

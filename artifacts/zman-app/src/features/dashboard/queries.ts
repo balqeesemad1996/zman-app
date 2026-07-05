@@ -132,7 +132,7 @@ export async function getRecentActivities(): Promise<ActivityItem[]> {
     ...recentOrders.map((o) => ({
       id: o.id,
       type: "order" as const,
-      title: `طلب جديد للعميل ${o.customerName}`,
+      title: "طلب جديد",
       amount: o.totalPriceCents,
       date: new Date(o.createdAt),
     })),
