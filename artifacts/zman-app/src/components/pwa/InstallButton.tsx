@@ -23,10 +23,17 @@ function isIOS(): boolean {
   return /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as unknown as { MSStream?: unknown }).MSStream;
 }
 
+function isAndroid(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /Android/.test(navigator.userAgent);
+}
+
 export function InstallButton() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [dismissed, setDismissed] = useState(false);
   const [mounted, setMounted] = useState(false);
+  // تلميح احتياطي لأندرويد إن لم يصل beforeinstallprompt خلال مهلة
+  const [showAndroidHint, setShowAndroidHint] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -42,7 +49,18 @@ export function InstallButton() {
     };
 
     window.addEventListener("beforeinstallprompt", handler);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
+
+    // إن كنا على أندرويد ولم يصل الحدث خلال 3 ثوانٍ (وغير مثبّت)،
+    // نعرض تلميحاً يدوياً (قائمة المتصفح ← تثبيت التطبيق)
+    let hintTimer: ReturnType<typeof setTimeout> | undefined;
+    if (isAndroid() && !isStandalone()) {
+      hintTimer = setTimeout(() => setShowAndroidHint(true), 3000);
+    }
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handler);
+      if (hintTimer) clearTimeout(hintTimer);
+    };
   }, []);
 
   if (!mounted) return null;
@@ -63,6 +81,23 @@ export function InstallButton() {
     return (
       <div className="flex items-center gap-2 rounded-lg bg-info-soft border border-info/20 px-3 py-2 text-xs text-info">
         <span className="flex-1">للتثبيت: شارك ← أضف إلى الشاشة الرئيسية</span>
+        <button
+          type="button"
+          onClick={handleDismiss}
+          className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-md hover:bg-info/10 transition-colors -me-1"
+          aria-label="إغلاق"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+    );
+  }
+
+  // أندرويد بلا حدث مؤجَّل: تلميح يدوي (قائمة المتصفح ← تثبيت/إضافة للرئيسية)
+  if (!deferredPrompt && isAndroid() && showAndroidHint) {
+    return (
+      <div className="flex items-center gap-2 rounded-lg bg-info-soft border border-info/20 px-3 py-2 text-xs text-info">
+        <span className="flex-1">للتثبيت: قائمة المتصفح (⋮) ← تثبيت التطبيق</span>
         <button
           type="button"
           onClick={handleDismiss}
