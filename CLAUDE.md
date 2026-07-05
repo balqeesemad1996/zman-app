@@ -25,4 +25,11 @@ git push qays main
 
 ## بنية المشروع
 
-monorepo بإدارة pnpm workspace. التطبيق القابل للنشر هو `artifacts/zman-app` (Next.js 15 App Router، اسم الحزمة `@workspace/zman-app`). Vercel يبني عبر `vercel.json` في الجذر الذي يبني هذه الحزمة وحدها (`pnpm --filter`) متجاوزاً المشاريع التجريبية مثل `mockup-sandbox`.
+monorepo بإدارة pnpm workspace. التطبيق القابل للنشر هو `artifacts/zman-app` (Next.js 15 App Router، اسم الحزمة `@workspace/zman-app`). Vercel مُعدّ عبر Dashboard (لا يوجد `vercel.json`) — الـ Root Directory مضبوط على `artifacts/zman-app` مباشرة.
+
+## pnpm و Vercel — قواعد حرجة
+
+- المشروع يستخدم **pnpm v10**. الإصدار مُثبّت في `package.json` عبر `"packageManager": "pnpm@10.32.1"` — **لا تُزِل هذا الحقل** وإلا سيستخدم Vercel إصدار pnpm قديم ويفشل النشر.
+- **الـ overrides** (esbuild, lightningcss, rollup, إلخ) موجودة في `pnpm-workspace.yaml` (ليس package.json) — هذا خاص بـ pnpm v10. أي تعديل على overrides يتطلب تحديث `pnpm-lock.yaml` عبر `pnpm install`.
+- عند إضافة حزمة جديدة أو تعديل `pnpm-workspace.yaml`، شغّل `pnpm install` محلياً وارفع `pnpm-lock.yaml` المُحدّث مع الكومت — وإلا يفشل `--frozen-lockfile` على Vercel.
+- سكربت `preinstall` في الجذر يستخدم `sh` (Linux). على Windows استخدم `--ignore-scripts` عند الحاجة لإعادة توليد الـ lockfile.
