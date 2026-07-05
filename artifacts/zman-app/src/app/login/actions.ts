@@ -13,10 +13,17 @@ export async function loginAction(passcode: string) {
       httpOnly: true,
       secure: true,
       sameSite: "strict",
-      maxAge: 60 * 60 * 24 * 30, // 30 days
+      maxAge: 60 * 60 * 8, // 8 ساعات (طبقة أمان ثانية؛ القفل عند الخمول يعمل قبلها)
       path: "/",
     });
     return { success: true };
   }
   return { success: false, error: "رمز الدخول غير صحيح" };
+}
+
+/** تسجيل الخروج — يحذف كوكي الجلسة (يُستدعى عند القفل بالخمول أو يدوياً) */
+export async function logoutAction() {
+  const cookieStore = await cookies();
+  cookieStore.delete("zman_session");
+  return { success: true };
 }
