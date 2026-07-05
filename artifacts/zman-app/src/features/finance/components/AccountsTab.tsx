@@ -78,7 +78,10 @@ export function AccountsTab() {
       description: transferDesc.trim() || undefined,
     };
 
-    transferMutation.mutate(val, {
+    transferMutation.mutate({
+      ...val,
+      requestId: crypto.randomUUID()
+    }, {
       onSuccess: (res) => {
         if (res.status === "ok") {
           toast.success("تم التحويل المالي بنجاح");

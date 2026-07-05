@@ -53,7 +53,7 @@ export async function getOrCreateDefaultCashAccount(tx: any): Promise<string> {
   const [existing] = await tx
     .select()
     .from(account)
-    .where(and(eq(account.type, "cash"), eq(account.isArchived, false), isNull(account.deletedAt)))
+    .where(and(eq(account.type, "cash"), eq(account.name, "الصندوق الرئيسي"), isNull(account.deletedAt)))
     .limit(1);
 
   if (existing) {
@@ -67,19 +67,31 @@ export async function getOrCreateDefaultCashAccount(tx: any): Promise<string> {
       type: "cash",
       openingBalanceCents: 0,
     })
+    .onConflictDoNothing()
     .returning();
 
-  if (!newAcc) throw new Error("Failed to create default cash account");
+  if (!newAcc) {
+    // A concurrent tx created it first — read it back.
+    const [existing2] = await tx
+      .select()
+      .from(account)
+      .where(and(eq(account.type, "cash"), eq(account.name, "الصندوق الرئيسي"), isNull(account.deletedAt)))
+      .limit(1);
+    if (!existing2) throw new Error("Failed to resolve default cash account");
+    return existing2.id;
+  }
 
-  // إضافة حركة الرصيد الافتتاحي التلقائي
-  await tx.insert(cashMovement).values({
-    date: new Date().toISOString().split("T")[0],
-    accountId: newAcc.id,
-    direction: "in",
-    amountCents: 0,
-    sourceType: "opening",
-    description: "رصيد افتتاحي تلقائي (تم إنشاؤه عند تسجيل حركة مالية أولى)",
-  });
+  // إضافة حركة الرصيد الافتتاحي التلقائي (فقط إذا كان الحساب جديداً تماماً والرصيد الافتتاحي أكبر من صفر)
+  if (newAcc.openingBalanceCents > 0) {
+    await tx.insert(cashMovement).values({
+      date: new Date().toISOString().split("T")[0],
+      accountId: newAcc.id,
+      direction: "in",
+      amountCents: newAcc.openingBalanceCents,
+      sourceType: "opening",
+      description: "رصيد افتتاحي تلقائي (تم إنشاؤه عند تسجيل حركة مالية أولى)",
+    });
+  }
 
   return newAcc.id;
 }
@@ -239,9 +251,9 @@ export async function updatePurchase(
         throw new Error("فشل تحديث المشتريات");
       }
 
-      // تحديث حركة الصندوق المرتبطة (التزاماً بـ §3)
+      // تحديث حركة الصندوق المرتبطة (التزاماً بـ §3) (P1-1)
       const defaultAccountId = await getOrCreateDefaultCashAccount(tx);
-      await tx
+      const [updatedMovement] = await tx
         .update(cashMovement)
         .set({
           amountCents: updatedPurchase.totalCents,
@@ -256,7 +268,20 @@ export async function updatePurchase(
             eq(cashMovement.sourceId, id),
             isNull(cashMovement.deletedAt)
           )
-        );
+        )
+        .returning();
+
+      if (!updatedMovement && updatedPurchase.totalCents > 0) {
+        await tx.insert(cashMovement).values({
+          date: updatedPurchase.date,
+          accountId: defaultAccountId,
+          direction: "out",
+          amountCents: updatedPurchase.totalCents,
+          sourceType: "purchase",
+          sourceId: id,
+          description: updatedPurchase.notes || `شراء مواد: ${updatedPurchase.item} (الكمية: ${updatedPurchase.quantity})`,
+        });
+      }
 
       revalidatePath("/finance");
       return { status: "ok", data: updatedPurchase };
@@ -494,9 +519,9 @@ export async function updateExpense(
         throw new Error("فشل تحديث المصاريف");
       }
 
-      // تحديث حركة الصندوق المرتبطة (التزاماً بـ §3)
+      // تحديث حركة الصندوق المرتبطة (التزاماً بـ §3) (P1-1)
       const defaultAccountId = await getOrCreateDefaultCashAccount(tx);
-      await tx
+      const [updatedMovement] = await tx
         .update(cashMovement)
         .set({
           amountCents: updatedExpense.amountCents,
@@ -511,7 +536,20 @@ export async function updateExpense(
             eq(cashMovement.sourceId, id),
             isNull(cashMovement.deletedAt)
           )
-        );
+        )
+        .returning();
+
+      if (!updatedMovement && updatedExpense.amountCents > 0) {
+        await tx.insert(cashMovement).values({
+          date: updatedExpense.date,
+          accountId: defaultAccountId,
+          direction: "out",
+          amountCents: updatedExpense.amountCents,
+          sourceType: "expense",
+          sourceId: id,
+          description: updatedExpense.description || `مصروف: ${updatedExpense.category}`,
+        });
+      }
 
       revalidatePath("/finance");
       return { status: "ok", data: updatedExpense };
@@ -1344,11 +1382,16 @@ export async function transferBetweenAccounts(
   toId: string,
   amountCents: number,
   date: string,
-  description?: string
+  description?: string,
+  requestId?: string
 ): Promise<ActionResponse> {
   const { success } = await checkRateLimit();
   if (!success) {
     return { status: "error", message: "تجاوزت الحد المسموح للعمليات — حاول بعد دقيقة" };
+  }
+
+  if (fromId === toId) {
+    return { status: "error", message: "لا يمكن التحويل إلى نفس الحساب" };
   }
 
   if (amountCents <= 0) {
@@ -1357,6 +1400,20 @@ export async function transferBetweenAccounts(
 
   try {
     return await db.transaction(async (tx) => {
+      if (requestId) {
+        const [existingKey] = await tx
+          .select()
+          .from(idempotencyKey)
+          .where(eq(idempotencyKey.requestId, requestId));
+
+        if (existingKey) {
+          if (existingKey.action === "transfer") {
+            return { status: "ok", data: { transferId: existingKey.targetId } };
+          }
+          return { status: "error", message: "معرف الطلب مستخدم لعملية أخرى" };
+        }
+      }
+
       const [fromAcc] = await tx.select().from(account).where(eq(account.id, fromId));
       const [toAcc] = await tx.select().from(account).where(eq(account.id, toId));
 
@@ -1388,6 +1445,14 @@ export async function transferBetweenAccounts(
         description: description || `تحويل مالي من حساب: ${fromAcc.name}`,
       });
 
+      if (requestId) {
+        await tx.insert(idempotencyKey).values({
+          requestId,
+          action: "transfer",
+          targetId: transferId,
+        });
+      }
+
       revalidatePath("/finance");
       return { status: "ok", data: { transferId } };
     });
@@ -1400,7 +1465,10 @@ export async function transferBetweenAccounts(
 // 7. إجراءات سحوبات المالك (Owner Drawings Actions)
 // -------------------------------------------------------------
 
-export async function createOwnerTransaction(rawInput: unknown): Promise<ActionResponse> {
+export async function createOwnerTransaction(
+  rawInput: unknown,
+  requestId?: string
+): Promise<ActionResponse> {
   const { success } = await checkRateLimit();
   if (!success) {
     return { status: "error", message: "تجاوزت الحد المسموح للعمليات — حاول بعد دقيقة" };
@@ -1417,6 +1485,24 @@ export async function createOwnerTransaction(rawInput: unknown): Promise<ActionR
 
   try {
     return await db.transaction(async (tx) => {
+      if (requestId) {
+        const [existingKey] = await tx
+          .select()
+          .from(idempotencyKey)
+          .where(eq(idempotencyKey.requestId, requestId));
+
+        if (existingKey) {
+          if (existingKey.action === "owner_transaction") {
+            const [ot] = await tx
+              .select()
+              .from(ownerTransaction)
+              .where(eq(ownerTransaction.id, existingKey.targetId));
+            return { status: "ok", data: ot };
+          }
+          return { status: "error", message: "معرف الطلب مستخدم لعملية أخرى" };
+        }
+      }
+
       const [newTx] = await tx
         .insert(ownerTransaction)
         .values({
@@ -1439,6 +1525,14 @@ export async function createOwnerTransaction(rawInput: unknown): Promise<ActionR
         sourceId: newTx.id,
         description: parsed.data.reason || (parsed.data.type === "draw" ? `سحوبات شخصية للمالك` : `حقن رأس مال شخصي من المالك`),
       });
+
+      if (requestId) {
+        await tx.insert(idempotencyKey).values({
+          requestId,
+          action: "owner_transaction",
+          targetId: newTx.id,
+        });
+      }
 
       revalidatePath("/finance");
       revalidatePath("/reports");

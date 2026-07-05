@@ -261,6 +261,7 @@ export async function getDashboardStats(
       .where(
         and(
           isNull(order.deletedAt),
+          sql`${order.status} not in ('delivered', 'cancelled')`,
           sql`${order.deliveryDate} >= CURRENT_DATE`,
           sql`${order.deliveryDate} <= CURRENT_DATE + INTERVAL '7 days'`,
         ),

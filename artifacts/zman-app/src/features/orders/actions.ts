@@ -511,6 +511,14 @@ export async function updateOrderStatus(
         return { status: "error", message: "تم تحديث البيانات من جهة أخرى" };
       }
 
+      // 4.5. منع إعادة فتح الطلبات الملغاة (P0-2)
+      if (existing.status === "cancelled" && newStatus !== "cancelled") {
+        return {
+          status: "error",
+          message: "لا يمكن إعادة فتح طلب ملغى. أنشئ طلباً جديداً بدلاً من ذلك.",
+        };
+      }
+
       // 5. تحديث الحالة
       const [updated] = await tx
         .update(order)

@@ -41,7 +41,10 @@ export function OwnerTab() {
       reason: txReason.trim() || undefined,
     };
 
-    createTxMutation.mutate(val, {
+    createTxMutation.mutate({
+      values: val,
+      requestId: crypto.randomUUID()
+    }, {
       onSuccess: (res) => {
         if (res.status === "ok") {
           toast.success("تم تسجيل المعاملة بنجاح");

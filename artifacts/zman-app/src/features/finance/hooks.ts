@@ -492,13 +492,15 @@ export function useTransferBetweenAccounts() {
       amountCents,
       date,
       description,
+      requestId,
     }: {
       fromId: string;
       toId: string;
       amountCents: number;
       date: string;
       description?: string;
-    }) => transferBetweenAccounts(fromId, toId, amountCents, date, description),
+      requestId?: string;
+    }) => transferBetweenAccounts(fromId, toId, amountCents, date, description, requestId),
     onSuccess: (res) => {
       if (res.status === "ok") {
         queryClient.invalidateQueries({ queryKey: ["finance", "account-balances"] });
@@ -526,7 +528,13 @@ export function useOwnerTransactions() {
 export function useCreateOwnerTransaction() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: createOwnerTransaction,
+    mutationFn: ({
+      values,
+      requestId,
+    }: {
+      values: unknown;
+      requestId?: string;
+    }) => createOwnerTransaction(values, requestId),
     onSuccess: (res) => {
       if (res.status === "ok") {
         queryClient.invalidateQueries({ queryKey: ["finance", "owner-transactions"] });

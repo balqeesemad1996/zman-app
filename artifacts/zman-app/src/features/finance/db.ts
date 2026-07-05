@@ -207,6 +207,9 @@ export const account = pgTable(
       index("account_type_idx")
         .on(table.type)
         .where(sql`deleted_at is null`),
+      uniqueIndex("account_default_cash_unique_idx")
+        .on(table.name)
+        .where(sql`type = 'cash' AND name = 'الصندوق الرئيسي' AND deleted_at IS NULL`),
     ];
   },
 );
