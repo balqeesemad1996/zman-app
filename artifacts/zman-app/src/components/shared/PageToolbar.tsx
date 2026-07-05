@@ -128,10 +128,12 @@ export function PageToolbar({
   }
 
   return (
-    <div className="flex items-center gap-2 flex-nowrap justify-end w-full">
-      {/* الترتيب (يمين→يسار في RTL): إضافة، فلتر، [فاصل]، بحث، [فاصل]، تبديل العرض، إعدادات */}
+    <div className="flex items-center flex-nowrap justify-between w-full">
+      {/* يمين: زر الإضافة (الإجراء الأساسي) */}
       {trailing}
 
+      {/* الوسط: فلتر + بحث + تبديل العرض (مجموعة متماسكة بينهما مسافات) */}
+      <div className="flex items-center gap-2 flex-nowrap">
       {/* فلتر مخصّص (يحلّ محلّ الفلتر الافتراضي) */}
       {filterSlot}
 
@@ -207,7 +209,10 @@ export function PageToolbar({
       {leading && <span className="w-2 shrink-0" aria-hidden="true" />}
 
       {leading}
+      </div>
+      {/* نهاية مجموعة الوسط */}
 
+      {/* يسار: زر الإعدادات */}
       {menuItems && menuItems.length > 0 && (
         <div ref={menuRef} className="relative">
           <HeaderIconButton
@@ -238,7 +243,7 @@ export function PageToolbar({
         </div>
       )}
 
-      {/* حجز مساحة زر الإعدادات عند غيابه (منع قفز التخطيط) */}
+      {/* حجز مساحة زر الإعدادات عند غيابه (منع قفز التخطيط بين التبويبات) */}
       {(!menuItems || menuItems.length === 0) && reserveMenuSpace && (
         <span className="w-11 h-11 shrink-0" aria-hidden="true" />
       )}

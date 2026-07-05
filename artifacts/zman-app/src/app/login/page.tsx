@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import { loginAction } from "./actions";
 import { Button } from "@/components/shared/Button";
 import { TextField } from "@/components/shared/TextField";
+import { InstallFab } from "@/components/pwa/InstallFab";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -76,6 +77,11 @@ export default function LoginPage() {
             المشروع مؤمن مؤقتاً لحماية سرية البيانات والعمليات التجارية.
           </p>
         </div>
+      </div>
+
+      {/* زر التثبيت الدائري الذكي — أسفل مربّع الدخول (يظهر فقط عند إمكان التثبيت) */}
+      <div className="mt-6">
+        <InstallFab />
       </div>
     </div>
   );
