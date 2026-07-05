@@ -89,16 +89,17 @@ export function OrderList({
         )
       ) : (
         <>
-          {/* عرض الموبايل: بطاقات مكدسة رأسياً (§10.1) */}
-          <div className="space-y-3 lg:hidden">
+          {/* عرض الموبايل: بطاقات مكدسة رأسياً مع خطوط فاصلة (§10.1) */}
+          <div className="divide-y divide-hairline-2 border-y border-hairline-2">
             {allOrders.map((ord) => (
-              <OrderCard
-                key={ord.id}
-                order={ord}
-                onEdit={onEdit}
-                onDelete={onDelete}
-                onClick={onViewDetail}
-              />
+              <div key={ord.id} className="py-3 first:pt-0 last:pb-0">
+                <OrderCard
+                  order={ord}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
+                  onClick={onViewDetail}
+                />
+              </div>
             ))}
           </div>
 

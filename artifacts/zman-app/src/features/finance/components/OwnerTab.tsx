@@ -3,18 +3,32 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { Coins, Plus, Trash2, ArrowUpRight, ArrowDownRight, Loader2 } from "lucide-react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useOwnerTransactions, useCreateOwnerTransaction, useDeleteOwnerTransaction, useAccounts } from "../hooks";
 import { AmountText } from "@/components/shared/AmountText";
 import { Button } from "@/components/shared/Button";
 import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
 
 export function OwnerTab() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const { data: transactions, isLoading } = useOwnerTransactions();
   const { data: accounts } = useAccounts();
   const createTxMutation = useCreateOwnerTransaction();
   const deleteTxMutation = useDeleteOwnerTransaction();
 
-  const [isOpen, setIsOpen] = useState(false);
+  const isOpen = searchParams.get("newOwnerTx") === "true";
+
+  const updateUrl = (params: Record<string, string | null>) => {
+    const next = new URLSearchParams(searchParams.toString());
+    Object.entries(params).forEach(([key, val]) => {
+      if (val === null) next.delete(key);
+      else next.set(key, val);
+    });
+    router.replace(`${pathname}?${next.toString()}`);
+  };
   const [txType, setTxType] = useState<"draw" | "inject">("draw");
   const [txAmount, setTxAmount] = useState("");
   const [txAccountId, setTxAccountId] = useState("");
@@ -48,7 +62,7 @@ export function OwnerTab() {
       onSuccess: (res) => {
         if (res.status === "ok") {
           toast.success("تم تسجيل المعاملة بنجاح");
-          setIsOpen(false);
+          updateUrl({ newOwnerTx: null });
           setTxAmount("");
           setTxReason("");
         } else {
@@ -90,7 +104,7 @@ export function OwnerTab() {
           <p className="text-xs text-ink/50 mt-0.5">تسجيل السحوبات الشخصية وحقن رأس المال الإضافي للورشة</p>
         </div>
         <Button
-          onClick={() => setIsOpen(true)}
+          onClick={() => updateUrl({ newOwnerTx: "true" })}
           className="flex items-center gap-1 text-xs"
         >
           <Plus className="h-4 w-4" />
@@ -171,7 +185,7 @@ export function OwnerTab() {
       {/* مودال المعاملة الجديدة */}
       <ResponsiveModal
         isOpen={isOpen}
-        onClose={() => setIsOpen(false)}
+        onClose={() => updateUrl({ newOwnerTx: null })}
         title="تسجيل معاملة مالك جديدة"
       >
         <form onSubmit={handleSubmit} className="space-y-4 p-4 font-medium text-ink">
@@ -264,7 +278,7 @@ export function OwnerTab() {
             <Button
               type="button"
               variant="secondary"
-              onClick={() => setIsOpen(false)}
+              onClick={() => updateUrl({ newOwnerTx: null })}
             >
               إلغاء
             </Button>

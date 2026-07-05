@@ -1,6 +1,6 @@
 "use client";
 
-import { Banknote, ShoppingCart, Wallet, Plus, Boxes, Landmark, User, Settings } from "lucide-react";
+import { Banknote, ShoppingCart, Wallet, Plus, Boxes, Landmark, User, Settings, ArrowLeftRight } from "lucide-react";
 import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTransition, useState, useEffect } from "react";
@@ -203,6 +203,19 @@ export default function FinanceClient() {
         onClick: () => setIsCatalogOpen(true),
       },
     ];
+  } else if (activeTab === "accounts") {
+    menuItems = [
+      {
+        key: "transfer",
+        label: "تحويل بيني",
+        icon: <ArrowLeftRight className="w-5 h-5" />,
+        onClick: () => {
+          const params = new URLSearchParams(searchParams.toString());
+          params.set("newTransfer", "true");
+          router.replace(`${pathname}?${params.toString()}`);
+        },
+      },
+    ];
   }
 
   // الإجراء الأساسي المربّع (+)
@@ -215,6 +228,12 @@ export default function FinanceClient() {
     } else if (activeTab === "sales") {
       label = "مبيعات جديدة";
       queryParam = "newSale";
+    } else if (activeTab === "accounts") {
+      label = "حساب جديد";
+      queryParam = "newAccount";
+    } else if (activeTab === "owner") {
+      label = "معاملة مالك جديدة";
+      queryParam = "newOwnerTx";
     }
 
     return (
@@ -233,7 +252,8 @@ export default function FinanceClient() {
     );
   };
 
-  const isStandardTab = activeTab === "purchases" || activeTab === "expenses" || activeTab === "sales";
+  const isActionableTab = activeTab === "purchases" || activeTab === "expenses" || activeTab === "sales" || activeTab === "accounts" || activeTab === "owner";
+  const hasSearch = activeTab === "purchases" || activeTab === "expenses" || activeTab === "sales";
 
   const pageAction = (
     <PageToolbar
@@ -250,7 +270,7 @@ export default function FinanceClient() {
           className="shrink-0 gap-0.5"
         />
       }
-      search={isStandardTab ? {
+      search={hasSearch ? {
         value: searchInput,
         onChange: setSearchInput,
         placeholder:
@@ -260,11 +280,11 @@ export default function FinanceClient() {
             ? "البحث في المصاريف..."
             : "البحث في بيان المبيعات...",
       } : undefined}
-      filters={isStandardTab ? filters : undefined}
-      menuItems={isStandardTab ? menuItems : undefined}
-      reserveFilterSpace={isStandardTab}
-      reserveMenuSpace={isStandardTab}
-      trailing={isStandardTab ? getTrailingAction() : undefined}
+      filters={hasSearch ? filters : undefined}
+      menuItems={menuItems}
+      reserveFilterSpace={hasSearch}
+      reserveMenuSpace={!!menuItems && menuItems.length > 0}
+      trailing={isActionableTab ? getTrailingAction() : undefined}
     />
   );
 

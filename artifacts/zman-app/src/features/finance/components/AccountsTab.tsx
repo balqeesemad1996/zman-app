@@ -3,18 +3,32 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { Landmark, ArrowLeftRight, Plus, Loader2 } from "lucide-react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useAccountBalancesQuery, useCreateAccount, useTransferBetweenAccounts } from "../hooks";
 import { AmountText } from "@/components/shared/AmountText";
 import { Button } from "@/components/shared/Button";
 import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
 
 export function AccountsTab() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const { data: accounts, isLoading, refetch } = useAccountBalancesQuery();
   const createAccountMutation = useCreateAccount();
   const transferMutation = useTransferBetweenAccounts();
 
-  const [isAddOpen, setIsAddOpen] = useState(false);
-  const [isTransferOpen, setIsTransferOpen] = useState(false);
+  const isAddOpen = searchParams.get("newAccount") === "true";
+  const isTransferOpen = searchParams.get("newTransfer") === "true";
+
+  const updateUrl = (params: Record<string, string | null>) => {
+    const next = new URLSearchParams(searchParams.toString());
+    Object.entries(params).forEach(([key, val]) => {
+      if (val === null) next.delete(key);
+      else next.set(key, val);
+    });
+    router.replace(`${pathname}?${next.toString()}`);
+  };
 
   // Add Account form states
   const [accName, setAccName] = useState("");
@@ -44,7 +58,7 @@ export function AccountsTab() {
       onSuccess: (res) => {
         if (res.status === "ok") {
           toast.success("تم إنشاء الحساب بنجاح");
-          setIsAddOpen(false);
+          updateUrl({ newAccount: null });
           setAccName("");
           setAccOpening("");
         } else {
@@ -85,7 +99,7 @@ export function AccountsTab() {
       onSuccess: (res) => {
         if (res.status === "ok") {
           toast.success("تم التحويل المالي بنجاح");
-          setIsTransferOpen(false);
+          updateUrl({ newTransfer: null });
           setTransferAmount("");
           setTransferDesc("");
         } else {
@@ -113,7 +127,7 @@ export function AccountsTab() {
         </div>
         <div className="flex items-center gap-2">
           <Button
-            onClick={() => setIsTransferOpen(true)}
+            onClick={() => updateUrl({ newTransfer: "true" })}
             variant="secondary"
             className="flex items-center gap-1 text-xs"
           >
@@ -121,7 +135,7 @@ export function AccountsTab() {
             تحويل بيني
           </Button>
           <Button
-            onClick={() => setIsAddOpen(true)}
+            onClick={() => updateUrl({ newAccount: "true" })}
             className="flex items-center gap-1 text-xs"
           >
             <Plus className="h-4 w-4" />
@@ -161,7 +175,7 @@ export function AccountsTab() {
       {/* مودال إضافة حساب جديد */}
       <ResponsiveModal
         isOpen={isAddOpen}
-        onClose={() => setIsAddOpen(false)}
+        onClose={() => updateUrl({ newAccount: null })}
         title="إنشاء حساب مالي جديد"
       >
         <form onSubmit={handleAddSubmit} className="space-y-4 p-4 font-medium text-ink">
@@ -206,7 +220,7 @@ export function AccountsTab() {
             <Button
               type="button"
               variant="secondary"
-              onClick={() => setIsAddOpen(false)}
+              onClick={() => updateUrl({ newAccount: null })}
             >
               إلغاء
             </Button>
@@ -223,7 +237,7 @@ export function AccountsTab() {
       {/* مودال التحويل البيني */}
       <ResponsiveModal
         isOpen={isTransferOpen}
-        onClose={() => setIsTransferOpen(false)}
+        onClose={() => updateUrl({ newTransfer: null })}
         title="تحويل مالي بين الحسابات"
       >
         <form onSubmit={handleTransferSubmit} className="space-y-4 p-4 font-medium text-ink">
@@ -301,7 +315,7 @@ export function AccountsTab() {
             <Button
               type="button"
               variant="secondary"
-              onClick={() => setIsTransferOpen(false)}
+              onClick={() => updateUrl({ newTransfer: null })}
             >
               إلغاء
             </Button>

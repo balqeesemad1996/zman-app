@@ -12,6 +12,7 @@ import {
   MoreVertical,
   RotateCcw,
   Send,
+  ShoppingCart,
   Truck,
   Trash2,
   XCircle,
@@ -27,6 +28,7 @@ import { cn } from "@/lib/utils";
 import { buildOrderWhatsAppLink } from "@/lib/whatsapp";
 import type { Order } from "../types";
 import { useMessageTemplate, useUpdateOrderStatus } from "../hooks";
+import { useConvertOrderToSale } from "../../finance/hooks";
 import {
   NEXT_ACTION_LABEL,
   NEXT_STATUS,
@@ -62,11 +64,14 @@ export function OrderCard({
   const [isActionsOpen, setIsActionsOpen] = useState(false);
   const { data: templateText } = useMessageTemplate();
   const updateStatusMutation = useUpdateOrderStatus();
+  const convertToSaleMutation = useConvertOrderToSale();
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [isConverting, setIsConverting] = useState(false);
   const [localStatus, setLocalStatus] = useState(order.status);
   // قائمة الحالات الأخرى (⋯) + تأكيد خفيف للنقل
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<string | null>(null);
+  const [showConvertConfirm, setShowConvertConfirm] = useState(false);
   const statusMenuRef = useRef<HTMLDivElement>(null);
   useClickOutside(statusMenuRef, () => setStatusMenuOpen(false), statusMenuOpen);
 
@@ -111,6 +116,27 @@ export function OrderCard({
   // الحالة التالية في الرحلة (للزر الذكي)
   const nextStatus = NEXT_STATUS[localStatus];
   const isCancelled = localStatus === "cancelled";
+  const canConvertToSale = localStatus !== "delivered" && localStatus !== "cancelled";
+
+  const handleConvertToSale = async () => {
+    setIsConverting(true);
+    setShowConvertConfirm(false);
+    try {
+      const response = await convertToSaleMutation.mutateAsync({
+        orderId: order.id,
+        requestId: crypto.randomUUID(),
+      });
+      if (response.status === "ok") {
+        toast.success("تم تحويل الطلب إلى إيراد (مبيعات)");
+      } else {
+        toast.error(response.message || "فشل تحويل الطلب");
+      }
+    } catch {
+      toast.error("حدث خطأ أثناء تحويل الطلب");
+    } finally {
+      setIsConverting(false);
+    }
+  };
 
 
 
@@ -230,6 +256,20 @@ export function OrderCard({
             </div>
           )}
 
+          {/* زر تحويل إلى إيراد مستقل */}
+          {canConvertToSale && (
+            <button
+              type="button"
+              disabled={isConverting}
+              onClick={() => setShowConvertConfirm(true)}
+              className="px-3 min-h-[44px] rounded-lg border border-emerald text-emerald hover:bg-emerald-soft flex items-center justify-center gap-1.5 transition-all duration-150 active:scale-[0.97] disabled:opacity-50 font-bold text-sm shrink-0"
+              title="تحويل إلى مبيعات (تسجيل إيراد)"
+            >
+              <ShoppingCart className="w-4.5 h-4.5" />
+              <span className="hidden sm:inline">تسجيل إيراد</span>
+            </button>
+          )}
+
           {/* قائمة الحالات الأخرى (⋯) */}
           <div ref={statusMenuRef} className="relative shrink-0">
             <button
@@ -326,6 +366,39 @@ export function OrderCard({
             </div>
           </div>
         )}
+      </ResponsiveModal>
+
+      {/* تأكيد تحويل الطلب إلى مبيعات (إيراد) */}
+      <ResponsiveModal
+        isOpen={showConvertConfirm}
+        onClose={() => setShowConvertConfirm(false)}
+        title="تأكيد تحويل الطلب إلى مبيعات"
+      >
+        <div className="space-y-4 p-4 font-medium text-ink">
+          <p className="text-sm text-ink-2 leading-relaxed">
+            هل أنت متأكد من تحويل طلب العميل <span className="font-bold text-ink">{order.customerName}</span> إلى مبيعات (تسجيل إيراد)؟
+          </p>
+          <p className="text-xs text-ink-3">
+            سيتم ترحيل كامل المبلغ المتبقي (<AmountText amount={order.totalPriceCents - (order.depositCents || 0)} />) إلى الصندوق كإيراد مبيعات، وتحديث حالة الطلب إلى مكتمل.
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setShowConvertConfirm(false)}
+              className="flex-1 min-h-[44px] rounded-lg border border-hairline-2 bg-paper text-ink-2 font-bold hover:bg-canvas transition-colors"
+            >
+              إلغاء
+            </button>
+            <button
+              type="button"
+              disabled={isConverting}
+              onClick={handleConvertToSale}
+              className="flex-1 min-h-[44px] rounded-lg text-paper font-bold bg-emerald hover:bg-emerald/90 transition-colors disabled:opacity-50 flex items-center justify-center"
+            >
+              {isConverting ? "جارٍ التحويل..." : "تأكيد التحويل"}
+            </button>
+          </div>
+        </div>
       </ResponsiveModal>
 
       {/* شيت الإجراءات المنبثق من الأسفل للموبايل والـ Dialog للديسكتوب (§9.3) */}
