@@ -7,8 +7,8 @@ import { useEffect, useState } from "react";
 import { AppShellHeader } from "@/providers/app-shell-context";
 import { ErrorState } from "@/components/shared/ErrorState";
 import { SkeletonList } from "@/components/shared/SkeletonList";
-import { SegmentedControl } from "@/components/shared/SegmentedControl";
 import { Button } from "@/components/shared/Button";
+import { HeaderIconButton } from "@/components/shared/HeaderIconButton";
 import { PageToolbar } from "@/components/shared/PageToolbar";
 import { useOrder } from "@/features/orders/hooks";
 import type { Order } from "@/features/orders/types";
@@ -146,16 +146,17 @@ export default function OrdersClient() {
   const pageAction: React.ReactNode = isInSubView ? null : (
     <PageToolbar
       leading={
-        // مبدّل العرض: قائمة | تقويم
-        <SegmentedControl
-          value={tab}
-          onChange={(val) => setTab(val as "list" | "calendar")}
-          options={[
-            { value: "list", label: "", icon: <LayoutList className="w-5 h-5" /> },
-            { value: "calendar", label: "", icon: <CalendarDays className="w-5 h-5" /> },
-          ]}
-          className="gap-0.5"
-        />
+        // زر تبديل عرض واحد — يعرض أيقونة الوضع الذي سينتقل إليه
+        <HeaderIconButton
+          label={tab === "calendar" ? "عرض القائمة" : "عرض التقويم"}
+          onClick={() => setTab(tab === "calendar" ? "list" : "calendar")}
+        >
+          {tab === "calendar" ? (
+            <LayoutList className="w-5 h-5" />
+          ) : (
+            <CalendarDays className="w-5 h-5" />
+          )}
+        </HeaderIconButton>
       }
       search={{
         value: searchInput,

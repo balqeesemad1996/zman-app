@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Trash2 } from "lucide-react";
+import { List, Trash2 } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { AmountText } from "@/components/shared/AmountText";
@@ -177,7 +177,7 @@ export function PurchaseForm({
                 autoCapitalize="words"
                 placeholder="أدخل اسم الصنف..."
                 {...register("item")}
-                className={`flex-1 h-12 px-4 py-2 rounded-md border border-hairline-2 bg-paper text-base text-ink focus:outline-none focus:ring-2 focus:ring-ink/10 ${
+                className={`min-w-0 flex-1 h-12 px-4 py-2 rounded-md border border-hairline-2 bg-paper text-base text-ink focus:outline-none focus:ring-2 focus:ring-ink/10 ${
                   errors.item ? "border-alert" : ""
                 }`}
               />
@@ -188,9 +188,12 @@ export function PurchaseForm({
                     setValue("item", catalogItems[0]?.name || "");
                   }}
                   variant="secondary"
-                  className="h-12 text-xs text-ink-2 shrink-0 px-3"
+                  size="icon"
+                  aria-label="اختيار من الأصناف المخزّنة"
+                  title="اختيار من الأصناف المخزّنة"
+                  className="h-12 w-12 shrink-0"
                 >
-                  اختر من القائمة
+                  <List className="w-5 h-5" />
                 </Button>
               )}
             </div>

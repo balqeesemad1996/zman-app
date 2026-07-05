@@ -23,7 +23,6 @@ import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
 import { SkeletonList } from "@/components/shared/SkeletonList";
 import { FilterChip } from "@/components/shared/FilterChip";
 import { SegmentedControl } from "@/components/shared/SegmentedControl";
-import { Sparkline } from "@/components/shared/Sparkline";
 import {
   useFinancialSummary,
   useFinancialTrendData,
@@ -32,13 +31,40 @@ import {
   useCashSummary,
 } from "../hooks";
 
-// تحميل الرسم البياني ديناميكياً لتقليل حزم التحميل المبدئي (§12.1)
-const FinancialChart = dynamic(() => import("./FinancialChart"), {
-  ssr: false,
-  loading: () => (
-    <div className="h-64 w-full bg-paper rounded-lg border border-hairline animate-pulse" />
-  ),
-});
+/**
+ * اتجاه سلسلة قيم عبر الفترة: نقارن مجموع النصف الأول بالنصف الثاني.
+ * لا يحتاج بيانات فترة سابقة — يعكس الاتجاه داخل الفترة نفسها بصدق.
+ */
+function seriesDirection(data: number[]): "up" | "down" | "flat" {
+  if (!data || data.length < 2) return "flat";
+  const mid = Math.floor(data.length / 2);
+  const firstHalf = data.slice(0, mid).reduce((a, b) => a + b, 0);
+  const secondHalf = data.slice(mid).reduce((a, b) => a + b, 0);
+  if (secondHalf > firstHalf) return "up";
+  if (secondHalf < firstHalf) return "down";
+  return "flat";
+}
+
+/**
+ * سهم اتجاه بسيط: ▲ أخضر (صاعد) / ▼ أحمر (هابط) / — رمادي (ثابت).
+ * `goodWhenUp=false` يعكس المعنى (للمصاريف: الصعود سيّئ فيُلوَّن أحمر).
+ */
+function TrendArrow({
+  data,
+  goodWhenUp = true,
+}: {
+  data: number[];
+  goodWhenUp?: boolean;
+}) {
+  const dir = seriesDirection(data);
+  if (dir === "flat") {
+    return <span className="text-[10px] text-ink-3 font-bold shrink-0">—</span>;
+  }
+  const isGood = dir === "up" ? goodWhenUp : !goodWhenUp;
+  const color = isGood ? "text-emerald-deep" : "text-alert";
+  const Icon = dir === "up" ? TrendingUp : TrendingDown;
+  return <Icon className={`h-4 w-4 shrink-0 ${color}`} />;
+}
 
 export function DashboardClient() {
   const [_isPending, _startTransition] = useTransition();
@@ -322,43 +348,6 @@ export function DashboardClient() {
               </div>
             )}
 
-            {/* بطاقة هيرو عريضة لصافي الأرباح والخسائر (§H3) */}
-            <div className="p-6 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col justify-between w-full">
-              <div className="flex items-center justify-between border-b border-hairline pb-2.5">
-                <span className="text-sm font-bold text-ink/65 flex items-center gap-1.5">
-                  <NetIcon className={`h-5 w-5 ${netColorClass}`} />
-                  صافي الأرباح والخسائر للفترة
-                </span>
-                <span className="text-[10px] text-ink/40 font-mono">
-                  {startDateStr} - {endDateStr}
-                </span>
-              </div>
-              <div className="mt-4 flex items-center justify-between gap-3">
-                <div className="min-w-0 flex-1 overflow-hidden">
-                  <span
-                    className={`text-xl sm:text-2xl lg:text-3xl font-bold flex items-baseline gap-1.5 ${netColorClass} whitespace-nowrap max-w-full`}
-                  >
-                    <span className="font-mono shrink-0">{netSign}</span>
-                    <span className="truncate"><AmountText amount={Math.abs(net)} /></span>
-                  </span>
-                  <p className="text-xs text-ink/50 mt-2 truncate">
-                    صافي الأرباح التشغيلية للفترة
-                  </p>
-                </div>
-                {netTrendData.length >= 2 && (
-                  <div className="w-32 lg:w-48">
-                    <Sparkline
-                      data={netTrendData}
-                      width={160}
-                      height={44}
-                      color={isProfit ? "var(--color-info)" : "var(--color-alert)"}
-                      fillColor={isProfit ? "rgba(21, 101, 192, 0.05)" : "rgba(192, 57, 43, 0.05)"}
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {/* صافي الأرباح (أزرق في الربح، أحمر في الخسارة - غير معتمد على اللون فقط) */}
               <div className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col justify-between">
@@ -367,13 +356,7 @@ export function DashboardClient() {
                     <NetIcon className={`h-4 w-4 ${netColorClass}`} />
                     صافي الأرباح
                   </span>
-                  {netTrendData.length >= 2 && (
-                    <Sparkline
-                      data={netTrendData}
-                      color={isProfit ? "var(--color-info)" : "var(--color-alert)"}
-                      fillColor={isProfit ? "rgba(21, 101, 192, 0.05)" : "rgba(192, 57, 43, 0.05)"}
-                    />
-                  )}
+                  <TrendArrow data={netTrendData} goodWhenUp={true} />
                 </div>
                 <div className="mt-2 flex flex-col min-w-0">
                   <span
@@ -395,11 +378,10 @@ export function DashboardClient() {
                     <ShoppingBag className="h-4 w-4 text-info" />
                     المبيعات
                   </span>
-                  {trendData && trendData.salesTrend.length >= 2 && (
-                    <Sparkline
+                  {trendData && (
+                    <TrendArrow
                       data={trendData.salesTrend.map((d: any) => d.total)}
-                      color="var(--color-info)"
-                      fillColor="rgba(21, 101, 192, 0.05)"
+                      goodWhenUp={true}
                     />
                   )}
                 </div>
@@ -426,11 +408,10 @@ export function DashboardClient() {
                     <ShoppingCart className="h-4 w-4 text-alert" />
                     المشتريات
                   </span>
-                  {trendData && trendData.purchasesTrend.length >= 2 && (
-                    <Sparkline
+                  {trendData && (
+                    <TrendArrow
                       data={trendData.purchasesTrend.map((d: any) => d.total)}
-                      color="var(--color-alert)"
-                      fillColor="rgba(192, 57, 43, 0.05)"
+                      goodWhenUp={false}
                     />
                   )}
                 </div>
@@ -452,11 +433,10 @@ export function DashboardClient() {
                     <ArrowDownRight className="h-4 w-4 text-alert" />
                     المصاريف
                   </span>
-                  {trendData && trendData.expensesTrend.length >= 2 && (
-                    <Sparkline
+                  {trendData && (
+                    <TrendArrow
                       data={trendData.expensesTrend.map((d: any) => d.total)}
-                      color="var(--color-alert)"
-                      fillColor="rgba(192, 57, 43, 0.05)"
+                      goodWhenUp={false}
                     />
                   )}
                 </div>
@@ -533,17 +513,6 @@ export function DashboardClient() {
               </div>
             </div>
           </div>
-        )}
-
-        {/* الرسم البياني لتوجهات التدفق المالي */}
-        {!isLoadingTrend && trendData && (
-          <FinancialChart
-            salesData={trendData.salesTrend}
-            expensesData={trendData.expensesTrend}
-            purchasesData={trendData.purchasesTrend}
-            startDate={startDateStr}
-            endDate={endDateStr}
-          />
         )}
 
         {/* حالة الطلبات التشغيلية */}

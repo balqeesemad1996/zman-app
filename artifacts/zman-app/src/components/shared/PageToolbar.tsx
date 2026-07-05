@@ -120,17 +120,8 @@ export function PageToolbar({
 
   return (
     <div className="flex items-center gap-2 flex-nowrap justify-end w-full">
-      {leading}
-
-      {search && (
-        <HeaderIconButton
-          label="بحث"
-          isActive={!!search.value}
-          onClick={() => setSearchOpen(true)}
-        >
-          <Search className="w-5 h-5" />
-        </HeaderIconButton>
-      )}
+      {/* الترتيب (يمين→يسار في RTL): إضافة، فلتر، [فاصل]، بحث، [فاصل]، تبديل العرض، إعدادات */}
+      {trailing}
 
       {filters && filters.length > 0 && (
         <div ref={filterRef} className="relative">
@@ -179,6 +170,24 @@ export function PageToolbar({
           )}
         </div>
       )}
+
+      {/* فاصل بسيط قبل البحث */}
+      {search && <span className="w-2 shrink-0" aria-hidden="true" />}
+
+      {search && (
+        <HeaderIconButton
+          label="بحث"
+          isActive={!!search.value}
+          onClick={() => setSearchOpen(true)}
+        >
+          <Search className="w-5 h-5" />
+        </HeaderIconButton>
+      )}
+
+      {/* فاصل بسيط قبل مبدّل العرض */}
+      {leading && <span className="w-2 shrink-0" aria-hidden="true" />}
+
+      {leading}
 
       {menuItems && menuItems.length > 0 && (
         <div ref={menuRef} className="relative">

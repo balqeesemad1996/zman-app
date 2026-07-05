@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Trash2 } from "lucide-react";
+import { List, Trash2 } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { MoneyInput } from "@/components/shared/MoneyInput";
@@ -144,7 +144,7 @@ export function ExpenseForm({
                 autoCapitalize="words"
                 placeholder="أدخل اسم الفئة..."
                 {...register("category")}
-                className={`flex-1 h-12 px-4 py-2 rounded-md border border-hairline bg-paper text-base text-ink focus:outline-none focus:ring-2 focus:ring-ink ${
+                className={`min-w-0 flex-1 h-12 px-4 py-2 rounded-md border border-hairline bg-paper text-base text-ink focus:outline-none focus:ring-2 focus:ring-ink ${
                   errors.category ? "border-alert" : ""
                 }`}
               />
@@ -155,9 +155,12 @@ export function ExpenseForm({
                     setValue("category", finalCategories[0] || "");
                   }}
                   variant="secondary"
-                  className="h-12 text-xs text-ink-2 shrink-0 px-3"
+                  size="icon"
+                  aria-label="اختيار من الفئات المخزّنة"
+                  title="اختيار من الفئات المخزّنة"
+                  className="h-12 w-12 shrink-0"
                 >
-                  اختر من القائمة
+                  <List className="w-5 h-5" />
                 </Button>
               )}
             </div>
