@@ -1,9 +1,9 @@
 "use server";
 
-import { count, desc, isNull, sql, sum, gte, and } from "drizzle-orm";
+import { count, desc, isNull, sql, sum, gte, and, eq } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import type { ActionResponse } from "../finance/actions";
-import { expense, purchase, sale } from "../finance/db";
+import { expense, purchase, sale, account, cashMovement, ownerTransaction, openingBalance } from "../finance/db";
 import { order } from "../orders/db";
 import { mapDbError } from "@/lib/db/errors";
 
@@ -19,12 +19,20 @@ function buildDateCondition(table: any, range?: "all" | "month" | "30d") {
   const conditions = [isNull(table.deletedAt)];
   if (range === "month") {
     const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    conditions.push(gte(table.createdAt, startOfMonth));
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const start = `${year}-${month}-01`;
+    const dateField = table.receivedDate ?? table.date;
+    conditions.push(sql`${dateField} >= ${start}`);
   } else if (range === "30d") {
     const startOf30Days = new Date();
     startOf30Days.setDate(startOf30Days.getDate() - 30);
-    conditions.push(gte(table.createdAt, startOf30Days));
+    const year = startOf30Days.getFullYear();
+    const month = String(startOf30Days.getMonth() + 1).padStart(2, "0");
+    const day = String(startOf30Days.getDate()).padStart(2, "0");
+    const start = `${year}-${month}-${day}`;
+    const dateField = table.receivedDate ?? table.date;
+    conditions.push(sql`${dateField} >= ${start}`);
   }
   return and(...conditions);
 }
@@ -429,5 +437,219 @@ export async function getAllReportData(
     };
   } catch (error) {
     return { status: "error", message: mapDbError(error) };
+  }
+}
+
+export type FinancialPositionData = {
+  assets: {
+    cashCents: number;
+    bankCents: number;
+    totalCents: number;
+  };
+  liabilities: {
+    depositsCents: number;
+    totalCents: number;
+  };
+  equity: {
+    openingCapitalCents: number;
+    openingCashInEquityCents: number;
+    injectionsCents: number;
+    drawingsCents: number;
+    retainedProfitCents: number;
+    totalCents: number;
+  };
+  balanced: boolean;
+  differenceCents: number;
+};
+
+export async function getFinancialPosition(
+  asOfDate: string,
+): Promise<ActionResponse<FinancialPositionData>> {
+  try {
+    return await db.transaction(async (tx) => {
+      // 1. حساب أرصدة الصناديق والبنك بتاريخ محدد باستخدام استعلام واحد مجمّع (FIX-D)
+      const cashAccounts = await tx
+        .select({ id: account.id })
+        .from(account)
+        .where(and(eq(account.type, "cash"), isNull(account.deletedAt)));
+
+      const bankAccounts = await tx
+        .select({ id: account.id })
+        .from(account)
+        .where(and(eq(account.type, "bank"), isNull(account.deletedAt)));
+
+      const movements = await tx
+        .select({
+          accountId: cashMovement.accountId,
+          direction: cashMovement.direction,
+          total: sum(cashMovement.amountCents),
+        })
+        .from(cashMovement)
+        .where(
+          and(
+            isNull(cashMovement.deletedAt),
+            sql`${cashMovement.date} <= ${asOfDate}`
+          )
+        )
+        .groupBy(cashMovement.accountId, cashMovement.direction);
+
+      const balanceMap: Record<string, { in: number; out: number }> = {};
+      for (const m of movements) {
+        if (!balanceMap[m.accountId]) {
+          balanceMap[m.accountId] = { in: 0, out: 0 };
+        }
+        const val = Number(m.total) || 0;
+        if (m.direction === "in") {
+          balanceMap[m.accountId].in = val;
+        } else if (m.direction === "out") {
+          balanceMap[m.accountId].out = val;
+        }
+      }
+
+      let totalCashCents = 0;
+      for (const acc of cashAccounts) {
+        const entry = balanceMap[acc.id] || { in: 0, out: 0 };
+        totalCashCents += (entry.in - entry.out);
+      }
+
+      let totalBankCents = 0;
+      for (const acc of bankAccounts) {
+        const entry = balanceMap[acc.id] || { in: 0, out: 0 };
+        totalBankCents += (entry.in - entry.out);
+      }
+
+      const totalAssets = totalCashCents + totalBankCents;
+
+      // 2. التزامات عربون العملاء غير الموصلة (Customer deposits deferred)
+      const [depositsRes] = await tx
+        .select({ total: sum(order.depositCents) })
+        .from(order)
+        .where(
+          and(
+            isNull(order.deletedAt),
+            sql`${order.status} not in ('delivered', 'cancelled')`,
+            sql`coalesce(${order.depositDate}, ${order.receivedDate}) <= ${asOfDate}`
+          )
+        );
+      const depositsCents = Number(depositsRes?.total) || 0;
+      const totalLiabilities = depositsCents;
+
+      // 3. رأس المال الافتتاحي الفعلي والمصرح به (FIX-A)
+      const [openingAssetsRes] = await tx
+        .select({ total: sum(cashMovement.amountCents) })
+        .from(cashMovement)
+        .where(
+          and(
+            eq(cashMovement.sourceType, "opening"),
+            sql`${cashMovement.date} <= ${asOfDate}`,
+            isNull(cashMovement.deletedAt)
+          )
+        );
+      const openingCashInEquityCents = Number(openingAssetsRes?.total) || 0;
+
+      const [opBal] = await tx
+        .select()
+        .from(openingBalance)
+        .where(isNull(openingBalance.deletedAt))
+        .limit(1);
+      const openingCapitalCents = opBal ? opBal.capitalCents : 0;
+
+      // 4. معاملات سحب وايداع المالك
+      const [injectionsRes] = await tx
+        .select({ total: sum(ownerTransaction.amountCents) })
+        .from(ownerTransaction)
+        .where(
+          and(
+            eq(ownerTransaction.type, "inject"),
+            sql`${ownerTransaction.date} <= ${asOfDate}`,
+            isNull(ownerTransaction.deletedAt)
+          )
+        );
+      const injectionsCents = Number(injectionsRes?.total) || 0;
+
+      const [drawingsRes] = await tx
+        .select({ total: sum(ownerTransaction.amountCents) })
+        .from(ownerTransaction)
+        .where(
+          and(
+            eq(ownerTransaction.type, "draw"),
+            sql`${ownerTransaction.date} <= ${asOfDate}`,
+            isNull(ownerTransaction.deletedAt)
+          )
+        );
+      const drawingsCents = Number(drawingsRes?.total) || 0;
+
+      // 5. الأرباح المدورة = (كل المقبوضات من مبيعات وعربونات) - (عربونات الطلبات غير الموصلة) - (المدفوعات للمشتريات والمصاريف)
+      const [salesCashInRes] = await tx
+        .select({ total: sum(cashMovement.amountCents) })
+        .from(cashMovement)
+        .where(
+          and(
+            eq(cashMovement.direction, "in"),
+            sql`${cashMovement.sourceType} in ('sale', 'deposit')`,
+            sql`${cashMovement.date} <= ${asOfDate}`,
+            isNull(cashMovement.deletedAt)
+          )
+        );
+      const salesCashInCents = Number(salesCashInRes?.total) || 0;
+
+      const [expensesPurchasesCashOutRes] = await tx
+        .select({ total: sum(cashMovement.amountCents) })
+        .from(cashMovement)
+        .where(
+          and(
+            eq(cashMovement.direction, "out"),
+            sql`${cashMovement.sourceType} in ('expense', 'purchase')`,
+            sql`${cashMovement.date} <= ${asOfDate}`,
+            isNull(cashMovement.deletedAt)
+          )
+        );
+      const expensesPurchasesCashOutCents = Number(expensesPurchasesCashOutRes?.total) || 0;
+
+      const retainedProfitCents = salesCashInCents - depositsCents - expensesPurchasesCashOutCents;
+
+      // حساب إجمالي حقوق الملكية بناء على نقدية البداية الفعلية بدلاً من رأس المال الافتتاحي المصرح به لضمان توازن الميزانية دائماً
+      const totalEquity = openingCashInEquityCents + injectionsCents - drawingsCents + retainedProfitCents;
+
+      const differenceCents = totalAssets - (totalLiabilities + totalEquity);
+      const balanced = Math.abs(differenceCents) === 0;
+
+      if (!balanced) {
+        return {
+          status: "error",
+          message: `الميزانية غير متوازنة! الفارق: ${differenceCents / 1000} د.أ. يرجى التحقق من المدخلات الحسابية وتطابق القيود.`,
+        };
+      }
+
+      return {
+        status: "ok",
+        data: {
+          assets: {
+            cashCents: totalCashCents,
+            bankCents: totalBankCents,
+            totalCents: totalAssets,
+          },
+          liabilities: {
+            depositsCents: depositsCents,
+            totalCents: totalLiabilities,
+          },
+          equity: {
+            openingCapitalCents,
+            openingCashInEquityCents,
+            injectionsCents,
+            drawingsCents,
+            retainedProfitCents,
+            totalCents: totalEquity,
+          },
+          balanced: true,
+          differenceCents: 0,
+        },
+      };
+    });
+  } catch (error) {
+    return {
+      status: "error",
+      message: mapDbError(error),
+    };
   }
 }

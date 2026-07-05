@@ -9,6 +9,7 @@ import {
   timestamp,
   uniqueIndex,
   uuid,
+  boolean,
 } from "drizzle-orm/pg-core";
 import { order } from "../orders/db";
 
@@ -180,4 +181,147 @@ export const expenseCategoryCatalog = pgTable(
 
 export type ExpenseCategoryCatalog = typeof expenseCategoryCatalog.$inferSelect;
 export type NewExpenseCategoryCatalog = Pick<ExpenseCategoryCatalog, "name">;
+
+// 6. Account Table (الصناديق والحسابات البنكية)
+export const account = pgTable(
+  "account",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    type: text("type").notNull(), // 'cash' | 'bank'
+    openingBalanceCents: integer("opening_balance_cents").notNull(),
+    isArchived: boolean("is_archived").notNull().default(false),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => {
+    return [
+      check("account_name_length", sql`char_length(${table.name}) <= 200`),
+      check("account_type_enum", sql`${table.type} in ('cash', 'bank')`),
+      check("account_opening_balance_nonnegative", sql`${table.openingBalanceCents} >= 0`),
+      index("account_type_idx")
+        .on(table.type)
+        .where(sql`deleted_at is null`),
+    ];
+  },
+);
+
+export type Account = typeof account.$inferSelect;
+
+// 7. Cash Movement Table (حركات الصندوق والبنك)
+export const cashMovement = pgTable(
+  "cash_movement",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    date: date("date").notNull(),
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => account.id),
+    direction: text("direction").notNull(), // 'in' | 'out'
+    amountCents: integer("amount_cents").notNull(),
+    sourceType: text("source_type").notNull(), // 'sale' | 'expense' | 'purchase' | 'deposit' | 'owner_draw' | 'owner_inject' | 'opening' | 'transfer'
+    sourceId: uuid("source_id"),
+    description: text("description").notNull().default(""),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => {
+    return [
+      check("cash_movement_direction_enum", sql`${table.direction} in ('in', 'out')`),
+      check("cash_movement_amount_positive", sql`${table.amountCents} > 0`),
+      check(
+        "cash_movement_source_type_enum",
+        sql`${table.sourceType} in ('sale', 'expense', 'purchase', 'deposit', 'owner_draw', 'owner_inject', 'opening', 'transfer')`,
+      ),
+      check(
+        "cash_movement_description_length",
+        sql`char_length(${table.description}) <= 1000`,
+      ),
+      index("cash_movement_account_date_idx")
+        .on(table.accountId, table.date.desc())
+        .where(sql`deleted_at is null`),
+      index("cash_movement_source_idx")
+        .on(table.sourceType, table.sourceId)
+        .where(sql`deleted_at is null`),
+    ];
+  },
+);
+
+export type CashMovement = typeof cashMovement.$inferSelect;
+
+// 8. Owner Transaction Table (سحوبات وايداعات المالك)
+export const ownerTransaction = pgTable(
+  "owner_transaction",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    date: date("date").notNull(),
+    type: text("type").notNull(), // 'draw' | 'inject'
+    amountCents: integer("amount_cents").notNull(),
+    accountId: uuid("account_id")
+      .notNull()
+      .references(() => account.id),
+    reason: text("reason").notNull().default(""),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => {
+    return [
+      check("owner_transaction_type_enum", sql`${table.type} in ('draw', 'inject')`),
+      check("owner_transaction_amount_positive", sql`${table.amountCents} > 0`),
+      check(
+        "owner_transaction_reason_length",
+        sql`char_length(${table.reason}) <= 1000`,
+      ),
+      index("owner_transaction_date_idx")
+        .on(table.date.desc())
+        .where(sql`deleted_at is null`),
+    ];
+  },
+);
+
+export type OwnerTransaction = typeof ownerTransaction.$inferSelect;
+
+// 9. Opening Balance Table (الأرصدة الافتتاحية للمشروع)
+export const openingBalance = pgTable(
+  "opening_balance",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    goLiveDate: date("go_live_date").notNull(),
+    cashCents: integer("cash_cents").notNull(),
+    bankCents: integer("bank_cents").notNull(),
+    capitalCents: integer("capital_cents").notNull(),
+    isLocked: boolean("is_locked").notNull().default(false),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => {
+    return [
+      check("opening_balance_cash_nonnegative", sql`${table.cashCents} >= 0`),
+      check("opening_balance_bank_nonnegative", sql`${table.bankCents} >= 0`),
+      check("opening_balance_capital_nonnegative", sql`${table.capitalCents} >= 0`),
+    ];
+  },
+);
+
+export type OpeningBalance = typeof openingBalance.$inferSelect;
 

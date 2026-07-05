@@ -25,6 +25,16 @@ import {
   createExpenseCategoryCatalog,
   updateExpenseCategoryCatalog,
   deleteExpenseCategoryCatalog,
+  createAccount,
+  getAccounts,
+  getAccountBalances,
+  transferBetweenAccounts,
+  createOwnerTransaction,
+  getOwnerTransactions,
+  deleteOwnerTransaction,
+  getOpeningBalance,
+  saveOpeningBalance,
+  lockOpeningBalance,
 } from "./actions";
 import type {
   GetExpensesFilters,
@@ -428,6 +438,159 @@ export function useDeleteExpenseCategoryCatalog() {
     onSuccess: (res) => {
       if (res.status === "ok") {
         queryClient.invalidateQueries({ queryKey: ["finance", "expense-catalog"] });
+      }
+    },
+  });
+}
+
+// -------------------------------------------------------------
+// 7. الحسابات المالية والتحويلات (Accounts Hooks)
+// -------------------------------------------------------------
+
+export function useAccounts() {
+  return useQuery({
+    queryKey: ["finance", "accounts"] as const,
+    queryFn: async () => {
+      const res = await getAccounts();
+      if (res.status === "error") throw new Error(res.message);
+      return res.data || [];
+    },
+  });
+}
+
+export function useAccountBalancesQuery(asOfDate?: string) {
+  return useQuery({
+    queryKey: ["finance", "account-balances", asOfDate] as const,
+    queryFn: async () => {
+      const res = await getAccountBalances(asOfDate);
+      if (res.status === "error") throw new Error(res.message);
+      return res.data || [];
+    },
+  });
+}
+
+export function useCreateAccount() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createAccount,
+    onSuccess: (res) => {
+      if (res.status === "ok") {
+        queryClient.invalidateQueries({ queryKey: ["finance", "accounts"] });
+        queryClient.invalidateQueries({ queryKey: ["finance", "account-balances"] });
+        queryClient.invalidateQueries({ queryKey: ["dashboard", "balances"] });
+      }
+    },
+  });
+}
+
+export function useTransferBetweenAccounts() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      fromId,
+      toId,
+      amountCents,
+      date,
+      description,
+    }: {
+      fromId: string;
+      toId: string;
+      amountCents: number;
+      date: string;
+      description?: string;
+    }) => transferBetweenAccounts(fromId, toId, amountCents, date, description),
+    onSuccess: (res) => {
+      if (res.status === "ok") {
+        queryClient.invalidateQueries({ queryKey: ["finance", "account-balances"] });
+        queryClient.invalidateQueries({ queryKey: ["dashboard", "balances"] });
+      }
+    },
+  });
+}
+
+// -------------------------------------------------------------
+// 8. سحوبات المالك (Owner Drawings Hooks)
+// -------------------------------------------------------------
+
+export function useOwnerTransactions() {
+  return useQuery({
+    queryKey: ["finance", "owner-transactions"] as const,
+    queryFn: async () => {
+      const res = await getOwnerTransactions();
+      if (res.status === "error") throw new Error(res.message);
+      return res.data || [];
+    },
+  });
+}
+
+export function useCreateOwnerTransaction() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createOwnerTransaction,
+    onSuccess: (res) => {
+      if (res.status === "ok") {
+        queryClient.invalidateQueries({ queryKey: ["finance", "owner-transactions"] });
+        queryClient.invalidateQueries({ queryKey: ["finance", "account-balances"] });
+        queryClient.invalidateQueries({ queryKey: ["dashboard", "balances"] });
+        queryClient.invalidateQueries({ queryKey: ["reports"] });
+      }
+    },
+  });
+}
+
+export function useDeleteOwnerTransaction() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id }: { id: string }) => deleteOwnerTransaction(id),
+    onSuccess: (res) => {
+      if (res.status === "ok") {
+        queryClient.invalidateQueries({ queryKey: ["finance", "owner-transactions"] });
+        queryClient.invalidateQueries({ queryKey: ["finance", "account-balances"] });
+        queryClient.invalidateQueries({ queryKey: ["dashboard", "balances"] });
+        queryClient.invalidateQueries({ queryKey: ["reports"] });
+      }
+    },
+  });
+}
+
+// -------------------------------------------------------------
+// 9. الأرصدة الافتتاحية (Opening Balance Hooks)
+// -------------------------------------------------------------
+
+export function useOpeningBalance() {
+  return useQuery({
+    queryKey: ["finance", "opening-balance"] as const,
+    queryFn: async () => {
+      const res = await getOpeningBalance();
+      if (res.status === "error") throw new Error(res.message);
+      return res.data || null;
+    },
+  });
+}
+
+export function useSaveOpeningBalance() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: saveOpeningBalance,
+    onSuccess: (res) => {
+      if (res.status === "ok") {
+        queryClient.invalidateQueries({ queryKey: ["finance", "opening-balance"] });
+        queryClient.invalidateQueries({ queryKey: ["finance", "accounts"] });
+        queryClient.invalidateQueries({ queryKey: ["finance", "account-balances"] });
+        queryClient.invalidateQueries({ queryKey: ["dashboard", "balances"] });
+        queryClient.invalidateQueries({ queryKey: ["reports"] });
+      }
+    },
+  });
+}
+
+export function useLockOpeningBalance() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id }: { id: string }) => lockOpeningBalance(id),
+    onSuccess: (res) => {
+      if (res.status === "ok") {
+        queryClient.invalidateQueries({ queryKey: ["finance", "opening-balance"] });
       }
     },
   });

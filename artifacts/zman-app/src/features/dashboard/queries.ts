@@ -29,7 +29,7 @@ export async function getFinancialSummary(
   const [salesPromise, expensesPromise, purchasesPromise] = await Promise.all([
     db
       .select({
-        total: sql<number>`coalesce(sum(${sale.amountCents}), 0)::int`,
+        total: sql<any>`coalesce(sum(${sale.amountCents}), 0)::bigint`,
       })
       .from(sale)
       .where(
@@ -41,7 +41,7 @@ export async function getFinancialSummary(
       ),
     db
       .select({
-        total: sql<number>`coalesce(sum(${expense.amountCents}), 0)::int`,
+        total: sql<any>`coalesce(sum(${expense.amountCents}), 0)::bigint`,
       })
       .from(expense)
       .where(
@@ -53,7 +53,7 @@ export async function getFinancialSummary(
       ),
     db
       .select({
-        total: sql<number>`coalesce(sum(${purchase.totalCents}), 0)::int`,
+        total: sql<any>`coalesce(sum(${purchase.totalCents}), 0)::bigint`,
       })
       .from(purchase)
       .where(
@@ -69,9 +69,9 @@ export async function getFinancialSummary(
   const [expensesResult] = expensesPromise;
   const [purchasesResult] = purchasesPromise;
 
-  const sales = salesResult?.total ?? 0;
-  const expenses = expensesResult?.total ?? 0;
-  const purchases = purchasesResult?.total ?? 0;
+  const sales = Number(salesResult?.total) || 0;
+  const expenses = Number(expensesResult?.total) || 0;
+  const purchases = Number(purchasesResult?.total) || 0;
   const netProfit = sales - expenses - purchases;
 
   return { sales, expenses, purchases, netProfit };
@@ -174,7 +174,7 @@ export async function getFinancialTrendData(
     db
       .select({
         day: sale.date,
-        total: sql<number>`sum(${sale.amountCents})::int`,
+        total: sql<any>`sum(${sale.amountCents})::bigint`,
       })
       .from(sale)
       .where(
@@ -188,7 +188,7 @@ export async function getFinancialTrendData(
     db
       .select({
         day: expense.date,
-        total: sql<number>`sum(${expense.amountCents})::int`,
+        total: sql<any>`sum(${expense.amountCents})::bigint`,
       })
       .from(expense)
       .where(
@@ -202,7 +202,7 @@ export async function getFinancialTrendData(
     db
       .select({
         day: purchase.date,
-        total: sql<number>`sum(${purchase.totalCents})::int`,
+        total: sql<any>`sum(${purchase.totalCents})::bigint`,
       })
       .from(purchase)
       .where(
@@ -215,7 +215,11 @@ export async function getFinancialTrendData(
       .groupBy(purchase.date),
   ]);
 
-  return { salesTrend, expensesTrend, purchasesTrend };
+  return {
+    salesTrend: salesTrend.map((t) => ({ day: t.day, total: Number(t.total) || 0 })),
+    expensesTrend: expensesTrend.map((t) => ({ day: t.day, total: Number(t.total) || 0 })),
+    purchasesTrend: purchasesTrend.map((t) => ({ day: t.day, total: Number(t.total) || 0 })),
+  };
 }
 
 export interface UpcomingOrder {
@@ -265,7 +269,7 @@ export async function getDashboardStats(
       .limit(10),
     db
       .select({
-        total: sql<number>`coalesce(sum(${order.depositCents}), 0)::int`,
+        total: sql<any>`coalesce(sum(${order.depositCents}), 0)::bigint`,
       })
       .from(order)
       .where(
@@ -296,7 +300,7 @@ export async function getDashboardStats(
     totalPriceCents: o.totalPriceCents,
   }));
 
-  const totalDepositsCents = depositsPromise[0]?.total ?? 0;
+  const totalDepositsCents = Number(depositsPromise[0]?.total) || 0;
 
   return { ordersByStatus, upcomingOrders, totalDepositsCents };
 }
@@ -309,8 +313,8 @@ export interface CashSummary {
 export async function getCashSummary(): Promise<CashSummary> {
   const [result] = await db
     .select({
-      depositsHeldCents: sql<number>`coalesce(sum(${order.depositCents}), 0)::int`,
-      expectedRemainingCents: sql<number>`coalesce(sum(${order.totalPriceCents} - ${order.depositCents}), 0)::int`,
+      depositsHeldCents: sql<any>`coalesce(sum(${order.depositCents}), 0)::bigint`,
+      expectedRemainingCents: sql<any>`coalesce(sum(${order.totalPriceCents} - ${order.depositCents}), 0)::bigint`,
     })
     .from(order)
     .where(
@@ -321,7 +325,7 @@ export async function getCashSummary(): Promise<CashSummary> {
     );
 
   return {
-    depositsHeldCents: result?.depositsHeldCents ?? 0,
-    expectedRemainingCents: result?.expectedRemainingCents ?? 0,
+    depositsHeldCents: Number(result?.depositsHeldCents) || 0,
+    expectedRemainingCents: Number(result?.expectedRemainingCents) || 0,
   };
 }

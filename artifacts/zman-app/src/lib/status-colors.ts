@@ -14,6 +14,15 @@ export const STATUS_LABELS: Record<string, string> = {
   cancelled: "ملغى",
 };
 
+// ألوان الشريط العلوي الكامل لكل حالة (خلفية + نص)
+export const STATUS_STRIP: Record<string, string> = {
+  draft: "bg-warn-soft text-warn-deep",
+  sent: "bg-info-soft text-info",
+  confirmed: "bg-info text-paper",
+  delivered: "bg-emerald text-paper",
+  cancelled: "bg-alert-soft text-alert",
+};
+
 // تسلسل رحلة الطلب — الحالة التالية المنطقية لكل حالة (للزر الذكي السياقي)
 export const NEXT_STATUS: Record<string, string | null> = {
   draft: "sent", // مسودة → إرسال للعميل

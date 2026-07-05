@@ -82,3 +82,53 @@ export const saleInputSchema = z
       path: ["orderId"],
     },
   );
+
+// 4. مخطط التحقق للحسابات
+export const accountInputSchema = z.object({
+  name: z
+    .string()
+    .min(1, { message: "اسم الحساب مطلوب" })
+    .max(200, { message: "الاسم لا يتعدى 200 حرف" }),
+  type: z.enum(["cash", "bank"], { message: "نوع الحساب غير صالح" }),
+  openingBalanceCents: z.coerce
+    .number()
+    .int({ message: "الرصيد الافتتاحي يجب أن يكون صحيحاً" })
+    .nonnegative({ message: "الرصيد الافتتاحي لا يمكن أن يكون سالباً" }),
+});
+
+// 5. مخطط التحقق لسحوبات وحقن المالك
+export const ownerTransactionInputSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, {
+    message: "التاريخ يجب أن يكون بتنسيق YYYY-MM-DD",
+  }),
+  type: z.enum(["draw", "inject"], { message: "النوع غير صالح" }),
+  amountCents: z.coerce
+    .number()
+    .int({ message: "المبلغ يجب أن يكون صحيحاً" })
+    .positive({ message: "المبلغ يجب أن يكون أكبر من 0" }),
+  accountId: z.string().uuid({ message: "الحساب المالي غير صالح" }),
+  reason: z
+    .string()
+    .max(1000, { message: "السبب لا يتعدى 1000 حرف" })
+    .optional()
+    .default(""),
+});
+
+// 6. مخطط التحقق للأرصدة الافتتاحية
+export const openingBalanceInputSchema = z.object({
+  goLiveDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, {
+    message: "التاريخ يجب أن يكون بتنسيق YYYY-MM-DD",
+  }),
+  cashCents: z.coerce
+    .number()
+    .int({ message: "المبلغ النقد في الصندوق يجب أن يكون صحيحاً" })
+    .nonnegative({ message: "المبلغ لا يمكن أن يكون سالباً" }),
+  bankCents: z.coerce
+    .number()
+    .int({ message: "المبلغ النقد في البنك يجب أن يكون صحيحاً" })
+    .nonnegative({ message: "المبلغ لا يمكن أن يكون سالباً" }),
+  capitalCents: z.coerce
+    .number()
+    .int({ message: "رأس المال الافتتاحي يجب أن يكون صحيحاً" })
+    .nonnegative({ message: "المبلغ لا يمكن أن يكون سالباً" }),
+});

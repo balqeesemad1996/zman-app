@@ -130,6 +130,7 @@ export function useDeleteOrder() {
         queryClient.invalidateQueries({ queryKey: orderKeys.all });
         queryClient.invalidateQueries({ queryKey: ["reports"] });
         queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+        queryClient.invalidateQueries({ queryKey: ["finance"] });
       }
     },
   });
@@ -201,6 +202,7 @@ export function useUpdateOrderStatus() {
         queryClient.invalidateQueries({ queryKey: orderKeys.detail(updatedOrder.id) });
         queryClient.invalidateQueries({ queryKey: ["reports"] });
         queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+        queryClient.invalidateQueries({ queryKey: ["finance"] });
       }
     },
     // إبطال الكاش العام دائماً بعد الانتهاء من الطلب لضمان تماسك البيانات بين الأجهزة
@@ -208,6 +210,7 @@ export function useUpdateOrderStatus() {
       queryClient.invalidateQueries({ queryKey: orderKeys.all });
       queryClient.invalidateQueries({ queryKey: ["reports"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["finance"] });
     },
   });
 }

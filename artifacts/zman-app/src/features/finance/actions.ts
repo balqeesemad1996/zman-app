@@ -1,17 +1,33 @@
 "use server";
 
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql, sum, desc } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { db } from "@/lib/db/client";
 import { mapDbError } from "@/lib/db/errors";
 import { ratelimit } from "@/lib/ratelimit";
 import { idempotencyKey, order } from "../orders/db";
-import { expense, purchase, sale, purchaseItemCatalog, expenseCategoryCatalog } from "./db";
+import {
+  expense,
+  purchase,
+  sale,
+  purchaseItemCatalog,
+  expenseCategoryCatalog,
+  account,
+  cashMovement,
+  ownerTransaction,
+  openingBalance,
+  type Account,
+  type OwnerTransaction,
+  type OpeningBalance,
+} from "./db";
 import {
   expenseInputSchema,
   purchaseInputSchema,
   saleInputSchema,
+  accountInputSchema,
+  ownerTransactionInputSchema,
+  openingBalanceInputSchema,
 } from "./schema";
 
 // نوع الإرجاع الموحد (Discriminated Union) (§18 rule 8)
@@ -27,6 +43,45 @@ export type ActionResponse<T = unknown> =
 async function checkRateLimit(): Promise<{ success: boolean }> {
   const ip = (await headers()).get("x-forwarded-for") || "127.0.0.1";
   return await ratelimit.limit(ip);
+}
+
+/**
+ * الحصول على الحساب النقدي الافتراضي أو إنشاؤه بشكل تلقائي إذا لم يكن موجوداً
+ * لمنع تعطل عمليات البيع/المصاريف (التزاماً بـ §4)
+ */
+export async function getOrCreateDefaultCashAccount(tx: any): Promise<string> {
+  const [existing] = await tx
+    .select()
+    .from(account)
+    .where(and(eq(account.type, "cash"), eq(account.isArchived, false), isNull(account.deletedAt)))
+    .limit(1);
+
+  if (existing) {
+    return existing.id;
+  }
+
+  const [newAcc] = await tx
+    .insert(account)
+    .values({
+      name: "الصندوق الرئيسي",
+      type: "cash",
+      openingBalanceCents: 0,
+    })
+    .returning();
+
+  if (!newAcc) throw new Error("Failed to create default cash account");
+
+  // إضافة حركة الرصيد الافتتاحي التلقائي
+  await tx.insert(cashMovement).values({
+    date: new Date().toISOString().split("T")[0],
+    accountId: newAcc.id,
+    direction: "in",
+    amountCents: 0,
+    sourceType: "opening",
+    description: "رصيد افتتاحي تلقائي (تم إنشاؤه عند تسجيل حركة مالية أولى)",
+  });
+
+  return newAcc.id;
 }
 
 // -------------------------------------------------------------
@@ -88,6 +143,18 @@ export async function createPurchase(
         .returning();
 
       if (!newPurchase) throw new Error("فشل إدخال المشتريات");
+
+      // إدراج حركة الصندوق (التزاماً بـ §3)
+      const defaultAccountId = await getOrCreateDefaultCashAccount(tx);
+      await tx.insert(cashMovement).values({
+        date: newPurchase.date,
+        accountId: defaultAccountId,
+        direction: "out",
+        amountCents: newPurchase.totalCents,
+        sourceType: "purchase",
+        sourceId: newPurchase.id,
+        description: newPurchase.notes || `شراء مواد: ${newPurchase.item} (الكمية: ${newPurchase.quantity})`,
+      });
 
       if (requestId) {
         await tx.insert(idempotencyKey).values({
@@ -168,6 +235,29 @@ export async function updatePurchase(
         )
         .returning();
 
+      if (!updatedPurchase) {
+        throw new Error("فشل تحديث المشتريات");
+      }
+
+      // تحديث حركة الصندوق المرتبطة (التزاماً بـ §3)
+      const defaultAccountId = await getOrCreateDefaultCashAccount(tx);
+      await tx
+        .update(cashMovement)
+        .set({
+          amountCents: updatedPurchase.totalCents,
+          date: updatedPurchase.date,
+          accountId: defaultAccountId,
+          description: updatedPurchase.notes || `شراء مواد: ${updatedPurchase.item} (الكمية: ${updatedPurchase.quantity})`,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(cashMovement.sourceType, "purchase"),
+            eq(cashMovement.sourceId, id),
+            isNull(cashMovement.deletedAt)
+          )
+        );
+
       revalidatePath("/finance");
       return { status: "ok", data: updatedPurchase };
     });
@@ -223,6 +313,25 @@ export async function deletePurchase(
           eq(purchase.id, id),
         )
         .returning();
+
+      if (!deleted) {
+        throw new Error("فشل حذف المشتريات");
+      }
+
+      // حذف حركة الصندوق المرتبطة (التزاماً بـ §4)
+      await tx
+        .update(cashMovement)
+        .set({
+          deletedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(cashMovement.sourceType, "purchase"),
+            eq(cashMovement.sourceId, id),
+            isNull(cashMovement.deletedAt)
+          )
+        );
 
       revalidatePath("/finance");
       return { status: "ok", data: deleted };
@@ -291,6 +400,18 @@ export async function createExpense(
         .returning();
 
       if (!newExpense) throw new Error("فشل إدخال المصاريف");
+
+      // إدراج حركة الصندوق (التزاماً بـ §3)
+      const defaultAccountId = await getOrCreateDefaultCashAccount(tx);
+      await tx.insert(cashMovement).values({
+        date: newExpense.date,
+        accountId: defaultAccountId,
+        direction: "out",
+        amountCents: newExpense.amountCents,
+        sourceType: "expense",
+        sourceId: newExpense.id,
+        description: newExpense.description || `مصروف: ${newExpense.category}`,
+      });
 
       if (requestId) {
         await tx.insert(idempotencyKey).values({
@@ -369,6 +490,29 @@ export async function updateExpense(
         )
         .returning();
 
+      if (!updatedExpense) {
+        throw new Error("فشل تحديث المصاريف");
+      }
+
+      // تحديث حركة الصندوق المرتبطة (التزاماً بـ §3)
+      const defaultAccountId = await getOrCreateDefaultCashAccount(tx);
+      await tx
+        .update(cashMovement)
+        .set({
+          amountCents: updatedExpense.amountCents,
+          date: updatedExpense.date,
+          accountId: defaultAccountId,
+          description: updatedExpense.description || `مصروف: ${updatedExpense.category}`,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(cashMovement.sourceType, "expense"),
+            eq(cashMovement.sourceId, id),
+            isNull(cashMovement.deletedAt)
+          )
+        );
+
       revalidatePath("/finance");
       return { status: "ok", data: updatedExpense };
     });
@@ -424,6 +568,25 @@ export async function deleteExpense(
           eq(expense.id, id),
         )
         .returning();
+
+      if (!deleted) {
+        throw new Error("فشل حذف المصاريف");
+      }
+
+      // حذف حركة الصندوق المرتبطة (التزاماً بـ §4)
+      await tx
+        .update(cashMovement)
+        .set({
+          deletedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(cashMovement.sourceType, "expense"),
+            eq(cashMovement.sourceId, id),
+            isNull(cashMovement.deletedAt)
+          )
+        );
 
       revalidatePath("/finance");
       return { status: "ok", data: deleted };
@@ -493,6 +656,18 @@ export async function createSale(
         .returning();
 
       if (!newSale) throw new Error("فشل إدخال المبيعات");
+
+      // إدراج حركة الصندوق (التزاماً بـ §3)
+      const defaultAccountId = await getOrCreateDefaultCashAccount(tx);
+      await tx.insert(cashMovement).values({
+        date: newSale.date,
+        accountId: defaultAccountId,
+        direction: "in",
+        amountCents: newSale.amountCents,
+        sourceType: "sale",
+        sourceId: newSale.id,
+        description: newSale.description || "مبيعات يدوية مباشرة",
+      });
 
       if (requestId) {
         await tx.insert(idempotencyKey).values({
@@ -570,6 +745,64 @@ export async function updateSale(
         .where(eq(sale.id, id))
         .returning();
 
+      if (!updatedSale) {
+        throw new Error("فشل تحديث المبيعات");
+      }
+
+      // تحديث حركة الصندوق المرتبطة (التزاماً بـ §3)
+      const defaultAccountId = await getOrCreateDefaultCashAccount(tx);
+      let amountToPost = updatedSale.amountCents;
+      if (updatedSale.source === "order" && updatedSale.orderId) {
+        const [ord] = await tx.select().from(order).where(eq(order.id, updatedSale.orderId));
+        if (ord) {
+          amountToPost = Math.max(0, updatedSale.amountCents - ord.depositCents);
+        }
+      }
+
+      const [existingMov] = await tx
+        .select()
+        .from(cashMovement)
+        .where(
+          and(
+            eq(cashMovement.sourceType, "sale"),
+            eq(cashMovement.sourceId, id),
+            isNull(cashMovement.deletedAt)
+          )
+        );
+
+      if (amountToPost > 0) {
+        if (existingMov) {
+          await tx
+            .update(cashMovement)
+            .set({
+              amountCents: amountToPost,
+              date: updatedSale.date,
+              accountId: defaultAccountId,
+              description: updatedSale.description || "مبيعات نقدية",
+              updatedAt: new Date(),
+            })
+            .where(eq(cashMovement.id, existingMov.id));
+        } else {
+          await tx.insert(cashMovement).values({
+            date: updatedSale.date,
+            accountId: defaultAccountId,
+            direction: "in",
+            amountCents: amountToPost,
+            sourceType: "sale",
+            sourceId: updatedSale.id,
+            description: updatedSale.description || "مبيعات نقدية",
+          });
+        }
+      } else if (existingMov) {
+        await tx
+          .update(cashMovement)
+          .set({
+            deletedAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(cashMovement.id, existingMov.id));
+      }
+
       revalidatePath("/finance");
       return { status: "ok", data: updatedSale };
     });
@@ -623,6 +856,25 @@ export async function deleteSale(
         })
         .where(eq(sale.id, id))
         .returning();
+
+      if (!deleted) {
+        throw new Error("فشل حذف المبيعات");
+      }
+
+      // حذف حركة الصندوق المرتبطة (التزاماً بـ §4)
+      await tx
+        .update(cashMovement)
+        .set({
+          deletedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(cashMovement.sourceType, "sale"),
+            eq(cashMovement.sourceId, id),
+            isNull(cashMovement.deletedAt)
+          )
+        );
 
       revalidatePath("/finance");
       return { status: "ok", data: deleted };
@@ -719,6 +971,25 @@ export async function convertOrderToSale(
           description: `مبيعات الطلب #${orderId.slice(0, 8)} - العميل ${orderRow.customerName}`,
         })
         .returning();
+
+      if (!newSale) {
+        throw new Error("فشل تحويل الطلب إلى مبيعات");
+      }
+
+      // 5.1. إدراج حركة الصندوق للمبلغ المتبقي فقط (التزاماً بـ §3)
+      const remainderCents = orderRow.totalPriceCents - orderRow.depositCents;
+      if (remainderCents > 0) {
+        const defaultAccountId = await getOrCreateDefaultCashAccount(tx);
+        await tx.insert(cashMovement).values({
+          date: orderRow.receivedDate || new Date().toISOString().split("T")[0],
+          accountId: defaultAccountId,
+          direction: "in",
+          amountCents: remainderCents,
+          sourceType: "sale",
+          sourceId: newSale.id,
+          description: `متبقي مبيعات الطلب #${orderId.slice(0, 8)} - العميل ${orderRow.customerName}`,
+        });
+      }
 
       // 6. تحديث حالة الطلب إلى تم التوصيل (delivered)
       await tx
@@ -940,6 +1211,532 @@ export async function deleteExpenseCategoryCatalog(id: string): Promise<ActionRe
 
     revalidatePath("/finance");
     return { status: "ok", data: deleted };
+  } catch (error) {
+    return { status: "error", message: mapDbError(error) };
+  }
+}
+
+// -------------------------------------------------------------
+// 6. إجراءات الحسابات المالية (Accounts Actions)
+// -------------------------------------------------------------
+
+export async function createAccount(rawInput: unknown): Promise<ActionResponse> {
+  const { success } = await checkRateLimit();
+  if (!success) {
+    return { status: "error", message: "تجاوزت الحد المسموح للعمليات — حاول بعد دقيقة" };
+  }
+
+  const parsed = accountInputSchema.safeParse(rawInput);
+  if (!parsed.success) {
+    return {
+      status: "error",
+      message: "بيانات الإدخال غير صالحة",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  try {
+    return await db.transaction(async (tx) => {
+      const [newAcc] = await tx
+        .insert(account)
+        .values({
+          name: parsed.data.name,
+          type: parsed.data.type,
+          openingBalanceCents: parsed.data.openingBalanceCents,
+        })
+        .returning();
+
+      if (!newAcc) throw new Error("فشل إنشاء الحساب");
+
+      // Invariant: opening amounts live in cash_movement(sourceType='opening'); openingBalanceCents is display-only.
+      if (parsed.data.openingBalanceCents > 0) {
+        // إدراج حركة الرصيد الافتتاحي
+        await tx.insert(cashMovement).values({
+          date: new Date().toISOString().split("T")[0],
+          accountId: newAcc.id,
+          direction: "in",
+          amountCents: parsed.data.openingBalanceCents,
+          sourceType: "opening",
+          description: `رصيد افتتاحي لحساب: ${newAcc.name}`,
+        });
+      }
+
+      revalidatePath("/finance");
+      return { status: "ok", data: newAcc };
+    });
+  } catch (error) {
+    return { status: "error", message: mapDbError(error) };
+  }
+}
+
+export async function getAccounts(): Promise<ActionResponse<Account[]>> {
+  try {
+    const items = await db
+      .select()
+      .from(account)
+      .where(isNull(account.deletedAt))
+      .orderBy(account.createdAt);
+    return { status: "ok", data: items };
+  } catch (error) {
+    return { status: "error", message: mapDbError(error) };
+  }
+}
+
+export async function getAccountBalances(asOfDate?: string): Promise<ActionResponse<{ id: string; name: string; type: string; balanceCents: number; isArchived: boolean }[]>> {
+  try {
+    const accs = await db
+      .select()
+      .from(account)
+      .where(isNull(account.deletedAt))
+      .orderBy(account.createdAt);
+
+    const conditions = [
+      isNull(cashMovement.deletedAt)
+    ];
+
+    if (asOfDate) {
+      conditions.push(sql`${cashMovement.date} <= ${asOfDate}`);
+    }
+
+    const movements = await db
+      .select({
+        accountId: cashMovement.accountId,
+        direction: cashMovement.direction,
+        total: sum(cashMovement.amountCents),
+      })
+      .from(cashMovement)
+      .where(and(...conditions))
+      .groupBy(cashMovement.accountId, cashMovement.direction);
+
+    const balanceMap: Record<string, { in: number; out: number }> = {};
+    for (const m of movements) {
+      if (!balanceMap[m.accountId]) {
+        balanceMap[m.accountId] = { in: 0, out: 0 };
+      }
+      const val = Number(m.total) || 0;
+      if (m.direction === "in") {
+        balanceMap[m.accountId].in = val;
+      } else if (m.direction === "out") {
+        balanceMap[m.accountId].out = val;
+      }
+    }
+
+    const result = accs.map((acc) => {
+      const entry = balanceMap[acc.id] || { in: 0, out: 0 };
+      const balanceCents = entry.in - entry.out;
+      return {
+        id: acc.id,
+        name: acc.name,
+        type: acc.type,
+        balanceCents,
+        isArchived: acc.isArchived,
+      };
+    });
+
+    return { status: "ok", data: result };
+  } catch (error) {
+    return { status: "error", message: mapDbError(error) };
+  }
+}
+
+export async function transferBetweenAccounts(
+  fromId: string,
+  toId: string,
+  amountCents: number,
+  date: string,
+  description?: string
+): Promise<ActionResponse> {
+  const { success } = await checkRateLimit();
+  if (!success) {
+    return { status: "error", message: "تجاوزت الحد المسموح للعمليات — حاول بعد دقيقة" };
+  }
+
+  if (amountCents <= 0) {
+    return { status: "error", message: "المبلغ يجب أن يكون أكبر من 0" };
+  }
+
+  try {
+    return await db.transaction(async (tx) => {
+      const [fromAcc] = await tx.select().from(account).where(eq(account.id, fromId));
+      const [toAcc] = await tx.select().from(account).where(eq(account.id, toId));
+
+      if (!fromAcc || !toAcc) {
+        return { status: "error", message: "الحسابات غير موجودة" };
+      }
+
+      const transferId = crypto.randomUUID();
+
+      // حركة خارجة من المرسل
+      await tx.insert(cashMovement).values({
+        date,
+        accountId: fromId,
+        direction: "out",
+        amountCents,
+        sourceType: "transfer",
+        sourceId: transferId,
+        description: description || `تحويل مالي إلى حساب: ${toAcc.name}`,
+      });
+
+      // حركة داخلة للمستقبل
+      await tx.insert(cashMovement).values({
+        date,
+        accountId: toId,
+        direction: "in",
+        amountCents,
+        sourceType: "transfer",
+        sourceId: transferId,
+        description: description || `تحويل مالي من حساب: ${fromAcc.name}`,
+      });
+
+      revalidatePath("/finance");
+      return { status: "ok", data: { transferId } };
+    });
+  } catch (error) {
+    return { status: "error", message: mapDbError(error) };
+  }
+}
+
+// -------------------------------------------------------------
+// 7. إجراءات سحوبات المالك (Owner Drawings Actions)
+// -------------------------------------------------------------
+
+export async function createOwnerTransaction(rawInput: unknown): Promise<ActionResponse> {
+  const { success } = await checkRateLimit();
+  if (!success) {
+    return { status: "error", message: "تجاوزت الحد المسموح للعمليات — حاول بعد دقيقة" };
+  }
+
+  const parsed = ownerTransactionInputSchema.safeParse(rawInput);
+  if (!parsed.success) {
+    return {
+      status: "error",
+      message: "بيانات الإدخال غير صالحة",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  try {
+    return await db.transaction(async (tx) => {
+      const [newTx] = await tx
+        .insert(ownerTransaction)
+        .values({
+          date: parsed.data.date,
+          type: parsed.data.type,
+          amountCents: parsed.data.amountCents,
+          accountId: parsed.data.accountId,
+          reason: parsed.data.reason || "",
+        })
+        .returning();
+
+      if (!newTx) throw new Error("فشل إدخال معاملة المالك");
+
+      await tx.insert(cashMovement).values({
+        date: parsed.data.date,
+        accountId: parsed.data.accountId,
+        direction: parsed.data.type === "draw" ? "out" : "in",
+        amountCents: parsed.data.amountCents,
+        sourceType: parsed.data.type === "draw" ? "owner_draw" : "owner_inject",
+        sourceId: newTx.id,
+        description: parsed.data.reason || (parsed.data.type === "draw" ? `سحوبات شخصية للمالك` : `حقن رأس مال شخصي من المالك`),
+      });
+
+      revalidatePath("/finance");
+      revalidatePath("/reports");
+      return { status: "ok", data: newTx };
+    });
+  } catch (error) {
+    return { status: "error", message: mapDbError(error) };
+  }
+}
+
+export async function getOwnerTransactions(): Promise<ActionResponse<OwnerTransaction[]>> {
+  try {
+    const list = await db
+      .select()
+      .from(ownerTransaction)
+      .where(isNull(ownerTransaction.deletedAt))
+      .orderBy(desc(ownerTransaction.date), desc(ownerTransaction.createdAt));
+    return { status: "ok", data: list };
+  } catch (error) {
+    return { status: "error", message: mapDbError(error) };
+  }
+}
+
+export async function deleteOwnerTransaction(id: string): Promise<ActionResponse> {
+  const { success } = await checkRateLimit();
+  if (!success) {
+    return { status: "error", message: "تجاوزت الحد المسموح للعمليات — حاول بعد دقيقة" };
+  }
+
+  try {
+    return await db.transaction(async (tx) => {
+      const [deleted] = await tx
+        .update(ownerTransaction)
+        .set({ deletedAt: new Date(), updatedAt: new Date() })
+        .where(and(eq(ownerTransaction.id, id), isNull(ownerTransaction.deletedAt)))
+        .returning();
+
+      if (!deleted) return { status: "error", message: "المعاملة غير موجودة" };
+
+      // حذف حركة الصندوق المرتبطة
+      await tx
+        .update(cashMovement)
+        .set({ deletedAt: new Date(), updatedAt: new Date() })
+        .where(
+          and(
+            sql`${cashMovement.sourceType} in ('owner_draw', 'owner_inject')`,
+            eq(cashMovement.sourceId, id),
+            isNull(cashMovement.deletedAt)
+          )
+        );
+
+      revalidatePath("/finance");
+      revalidatePath("/reports");
+      return { status: "ok", data: deleted };
+    });
+  } catch (error) {
+    return { status: "error", message: mapDbError(error) };
+  }
+}
+
+// -------------------------------------------------------------
+// 8. إجراءات الأرصدة الافتتاحية (Opening Balance Actions)
+// -------------------------------------------------------------
+
+export async function getOpeningBalance(): Promise<ActionResponse<OpeningBalance | null>> {
+  try {
+    const [row] = await db
+      .select()
+      .from(openingBalance)
+      .where(isNull(openingBalance.deletedAt))
+      .limit(1);
+    return { status: "ok", data: row || null };
+  } catch (error) {
+    return { status: "error", message: mapDbError(error) };
+  }
+}
+
+export async function saveOpeningBalance(rawInput: unknown): Promise<ActionResponse> {
+  const { success } = await checkRateLimit();
+  if (!success) {
+    return { status: "error", message: "تجاوزت الحد المسموح للعمليات — حاول بعد دقيقة" };
+  }
+
+  const parsed = openingBalanceInputSchema.safeParse(rawInput);
+  if (!parsed.success) {
+    return {
+      status: "error",
+      message: "بيانات الإدخال غير صالحة",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  const { goLiveDate, cashCents, bankCents, capitalCents } = parsed.data;
+
+  try {
+    return await db.transaction(async (tx) => {
+      const [existingLocked] = await tx
+        .select()
+        .from(openingBalance)
+        .where(and(eq(openingBalance.isLocked, true), isNull(openingBalance.deletedAt)))
+        .limit(1);
+
+      if (existingLocked) {
+        return { status: "error", message: "الإعداد الافتتاحي مقفل ولا يمكن تعديله" };
+      }
+
+      // البحث عن حساب الصندوق وحساب البنك الافتراضيين أو إنشاؤهما
+      let [cashAcc] = await tx
+        .select()
+        .from(account)
+        .where(and(eq(account.type, "cash"), isNull(account.deletedAt)))
+        .limit(1);
+      if (!cashAcc) {
+        [cashAcc] = await tx
+          .insert(account)
+          .values({
+            name: "الصندوق الرئيسي",
+            type: "cash",
+            openingBalanceCents: cashCents,
+          })
+          .returning();
+      } else {
+        await tx
+          .update(account)
+          .set({ openingBalanceCents: cashCents, updatedAt: new Date() })
+          .where(eq(account.id, cashAcc.id));
+      }
+
+      let [bankAcc] = await tx
+        .select()
+        .from(account)
+        .where(and(eq(account.type, "bank"), isNull(account.deletedAt)))
+        .limit(1);
+      if (!bankAcc) {
+        [bankAcc] = await tx
+          .insert(account)
+          .values({
+            name: "حساب البنك الرئيسي",
+            type: "bank",
+            openingBalanceCents: bankCents,
+          })
+          .returning();
+      } else {
+        await tx
+          .update(account)
+          .set({ openingBalanceCents: bankCents, updatedAt: new Date() })
+          .where(eq(account.id, bankAcc.id));
+      }
+
+      // حفظ/تحديث سجل opening_balance
+      const [existing] = await tx
+        .select()
+        .from(openingBalance)
+        .where(isNull(openingBalance.deletedAt))
+        .limit(1);
+
+      let opRow;
+      if (existing) {
+        [opRow] = await tx
+          .update(openingBalance)
+          .set({
+            goLiveDate,
+            cashCents,
+            bankCents,
+            capitalCents,
+            updatedAt: new Date(),
+          })
+          .where(eq(openingBalance.id, existing.id))
+          .returning();
+      } else {
+        [opRow] = await tx
+          .insert(openingBalance)
+          .values({
+            goLiveDate,
+            cashCents,
+            bankCents,
+            capitalCents,
+          })
+          .returning();
+      }
+
+      // إضافة/تحديث حركات الصندوق للأرصدة الافتتاحية
+      // حركة الصندوق
+      const [existingCashMov] = await tx
+        .select()
+        .from(cashMovement)
+        .where(
+          and(
+            eq(cashMovement.accountId, cashAcc.id),
+            eq(cashMovement.sourceType, "opening")
+          )
+        );
+
+      if (cashCents > 0) {
+        if (existingCashMov) {
+          await tx
+            .update(cashMovement)
+            .set({
+              amountCents: cashCents,
+              date: goLiveDate,
+              deletedAt: null,
+              updatedAt: new Date(),
+            })
+            .where(eq(cashMovement.id, existingCashMov.id));
+        } else {
+          await tx.insert(cashMovement).values({
+            date: goLiveDate,
+            accountId: cashAcc.id,
+            direction: "in",
+            amountCents: cashCents,
+            sourceType: "opening",
+            description: "رصيد افتتاحي - الصندوق",
+          });
+        }
+      } else {
+        if (existingCashMov) {
+          await tx
+            .update(cashMovement)
+            .set({
+              deletedAt: new Date(),
+              updatedAt: new Date(),
+            })
+            .where(eq(cashMovement.id, existingCashMov.id));
+        }
+      }
+
+      // حركة البنك
+      const [existingBankMov] = await tx
+        .select()
+        .from(cashMovement)
+        .where(
+          and(
+            eq(cashMovement.accountId, bankAcc.id),
+            eq(cashMovement.sourceType, "opening")
+          )
+        );
+
+      if (bankCents > 0) {
+        if (existingBankMov) {
+          await tx
+            .update(cashMovement)
+            .set({
+              amountCents: bankCents,
+              date: goLiveDate,
+              deletedAt: null,
+              updatedAt: new Date(),
+            })
+            .where(eq(cashMovement.id, existingBankMov.id));
+        } else {
+          await tx.insert(cashMovement).values({
+            date: goLiveDate,
+            accountId: bankAcc.id,
+            direction: "in",
+            amountCents: bankCents,
+            sourceType: "opening",
+            description: "رصيد افتتاحي - البنك",
+          });
+        }
+      } else {
+        if (existingBankMov) {
+          await tx
+            .update(cashMovement)
+            .set({
+              deletedAt: new Date(),
+              updatedAt: new Date(),
+            })
+            .where(eq(cashMovement.id, existingBankMov.id));
+        }
+      }
+
+      revalidatePath("/finance");
+      revalidatePath("/reports");
+      return { status: "ok", data: opRow };
+    });
+  } catch (error) {
+    return { status: "error", message: mapDbError(error) };
+  }
+}
+
+export async function lockOpeningBalance(id: string): Promise<ActionResponse> {
+  const { success } = await checkRateLimit();
+  if (!success) {
+    return { status: "error", message: "تجاوزت الحد المسموح للعمليات — حاول بعد دقيقة" };
+  }
+
+  try {
+    const [updated] = await db
+      .update(openingBalance)
+      .set({ isLocked: true, updatedAt: new Date() })
+      .where(and(eq(openingBalance.id, id), isNull(openingBalance.deletedAt)))
+      .returning();
+
+    if (!updated) {
+      return { status: "error", message: "سجل الرصيد الافتتاحي غير موجود" };
+    }
+
+    revalidatePath("/finance");
+    return { status: "ok", data: updated };
   } catch (error) {
     return { status: "error", message: mapDbError(error) };
   }

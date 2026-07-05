@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { db } from "@/lib/db/client";
@@ -8,6 +8,8 @@ import { mapDbError } from "@/lib/db/errors";
 import { ratelimit } from "@/lib/ratelimit";
 import { idempotencyKey, order, orderComponent, messageTemplate } from "./db";
 import { createOrderSchema, updateOrderSchema } from "./schema";
+import { sale, cashMovement } from "../finance/db";
+import { getOrCreateDefaultCashAccount } from "../finance/actions";
 
 // نوع الإرجاع الموحد (Discriminated Union) (§18 rule 8)
 type ActionResponse<T = unknown> =
@@ -123,6 +125,20 @@ export async function createOrder(rawInput: unknown): Promise<ActionResponse> {
 
       if (!newOrder) {
         throw new Error("فشل إنشاء الطلب");
+      }
+
+      // 5.1. إدراج حركة صندوق للعربون إذا وجد (التزاماً بـ §3)
+      if (newOrder.depositCents > 0) {
+        const defaultAccountId = await getOrCreateDefaultCashAccount(tx);
+        await tx.insert(cashMovement).values({
+          date: newOrder.depositDate || newOrder.receivedDate,
+          accountId: defaultAccountId,
+          direction: "in",
+          amountCents: newOrder.depositCents,
+          sourceType: "deposit",
+          sourceId: newOrder.id,
+          description: `عربون طلب للعميل ${newOrder.customerName} - منتج: ${newOrder.productName}`,
+        });
       }
 
       // 6. إدراج المكونات الفرعية
@@ -269,6 +285,53 @@ export async function updateOrder(rawInput: unknown): Promise<ActionResponse> {
         };
       }
 
+      // 6.1. تحديث حركة صندوق العربون أو إدراجها/حذفها حسب التغيير (التزاماً بـ §3)
+      const [existingDepositMov] = await tx
+        .select()
+        .from(cashMovement)
+        .where(
+          and(
+            eq(cashMovement.sourceType, "deposit"),
+            eq(cashMovement.sourceId, id),
+            isNull(cashMovement.deletedAt)
+          )
+        );
+
+      const movDate = depositDate || receivedDate || new Date().toISOString().split("T")[0];
+      if (depositCents > 0) {
+        const defaultAccountId = await getOrCreateDefaultCashAccount(tx);
+        if (existingDepositMov) {
+          await tx
+            .update(cashMovement)
+            .set({
+              amountCents: depositCents,
+              date: movDate,
+              accountId: defaultAccountId,
+              description: `عربون طلب للعميل ${customerName} - منتج: ${productName}`,
+              updatedAt: new Date(),
+            })
+            .where(eq(cashMovement.id, existingDepositMov.id));
+        } else {
+          await tx.insert(cashMovement).values({
+            date: movDate,
+            accountId: defaultAccountId,
+            direction: "in",
+            amountCents: depositCents,
+            sourceType: "deposit",
+            sourceId: id,
+            description: `عربون طلب للعميل ${customerName} - منتج: ${productName}`,
+          });
+        }
+      } else if (existingDepositMov) {
+        await tx
+          .update(cashMovement)
+          .set({
+            deletedAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(cashMovement.id, existingDepositMov.id));
+      }
+
       // 7. تحديث المكونات الفرعية: حذف القديم وإعادة إدخال الجديد داخل المعاملة
       await tx.delete(orderComponent).where(eq(orderComponent.orderId, id));
       if (components.length > 0) {
@@ -350,6 +413,53 @@ export async function deleteOrder(
         };
       }
 
+      // 4.1. حذف المبيعات المرتبطة وحركات الصندوق المرتبطة بها لعدم تضخيم النقدية (FIX-B)
+      const linkedSales = await tx
+        .select({ id: sale.id })
+        .from(sale)
+        .where(and(eq(sale.orderId, id), isNull(sale.deletedAt)));
+
+      const saleIds = linkedSales.map((s) => s.id);
+
+      if (saleIds.length > 0) {
+        await tx
+          .update(sale)
+          .set({
+            deletedAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(sale.orderId, id));
+
+        await tx
+          .update(cashMovement)
+          .set({
+            deletedAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(cashMovement.sourceType, "sale"),
+              inArray(cashMovement.sourceId, saleIds),
+              isNull(cashMovement.deletedAt)
+            )
+          );
+      }
+
+      // 4.2. حذف حركة عربون الطلب أيضاً
+      await tx
+        .update(cashMovement)
+        .set({
+          deletedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(cashMovement.sourceType, "deposit"),
+            eq(cashMovement.sourceId, id),
+            isNull(cashMovement.deletedAt)
+          )
+        );
+
       revalidatePath("/orders");
       return { status: "ok", data: deleted };
     });
@@ -410,6 +520,54 @@ export async function updateOrderStatus(
 
       if (!updated) {
         return { status: "error", message: "تم تحديث البيانات من جهة أخرى" };
+      }
+
+      if (newStatus === "cancelled") {
+        const linkedSales = await tx
+          .select({ id: sale.id })
+          .from(sale)
+          .where(and(eq(sale.orderId, id), isNull(sale.deletedAt)));
+
+        const saleIds = linkedSales.map((s) => s.id);
+
+        if (saleIds.length > 0) {
+          await tx
+            .update(sale)
+            .set({
+              deletedAt: new Date(),
+              updatedAt: new Date(),
+            })
+            .where(eq(sale.orderId, id));
+
+          await tx
+            .update(cashMovement)
+            .set({
+              deletedAt: new Date(),
+              updatedAt: new Date(),
+            })
+            .where(
+              and(
+                eq(cashMovement.sourceType, "sale"),
+                inArray(cashMovement.sourceId, saleIds),
+                isNull(cashMovement.deletedAt)
+              )
+            );
+        }
+
+        // إرجاع كاش العربون أيضاً
+        await tx
+          .update(cashMovement)
+          .set({
+            deletedAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(cashMovement.sourceType, "deposit"),
+              eq(cashMovement.sourceId, id),
+              isNull(cashMovement.deletedAt)
+            )
+          );
       }
 
       revalidatePath("/orders");

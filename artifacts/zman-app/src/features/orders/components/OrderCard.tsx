@@ -3,14 +3,20 @@
 import {
   ArrowLeft,
   Check,
+  CheckCircle2,
   ChevronDown,
   Edit,
+  FileEdit,
   Loader2,
   MessageSquare,
   MoreVertical,
   RotateCcw,
+  Send,
+  Truck,
   Trash2,
+  XCircle,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { AmountText } from "@/components/shared/AmountText";
@@ -26,7 +32,17 @@ import {
   NEXT_STATUS,
   STATUS_COLORS,
   STATUS_LABELS,
+  STATUS_STRIP,
 } from "@/lib/status-colors";
+
+// أيقونة كل حالة (للشريط العلوي)
+const STATUS_ICON: Record<string, LucideIcon> = {
+  draft: FileEdit,
+  sent: Send,
+  confirmed: CheckCircle2,
+  delivered: Truck,
+  cancelled: XCircle,
+};
 
 interface OrderCardProps {
   order: Order;
@@ -111,25 +127,30 @@ export function OrderCard({
             onClick(order);
           }
         }}
-        className="p-4 rounded-lg bg-paper border border-hairline shadow-sm hover:border-hairline-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info focus-visible:ring-offset-2 active:scale-[0.98] transition-all duration-150 cursor-pointer flex flex-col gap-3 relative"
+        className="rounded-lg bg-paper border border-hairline shadow-sm hover:border-hairline-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info focus-visible:ring-offset-2 active:scale-[0.98] transition-all duration-150 cursor-pointer flex flex-col overflow-hidden relative"
       >
-        {/* السطر الأول: اسم العميل وحالة الطلب + زر الخيارات */}
+        {/* الشريط العلوي: حالة الطلب الحالية — كامل العرض بلون الحالة */}
+        <div
+          className={cn(
+            "flex items-center gap-2 px-4 h-9 text-sm font-bold",
+            STATUS_STRIP[localStatus] || "bg-info-soft text-info",
+          )}
+        >
+          {(() => {
+            const Icon = STATUS_ICON[localStatus] ?? CheckCircle2;
+            return <Icon className="w-4 h-4 shrink-0" />;
+          })()}
+          <span className="flex-1 truncate">{STATUS_LABELS[localStatus]}</span>
+          {isUpdatingStatus && <Loader2 className="w-4 h-4 animate-spin shrink-0" />}
+        </div>
+
+        {/* جسم البطاقة (بحواف داخلية) */}
+        <div className="p-4 flex flex-col gap-3">
+        {/* السطر الأول: اسم العميل + زر الخيارات */}
         <div className="flex justify-between items-center gap-2">
           <div className="flex items-center gap-2 min-w-0">
             <span className="font-bold text-ink truncate text-base leading-tight">
               {order.customerName}
-            </span>
-            {/* شارة الحالة الحالية (عرض فقط — تُظهر أين الطلب الآن) */}
-            <span
-              className={cn(
-                "px-2 py-0.5 rounded-full text-xs font-semibold border leading-none h-6 flex items-center gap-1 shrink-0",
-                STATUS_COLORS[localStatus] || "bg-info-soft text-info border-info/20",
-              )}
-            >
-              {STATUS_LABELS[localStatus]}
-              {isUpdatingStatus && (
-                <Loader2 className="w-3 h-3 animate-spin" />
-              )}
             </span>
           </div>
 
@@ -256,6 +277,7 @@ export function OrderCard({
               </div>
             )}
           </div>
+        </div>
         </div>
       </div>
 

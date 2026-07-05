@@ -9,6 +9,8 @@ import {
   getCashSummary,
 } from "./queries";
 
+import { getAccountBalances } from "@/features/finance/actions";
+
 export const dashboardKeys = {
   all: ["dashboard"] as const,
   summary: (startDate: string, endDate: string) =>
@@ -19,6 +21,7 @@ export const dashboardKeys = {
   stats: (startDate: string, endDate: string) =>
     [...dashboardKeys.all, "stats", startDate, endDate] as const,
   cash: () => [...dashboardKeys.all, "cash"] as const,
+  balances: () => [...dashboardKeys.all, "balances"] as const,
 };
 
 export function useFinancialSummary(startDate: string, endDate: string) {
@@ -56,5 +59,16 @@ export function useCashSummary() {
   return useQuery({
     queryKey: dashboardKeys.cash(),
     queryFn: () => getCashSummary(),
+  });
+}
+
+export function useAccountBalances() {
+  return useQuery({
+    queryKey: dashboardKeys.balances(),
+    queryFn: async () => {
+      const res = await getAccountBalances();
+      if (res.status === "error") throw new Error(res.message);
+      return res.data || [];
+    },
   });
 }

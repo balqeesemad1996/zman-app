@@ -1,6 +1,6 @@
 "use client";
 
-import { Banknote, ShoppingCart, Wallet, Plus, Boxes } from "lucide-react";
+import { Banknote, ShoppingCart, Wallet, Plus, Boxes, Landmark, User, Settings } from "lucide-react";
 import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTransition, useState, useEffect } from "react";
@@ -43,6 +43,33 @@ const SalesTab = dynamic(
   },
 );
 
+const AccountsTab = dynamic(
+  () =>
+    import("@/features/finance/components/AccountsTab").then((m) => m.AccountsTab),
+  {
+    ssr: false,
+    loading: () => <SkeletonList count={3} />,
+  },
+);
+
+const OwnerTab = dynamic(
+  () =>
+    import("@/features/finance/components/OwnerTab").then((m) => m.OwnerTab),
+  {
+    ssr: false,
+    loading: () => <SkeletonList count={3} />,
+  },
+);
+
+const OpeningTab = dynamic(
+  () =>
+    import("@/features/finance/components/OpeningTab").then((m) => m.OpeningTab),
+  {
+    ssr: false,
+    loading: () => <SkeletonList count={3} />,
+  },
+);
+
 const EXPENSE_CATEGORIES = [
   "الكل",
   "رواتب",
@@ -73,6 +100,9 @@ export default function FinanceClient() {
     { id: "purchases", label: "المشتريات", icon: ShoppingCart },
     { id: "expenses", label: "المصاريف", icon: Wallet },
     { id: "sales", label: "المبيعات", icon: Banknote },
+    { id: "accounts", label: "الحسابات", icon: Landmark },
+    { id: "owner", label: "المالك", icon: User },
+    { id: "opening", label: "الافتتاحي", icon: Settings },
   ];
 
   // حالة البحث والـ Debounce
@@ -203,6 +233,8 @@ export default function FinanceClient() {
     );
   };
 
+  const isStandardTab = activeTab === "purchases" || activeTab === "expenses" || activeTab === "sales";
+
   const pageAction = (
     <PageToolbar
       leading={
@@ -218,7 +250,7 @@ export default function FinanceClient() {
           className="shrink-0 gap-0.5"
         />
       }
-      search={{
+      search={isStandardTab ? {
         value: searchInput,
         onChange: setSearchInput,
         placeholder:
@@ -227,12 +259,12 @@ export default function FinanceClient() {
             : activeTab === "expenses"
             ? "البحث في المصاريف..."
             : "البحث في بيان المبيعات...",
-      }}
-      filters={filters}
-      menuItems={menuItems}
-      reserveFilterSpace
-      reserveMenuSpace
-      trailing={getTrailingAction()}
+      } : undefined}
+      filters={isStandardTab ? filters : undefined}
+      menuItems={isStandardTab ? menuItems : undefined}
+      reserveFilterSpace={isStandardTab}
+      reserveMenuSpace={isStandardTab}
+      trailing={isStandardTab ? getTrailingAction() : undefined}
     />
   );
 
@@ -245,6 +277,9 @@ export default function FinanceClient() {
           {activeTab === "purchases" && <PurchasesTab />}
           {activeTab === "expenses" && <ExpensesTab />}
           {activeTab === "sales" && <SalesTab />}
+          {activeTab === "accounts" && <AccountsTab />}
+          {activeTab === "owner" && <OwnerTab />}
+          {activeTab === "opening" && <OpeningTab />}
         </div>
       </div>
 

@@ -12,6 +12,8 @@ import {
   ShoppingCart,
   TrendingDown,
   TrendingUp,
+  Landmark,
+  Wallet,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -29,6 +31,7 @@ import {
   useRecentActivities,
   useDashboardStats,
   useCashSummary,
+  useAccountBalances,
 } from "../hooks";
 
 /**
@@ -154,6 +157,10 @@ export function DashboardClient() {
     isError: isErrorCash,
     refetch: refetchCash,
   } = useCashSummary();
+  const {
+    data: accountBalances,
+    refetch: refetchBalances,
+  } = useAccountBalances();
 
   const handleRetryAll = () => {
     refetchSummary();
@@ -161,6 +168,7 @@ export function DashboardClient() {
     refetchTrend();
     refetchStats();
     refetchCash();
+    refetchBalances();
   };
 
   const handlePresetSelect = (idx: number) => {
@@ -196,6 +204,15 @@ export function DashboardClient() {
       </>
     );
   }
+
+  // حساب إجمالي النقد في الصندوق والبنك (التزاماً بـ §8.2)
+  const totalCashCents = accountBalances
+    ? accountBalances.filter((a) => a.type === "cash" && !a.isArchived).reduce((acc, a) => acc + a.balanceCents, 0)
+    : 0;
+
+  const totalBankCents = accountBalances
+    ? accountBalances.filter((a) => a.type === "bank" && !a.isArchived).reduce((acc, a) => acc + a.balanceCents, 0)
+    : 0;
 
   // معالجة صافي الأرباح لتحديد اللون والإشارة للتسهيل على فاقدي التمييز اللوني (§14.3)
   const net = summary?.netProfit ?? 0;
@@ -452,27 +469,44 @@ export function DashboardClient() {
               </div>
             </div>
 
-            {/* قسم الملخص النقدي الجديد */}
+            {/* قسم الملخص النقدي الجديد (التزاماً بـ §8.2) */}
             <div className="space-y-3 pt-2">
               <h3 className="text-base font-bold text-ink flex items-center gap-2">
                 <Clock className="h-4.5 w-4.5 text-info" />
                 الملخص النقدي
               </h3>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* الأرباح المحققة */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* كاش الصندوق */}
                 <div className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col justify-between">
                   <span className="text-xs font-bold text-ink/65 flex items-center gap-1 truncate">
-                    <NetIcon className={`h-4 w-4 ${netColorClass}`} />
-                    الأرباح المحققة (من المبيعات)
+                    <Wallet className="h-4 w-4 text-info" />
+                    كاش الصندوق
                   </span>
                   <div className="mt-2 flex flex-col min-w-0">
-                    <span className={`text-lg lg:text-xl font-bold flex items-baseline gap-1 whitespace-nowrap min-w-0 ${netColorClass}`}>
-                      <span className="font-mono text-base shrink-0">{netSign}</span>
-                      <AmountText amount={Math.abs(net)} />
+                    <span className="text-lg lg:text-xl font-bold text-info flex items-baseline gap-1 whitespace-nowrap min-w-0">
+                      <span className="font-mono text-base shrink-0">+</span>
+                      <AmountText amount={totalCashCents} />
                     </span>
                     <span className="text-[10px] text-ink/40 mt-1 truncate">
-                      أرباح محقّقة
+                      رصيد النقدية الحالي
+                    </span>
+                  </div>
+                </div>
+
+                {/* رصيد البنك */}
+                <div className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col justify-between">
+                  <span className="text-xs font-bold text-ink/65 flex items-center gap-1 truncate">
+                    <Landmark className="h-4 w-4 text-info" />
+                    رصيد البنك
+                  </span>
+                  <div className="mt-2 flex flex-col min-w-0">
+                    <span className="text-lg lg:text-xl font-bold text-info flex items-baseline gap-1 whitespace-nowrap min-w-0">
+                      <span className="font-mono text-base shrink-0">+</span>
+                      <AmountText amount={totalBankCents} />
+                    </span>
+                    <span className="text-[10px] text-ink/40 mt-1 truncate">
+                      إجمالي حسابات البنك
                     </span>
                   </div>
                 </div>
@@ -489,7 +523,7 @@ export function DashboardClient() {
                       <AmountText amount={cashSummary?.depositsHeldCents ?? 0} />
                     </span>
                     <span className="text-[10px] text-ink/40 mt-1 truncate">
-                      عربون محتجَز
+                      عربون محتجَز للطلبات
                     </span>
                   </div>
                 </div>
@@ -506,7 +540,7 @@ export function DashboardClient() {
                       <AmountText amount={cashSummary?.expectedRemainingCents ?? 0} />
                     </span>
                     <span className="text-[10px] text-ink/40 mt-1 truncate">
-                      متبقٍّ متوقّع
+                      متبقٍّ متوقّع عند التسليم
                     </span>
                   </div>
                 </div>

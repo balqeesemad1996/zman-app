@@ -12,6 +12,7 @@ import {
   TrendingDown,
   TrendingUp,
   Wallet,
+  Calendar,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useState } from "react";
@@ -25,6 +26,7 @@ import { STATUS_COLORS } from "@/lib/status-colors";
 import {
   downloadReport,
   getAllReportData,
+  getFinancialPosition,
   type StructuredReportData,
 } from "@/features/reports/actions";
 
@@ -82,6 +84,8 @@ function ProgressBar({ pct, colorClass, style }: { pct: number; colorClass?: str
 export default function ReportsPage() {
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState<"all" | "month" | "30d">("all");
+  const [activeSection, setActiveSection] = useState<"analytics" | "balance_sheet">("analytics");
+  const [asOfDate, setAsOfDate] = useState(() => new Date().toISOString().split("T")[0]);
 
   const { data: queryData, isLoading, refetch } = useQuery({
     queryKey: ["reports", dateRange],
@@ -93,6 +97,19 @@ export default function ReportsPage() {
       }
       return res.data || null;
     },
+  });
+
+  const { data: positionData, isLoading: positionLoading, refetch: refetchPosition } = useQuery({
+    queryKey: ["financialPosition", asOfDate],
+    queryFn: async () => {
+      const res = await getFinancialPosition(asOfDate);
+      if (res.status === "error") {
+        toast.error(res.message);
+        throw new Error(res.message);
+      }
+      return res.data || null;
+    },
+    enabled: activeSection === "balance_sheet" && !!asOfDate,
   });
 
   const data = queryData || null;
@@ -134,32 +151,47 @@ export default function ReportsPage() {
   return (
     <>
       <AppShellHeader
-        title="التقارير المالية والتشغيلية"
+        title="التقارير والوضع المالي"
         action={
-          <Button
-            onClick={() => void refetch()}
-            isLoading={isLoading}
-            variant="secondary"
-          >
-            تحديث
-          </Button>
+          <div className="flex items-center gap-2">
+            <SegmentedControl
+              value={activeSection}
+              onChange={(val) => setActiveSection(val as any)}
+              options={[
+                { value: "analytics", label: "التقارير" },
+                { value: "balance_sheet", label: "الوضع المالي" },
+              ]}
+            />
+            <Button
+              onClick={() => {
+                if (activeSection === "analytics") void refetch();
+                else void refetchPosition();
+              }}
+              isLoading={activeSection === "analytics" ? isLoading : positionLoading}
+              variant="secondary"
+            >
+              تحديث
+            </Button>
+          </div>
         }
       />
-      {isLoading ? (
-        <SkeletonList count={4} />
-      ) : !data ? (
-        <div className="flex flex-col items-center justify-center gap-4 py-20">
-          <p className="text-sm text-ink/60">تعذّر تحميل البيانات</p>
-          <button
-            type="button"
-            onClick={() => void refetch()}
-            className="px-4 h-10 bg-ink text-paper rounded-md text-sm font-bold"
-          >
-            إعادة المحاولة
-          </button>
-        </div>
-      ) : (
-        <div className="space-y-8">
+
+      {activeSection === "analytics" ? (
+        isLoading ? (
+          <SkeletonList count={4} />
+        ) : !data ? (
+          <div className="flex flex-col items-center justify-center gap-4 py-20">
+            <p className="text-sm text-ink/60">تعذّر تحميل البيانات</p>
+            <button
+              type="button"
+              onClick={() => void refetch()}
+              className="px-4 h-10 bg-ink text-paper rounded-md text-sm font-bold"
+            >
+              إعادة المحاولة
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-8">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-hairline">
             <div>
               <p className="text-xs text-ink/50">
@@ -486,6 +518,159 @@ export default function ReportsPage() {
               </div>
             )}
           </section>
+        </div>
+      )
+    ) : (
+      <div className="space-y-6">
+          <div className="bg-paper p-5 rounded-lg border border-hairline shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-hairline pb-4">
+              <div>
+                <h3 className="text-base font-bold text-ink flex items-center gap-2">
+                  <BarChart2 className="h-5 w-5 text-info" />
+                  ميزان الوضع المالي (الميزانية العمومية)
+                </h3>
+                <p className="text-xs text-ink/50 mt-1">عرض الأصول والالتزامات وحقوق الملكية للورشة في تاريخ محدد (أساس نقدي مبسط)</p>
+              </div>
+              <div className="flex items-center gap-2 self-start sm:self-center">
+                <span className="text-xs font-bold text-ink/70">تاريخ الحساب:</span>
+                <input
+                  type="date"
+                  value={asOfDate}
+                  onChange={(e) => setAsOfDate(e.target.value)}
+                  className="h-10 px-3 bg-canvas border border-hairline rounded-md text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-ink"
+                />
+              </div>
+            </div>
+            
+            {positionLoading ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="h-8 w-8 animate-spin text-info" />
+              </div>
+            ) : !positionData ? (
+              <div className="flex flex-col items-center justify-center gap-2 py-20 text-center">
+                <p className="text-sm text-ink/60">تعذر تحميل بيانات الوضع المالي.</p>
+                <button
+                  type="button"
+                  onClick={() => void refetchPosition()}
+                  className="px-4 h-9 bg-ink text-paper rounded-md text-sm font-semibold"
+                >
+                  إعادة المحاولة
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 font-medium">
+                  {/* الأصول Assets */}
+                  <div className="bg-canvas/40 p-4 rounded-lg border border-hairline space-y-4">
+                    <h4 className="text-sm font-bold text-info border-b border-hairline pb-2 flex items-center gap-1.5">
+                      <TrendingUp className="h-4.5 w-4.5 text-info" />
+                      الأصول (الموجودات)
+                    </h4>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-ink/65 font-medium">نقدية الصندوق</span>
+                        <span className="font-mono font-bold text-ink">
+                          <AmountText amount={positionData.assets.cashCents} />
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-ink/65 font-medium">أرصدة البنك</span>
+                        <span className="font-mono font-bold text-ink">
+                          <AmountText amount={positionData.assets.bankCents} />
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm pt-2 border-t border-hairline font-bold text-info">
+                        <span>إجمالي الأصول</span>
+                        <span className="font-mono">
+                          <AmountText amount={positionData.assets.totalCents} />
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* الالتزامات Liabilities */}
+                  <div className="bg-canvas/40 p-4 rounded-lg border border-hairline space-y-4">
+                    <h4 className="text-sm font-bold text-alert border-b border-hairline pb-2 flex items-center gap-1.5">
+                      <ArrowDownRight className="h-4.5 w-4.5 text-alert" />
+                      الالتزامات (المطالبات)
+                    </h4>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-ink/65 font-medium">عربونات مؤجلة (غير موصلة)</span>
+                        <span className="font-mono font-bold text-ink">
+                          <AmountText amount={positionData.liabilities.depositsCents} />
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm pt-2 border-t border-hairline font-bold text-alert">
+                        <span>إجمالي الالتزامات</span>
+                        <span className="font-mono">
+                          <AmountText amount={positionData.liabilities.totalCents} />
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* حقوق الملكية Equity */}
+                  <div className="bg-canvas/40 p-4 rounded-lg border border-hairline space-y-4">
+                    <h4 className="text-sm font-bold text-ink border-b border-hairline pb-2 flex items-center gap-1.5">
+                      <Wallet className="h-4.5 w-4.5 text-ink-3" />
+                      حقوق الملكية (رأس المال والأرباح)
+                    </h4>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-ink/65 font-medium">نقدية البداية (رأس المال الفعلي)</span>
+                        <span className="font-mono font-bold text-ink">
+                          <AmountText amount={positionData.equity.openingCashInEquityCents} />
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs text-ink/45 pb-1 border-b border-dashed border-hairline">
+                        <span>رأس المال المصرح به (مرجعي)</span>
+                        <span className="font-mono">
+                          <AmountText amount={positionData.equity.openingCapitalCents} />
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-ink/65 font-medium">إيداعات إضافية للمالك</span>
+                        <span className="font-mono font-bold text-info">
+                          +<AmountText amount={positionData.equity.injectionsCents} />
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-ink/65 font-medium">مسحوبات شخصية للمالك</span>
+                        <span className="font-mono font-bold text-alert">
+                          -<AmountText amount={positionData.equity.drawingsCents} />
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-ink/65 font-medium">أرباح مدورة محتجزة</span>
+                        <span className="font-mono font-bold text-ink">
+                          <AmountText amount={positionData.equity.retainedProfitCents} />
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm pt-2 border-t border-hairline font-bold text-ink">
+                        <span>إجمالي حقوق الملكية</span>
+                        <span className="font-mono">
+                          <AmountText amount={positionData.equity.totalCents} />
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* تأكيد التوازن المحاسبي */}
+                <div className="p-4 bg-info/10 border border-info/20 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs font-semibold text-info-dark">
+                  <span className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-info animate-pulse" />
+                    المعادلة متوازنة محاسبياً: الأصول = الالتزامات + حقوق الملكية
+                  </span>
+                  <div className="flex flex-wrap gap-x-6 gap-y-1 font-mono">
+                    <span>الأصول: <AmountText amount={positionData.assets.totalCents} /></span>
+                    <span>المطلوبات وحقوق الملكية: <AmountText amount={positionData.liabilities.totalCents + positionData.equity.totalCents} /></span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </>
