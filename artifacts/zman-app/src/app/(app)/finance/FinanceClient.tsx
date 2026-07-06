@@ -95,10 +95,9 @@ export default function FinanceClient() {
   const [_isPending, startTransition] = useTransition();
 
   // الحصول على التبويب النشط من محددات الـ URL (§7.3)
-  // التقصير ذكي: افتح على الافتتاحي أولاً إذا لم تُدخل أي أرصدة بعد لتوجيه المستخدم
+  // التبويب الافتراضي هو المشتريات دائماً بناءً على طلب المستخدم
   const { data: opBal, isLoading: opBalLoading } = useOpeningBalance();
-  // لا نقرّر "opening" إلا بعد اكتمال التحميل (يمنع وميض purchases→opening)
-  const defaultTab = !opBalLoading && opBal === null ? "opening" : "purchases";
+  const defaultTab = "purchases";
   const activeTab = searchParams.get("tab") || defaultTab;
   const isReady = !opBalLoading || searchParams.has("tab");
 
@@ -295,7 +294,7 @@ export default function FinanceClient() {
       reserveSearchSpace
       reserveFilterSpace
       reserveMenuSpace
-      trailing={isActionableTab ? getTrailingAction() : undefined}
+      trailing={isActionableTab ? getTrailingAction() : <span className="w-11 h-11 shrink-0" />}
     />
   ), [activeTab, handleTabChange, hasSearch, searchInput, filters, menuItems, isActionableTab, getTrailingAction]);
 
