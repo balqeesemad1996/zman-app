@@ -48,7 +48,13 @@ export function SegmentedControl<T = string>({
             )}
           >
             {opt.icon && <span className="shrink-0">{opt.icon}</span>}
-            {opt.label && <span className="hidden sm:inline">{opt.label}</span>}
+            {/* النص: يُخفى على الجوال فقط إن وُجدت أيقونة تنوب عنه؛
+                وإن لم تكن هناك أيقونة، يظهر النص دائماً (وإلا يصير الزر فارغاً) */}
+            {opt.label && (
+              <span className={opt.icon ? "hidden sm:inline" : ""}>
+                {opt.label}
+              </span>
+            )}
           </button>
         );
       })}
