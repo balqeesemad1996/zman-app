@@ -61,21 +61,32 @@ export async function getOrCreateDefaultCashAccount(tx: any): Promise<string> {
     return existing.id;
   }
 
-  const [newAcc] = await tx
-    .insert(account)
-    .values({
-      name: "الصندوق الرئيسي",
-      type: "cash",
-      openingBalanceCents: 0,
-    })
-    .onConflictDoNothing({
-      target: [account.name],
-      targetWhere: sql`type = 'cash' AND name = 'الصندوق الرئيسي' AND deleted_at IS NULL`,
-    })
-    .returning();
+  // إدراج مباشر (لا onConflict — لا يوجد قيد فريد على account.name في القاعدة،
+  // فاستخدام ON CONFLICT (name) يفشل بـ "no unique constraint matching").
+  // السباق النادر (tx متزامن ينشئ الحساب) نعالجه بقراءة الحساب مجدداً عند الخطأ.
+  let newAcc: { id: string; openingBalanceCents: number } | undefined;
+  try {
+    const [inserted] = await tx
+      .insert(account)
+      .values({
+        name: "الصندوق الرئيسي",
+        type: "cash",
+        openingBalanceCents: 0,
+      })
+      .returning();
+    newAcc = inserted;
+  } catch {
+    // ربما أنشأه tx متزامن — اقرأه مجدداً
+    const [existing2] = await tx
+      .select()
+      .from(account)
+      .where(and(eq(account.type, "cash"), eq(account.name, "الصندوق الرئيسي"), isNull(account.deletedAt)))
+      .limit(1);
+    if (!existing2) throw new Error("Failed to resolve default cash account");
+    return existing2.id;
+  }
 
   if (!newAcc) {
-    // A concurrent tx created it first — read it back.
     const [existing2] = await tx
       .select()
       .from(account)

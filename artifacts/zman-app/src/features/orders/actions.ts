@@ -132,7 +132,8 @@ export async function createOrder(rawInput: unknown): Promise<ActionResponse> {
       if (newOrder.depositCents > 0) {
         const defaultAccountId = await getOrCreateDefaultCashAccount(tx);
         await tx.insert(cashMovement).values({
-          date: newOrder.depositDate || newOrder.receivedDate,
+          // date في cash_movement هو NOT NULL بلا default — نضمن قيمة دائماً
+          date: newOrder.depositDate || newOrder.receivedDate || getAmmanDate(),
           accountId: defaultAccountId,
           direction: "in",
           amountCents: newOrder.depositCents,
