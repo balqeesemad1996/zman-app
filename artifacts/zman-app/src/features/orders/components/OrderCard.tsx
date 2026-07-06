@@ -238,8 +238,8 @@ export function OrderCard({
           {order.productName} {order.quantity > 1 && `(عدد ${order.quantity})`}
         </div>
 
-        {/* التفاصيل الإضافية للطلبات غير المكتملة/الملغاة */}
-        {localStatus !== "delivered" && localStatus !== "cancelled" && (
+        {/* التفاصيل الإضافية — تظهر لكل الطلبات */}
+        {(
           <div className="border-t border-hairline pt-2 mt-1 space-y-2">
             {/* ب-1: تاريخ التسليم + العدّاد الذكي */}
             <div className="flex items-center justify-between text-xs">
@@ -247,7 +247,7 @@ export function OrderCard({
                 <Calendar className="w-3.5 h-3.5 text-ink-3 shrink-0" />
                 {order.deliveryDate ? (
                   <span className="text-ink-2 font-medium">
-                    التسليم: {formatDate(order.deliveryDate, "d MMMM")}
+                    التسليم: {formatDate(order.deliveryDate, "d MMMM yyyy")}
                   </span>
                 ) : (
                   <span className="text-ink-3 font-normal">
@@ -257,7 +257,11 @@ export function OrderCard({
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
                 <Clock className="w-3.5 h-3.5 text-ink-3 shrink-0" />
-                {order.deliveryDate ? (
+                {localStatus === "delivered" ? (
+                  <span className="text-emerald-deep font-bold">تم التسليم</span>
+                ) : localStatus === "cancelled" ? (
+                  <span className="text-alert">ملغى</span>
+                ) : order.deliveryDate ? (
                   isToday ? (
                     <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-warn-soft text-warn-deep border border-warn/10">
                       التسليم اليوم
