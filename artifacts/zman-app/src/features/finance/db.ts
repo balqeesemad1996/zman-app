@@ -189,7 +189,6 @@ export const account = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     name: text("name").notNull(),
     type: text("type").notNull(), // 'cash' | 'bank'
-    openingBalanceCents: integer("opening_balance_cents").notNull(),
     isArchived: boolean("is_archived").notNull().default(false),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -203,7 +202,6 @@ export const account = pgTable(
     return [
       check("account_name_length", sql`char_length(${table.name}) <= 200`),
       check("account_type_enum", sql`${table.type} in ('cash', 'bank')`),
-      check("account_opening_balance_nonnegative", sql`${table.openingBalanceCents} >= 0`),
       index("account_type_idx")
         .on(table.type)
         .where(sql`deleted_at is null`),

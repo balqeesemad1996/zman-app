@@ -173,6 +173,19 @@ export function OwnerTab() {
         </div>
       </div>
 
+      {/* ملخص تعاملات المالك */}
+      {transactions && transactions.length > 0 && (
+        <div className="bg-canvas p-4 rounded-lg border border-hairline flex justify-between items-center text-sm font-medium text-ink-3">
+          <span>صافي تعاملات المالك (صافي الاستثمار):</span>
+          <span className="font-mono font-bold text-info">
+            <AmountText amount={
+              transactions.filter(tx => tx.type === "inject").reduce((s, tx) => s + tx.amountCents, 0) -
+              transactions.filter(tx => tx.type === "draw").reduce((s, tx) => s + tx.amountCents, 0)
+            } />
+          </span>
+        </div>
+      )}
+
       {/* مودال المعاملة الجديدة */}
       <ResponsiveModal
         isOpen={isOpen}

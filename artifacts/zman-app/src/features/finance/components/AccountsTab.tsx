@@ -14,7 +14,7 @@ export function AccountsTab() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const { data: accounts, isLoading, refetch } = useAccountBalancesQuery();
+  const { data: accounts, isLoading, refetch } = useAccountBalancesQuery(undefined, true);
   const createAccountMutation = useCreateAccount();
   const transferMutation = useTransferBetweenAccounts();
   const archiveMutation = useArchiveAccount();
@@ -82,7 +82,7 @@ export function AccountsTab() {
     const val = {
       name: accName.trim(),
       type: accType,
-      openingBalanceCents: Math.round(parseFloat(accOpening || "0") * 1000),
+      openingSeedCents: Math.round(parseFloat(accOpening || "0") * 1000),
     };
 
     createAccountMutation.mutate(val, {
@@ -221,6 +221,22 @@ export function AccountsTab() {
             <p className="text-sm text-ink/50">لا توجد حسابات مالية معرفة بعد.</p>
           </div>
         )}
+      </div>
+
+      {/* ملخص الحسابات النشطة */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-canvas p-4 rounded-lg border border-hairline font-medium text-sm text-ink-3">
+        <div className="flex justify-between items-center">
+          <span>إجمالي الصناديق النشطة:</span>
+          <span className="font-mono font-bold text-info">
+            <AmountText amount={accounts?.filter((acc) => !acc.isArchived && acc.type === "cash").reduce((s, acc) => s + acc.balanceCents, 0) ?? 0} />
+          </span>
+        </div>
+        <div className="flex justify-between items-center">
+          <span>إجمالي البنوك النشطة:</span>
+          <span className="font-mono font-bold text-info">
+            <AmountText amount={accounts?.filter((acc) => !acc.isArchived && acc.type === "bank").reduce((s, acc) => s + acc.balanceCents, 0) ?? 0} />
+          </span>
+        </div>
       </div>
 
       {/* مودال إضافة حساب جديد */}

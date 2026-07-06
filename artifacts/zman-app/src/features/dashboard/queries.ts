@@ -1,7 +1,7 @@
 "use server";
 
-import { and, desc, isNull, sql } from "drizzle-orm";
-import { expense, purchase, sale } from "@/features/finance/db";
+import { and, desc, isNull, sql, eq } from "drizzle-orm";
+import { expense, purchase, sale, cashMovement } from "@/features/finance/db";
 import { order } from "@/features/orders/db";
 import { db } from "@/lib/db/client";
 
@@ -19,6 +19,7 @@ export interface ActivityItem {
   amount: number;
   date: Date;
   metadata?: string;
+  hasCashImpact?: boolean;
 }
 
 // 1. حساب المخلص المالي للفترة المحددة (§12) بالتوازي
@@ -26,48 +27,45 @@ export async function getFinancialSummary(
   startDate: string,
   endDate: string,
 ): Promise<FinancialSummary> {
-  const [salesPromise, expensesPromise, purchasesPromise] = await Promise.all([
-    db
-      .select({
-        total: sql<any>`coalesce(sum(${sale.amountCents}), 0)::bigint`,
-      })
-      .from(sale)
-      .where(
-        and(
-          isNull(sale.deletedAt),
-          sql`${sale.date} >= ${startDate}`,
-          sql`${sale.date} <= ${endDate}`,
-        ),
+  // D1: cash-basis revenue = cash received from customers in the period
+  const salesPromise = db
+    .select({ total: sql<any>`coalesce(sum(${cashMovement.amountCents}), 0)::bigint` })
+    .from(cashMovement)
+    .where(
+      and(
+        isNull(cashMovement.deletedAt),
+        eq(cashMovement.direction, "in"),
+        sql`${cashMovement.sourceType} in ('sale', 'deposit')`,
+        sql`${cashMovement.date} >= ${startDate}`,
+        sql`${cashMovement.date} <= ${endDate}`,
       ),
-    db
-      .select({
-        total: sql<any>`coalesce(sum(${expense.amountCents}), 0)::bigint`,
-      })
-      .from(expense)
-      .where(
-        and(
-          isNull(expense.deletedAt),
-          sql`${expense.date} >= ${startDate}`,
-          sql`${expense.date} <= ${endDate}`,
-        ),
-      ),
-    db
-      .select({
-        total: sql<any>`coalesce(sum(${purchase.totalCents}), 0)::bigint`,
-      })
-      .from(purchase)
-      .where(
-        and(
-          isNull(purchase.deletedAt),
-          sql`${purchase.date} >= ${startDate}`,
-          sql`${purchase.date} <= ${endDate}`,
-        ),
-      ),
-  ]);
+    );
 
-  const [salesResult] = salesPromise;
-  const [expensesResult] = expensesPromise;
-  const [purchasesResult] = purchasesPromise;
+  const expensesPromise = db
+    .select({ total: sql<any>`coalesce(sum(${expense.amountCents}), 0)::bigint` })
+    .from(expense)
+    .where(
+      and(
+        isNull(expense.deletedAt),
+        sql`${expense.date} >= ${startDate}`,
+        sql`${expense.date} <= ${endDate}`,
+      ),
+    );
+
+  const purchasesPromise = db
+    .select({ total: sql<any>`coalesce(sum(${purchase.totalCents}), 0)::bigint` })
+    .from(purchase)
+    .where(
+      and(
+        isNull(purchase.deletedAt),
+        sql`${purchase.date} >= ${startDate}`,
+        sql`${purchase.date} <= ${endDate}`,
+      ),
+    );
+
+  const [salesResult] = await salesPromise;
+  const [expensesResult] = await expensesPromise;
+  const [purchasesResult] = await purchasesPromise;
 
   const sales = Number(salesResult?.total) || 0;
   const expenses = Number(expensesResult?.total) || 0;
@@ -78,7 +76,28 @@ export async function getFinancialSummary(
 }
 
 // 2. جلب آخر النشاطات عبر الجداول الأربعة بشكل متوازٍ (§5.7)
-export async function getRecentActivities(): Promise<ActivityItem[]> {
+export async function getRecentActivities(
+  startDate?: string,
+  endDate?: string,
+): Promise<ActivityItem[]> {
+  const orderCond = [isNull(order.deletedAt)];
+  const saleCond = [isNull(sale.deletedAt)];
+  const expenseCond = [isNull(expense.deletedAt)];
+  const purchaseCond = [isNull(purchase.deletedAt)];
+
+  if (startDate) {
+    orderCond.push(sql`${order.createdAt} >= ${startDate}::timestamptz`);
+    saleCond.push(sql`${sale.createdAt} >= ${startDate}::timestamptz`);
+    expenseCond.push(sql`${expense.createdAt} >= ${startDate}::timestamptz`);
+    purchaseCond.push(sql`${purchase.createdAt} >= ${startDate}::timestamptz`);
+  }
+  if (endDate) {
+    orderCond.push(sql`${order.createdAt} <= (${endDate}::date + INTERVAL '1 day')`);
+    saleCond.push(sql`${sale.createdAt} <= (${endDate}::date + INTERVAL '1 day')`);
+    expenseCond.push(sql`${expense.createdAt} <= (${endDate}::date + INTERVAL '1 day')`);
+    purchaseCond.push(sql`${purchase.createdAt} <= (${endDate}::date + INTERVAL '1 day')`);
+  }
+
   const [recentOrders, recentSales, recentExpenses, recentPurchases] =
     await Promise.all([
       db
@@ -86,10 +105,11 @@ export async function getRecentActivities(): Promise<ActivityItem[]> {
           id: order.id,
           customerName: order.customerName,
           totalPriceCents: order.totalPriceCents,
+          depositCents: order.depositCents,
           createdAt: order.createdAt,
         })
         .from(order)
-        .where(isNull(order.deletedAt))
+        .where(and(...orderCond))
         .orderBy(desc(order.createdAt))
         .limit(5),
       db
@@ -100,7 +120,7 @@ export async function getRecentActivities(): Promise<ActivityItem[]> {
           createdAt: sale.createdAt,
         })
         .from(sale)
-        .where(isNull(sale.deletedAt))
+        .where(and(...saleCond))
         .orderBy(desc(sale.createdAt))
         .limit(5),
       db
@@ -111,7 +131,7 @@ export async function getRecentActivities(): Promise<ActivityItem[]> {
           createdAt: expense.createdAt,
         })
         .from(expense)
-        .where(isNull(expense.deletedAt))
+        .where(and(...expenseCond))
         .orderBy(desc(expense.createdAt))
         .limit(5),
       db
@@ -122,7 +142,7 @@ export async function getRecentActivities(): Promise<ActivityItem[]> {
           createdAt: purchase.createdAt,
         })
         .from(purchase)
-        .where(isNull(purchase.deletedAt))
+        .where(and(...purchaseCond))
         .orderBy(desc(purchase.createdAt))
         .limit(5),
     ]);
@@ -132,8 +152,9 @@ export async function getRecentActivities(): Promise<ActivityItem[]> {
     ...recentOrders.map((o) => ({
       id: o.id,
       type: "order" as const,
-      title: "طلب جديد",
-      amount: o.totalPriceCents,
+      title: `طلب جديد بقيمة ${(o.totalPriceCents / 1000).toFixed(3)} د.أ`,
+      amount: o.depositCents || 0,
+      hasCashImpact: (o.depositCents || 0) > 0,
       date: new Date(o.createdAt),
     })),
     ...recentSales.map((s) => ({
@@ -142,6 +163,7 @@ export async function getRecentActivities(): Promise<ActivityItem[]> {
       title: s.description || "عملية مبيعات",
       amount: s.amountCents,
       date: new Date(s.createdAt),
+      hasCashImpact: true,
     })),
     ...recentExpenses.map((e) => ({
       id: e.id,
@@ -149,6 +171,7 @@ export async function getRecentActivities(): Promise<ActivityItem[]> {
       title: `مصروف: ${e.category}`,
       amount: e.amountCents,
       date: new Date(e.createdAt),
+      hasCashImpact: true,
     })),
     ...recentPurchases.map((p) => ({
       id: p.id,
@@ -156,6 +179,7 @@ export async function getRecentActivities(): Promise<ActivityItem[]> {
       title: `شراء مواد: ${p.item}`,
       amount: p.totalCents,
       date: new Date(p.createdAt),
+      hasCashImpact: true,
     })),
   ];
 
@@ -173,18 +197,20 @@ export async function getFinancialTrendData(
   const [salesTrend, expensesTrend, purchasesTrend] = await Promise.all([
     db
       .select({
-        day: sale.date,
-        total: sql<any>`sum(${sale.amountCents})::bigint`,
+        day: cashMovement.date,
+        total: sql<any>`sum(${cashMovement.amountCents})::bigint`,
       })
-      .from(sale)
+      .from(cashMovement)
       .where(
         and(
-          isNull(sale.deletedAt),
-          sql`${sale.date} >= ${startDate}`,
-          sql`${sale.date} <= ${endDate}`,
+          isNull(cashMovement.deletedAt),
+          eq(cashMovement.direction, "in"),
+          sql`${cashMovement.sourceType} in ('sale', 'deposit')`,
+          sql`${cashMovement.date} >= ${startDate}`,
+          sql`${cashMovement.date} <= ${endDate}`,
         ),
       )
-      .groupBy(sale.date),
+      .groupBy(cashMovement.date),
     db
       .select({
         day: expense.date,
@@ -222,32 +248,46 @@ export async function getFinancialTrendData(
   };
 }
 
+export interface TopExpenseCategory {
+  category: string;
+  totalCents: number;
+  count: number;
+}
+
 export interface UpcomingOrder {
   id: string;
   customerName: string;
   productName: string;
   deliveryDate: string | null;
   totalPriceCents: number;
+  depositCents: number;
 }
 
 export interface DashboardStats {
   ordersByStatus: Record<string, number>;
   upcomingOrders: UpcomingOrder[];
   totalDepositsCents: number;
+  topExpensesThisMonth: TopExpenseCategory[];
 }
 
 export async function getDashboardStats(
   startDate: string,
   endDate: string,
 ): Promise<DashboardStats> {
-  const [statusPromise, upcomingPromise, depositsPromise] = await Promise.all([
+  const [statusPromise, upcomingPromise, depositsPromise, expensesPromise] = await Promise.all([
     db
       .select({
         status: order.status,
         count: sql<number>`count(${order.id})::int`,
       })
       .from(order)
-      .where(isNull(order.deletedAt))
+      .where(
+        and(
+          isNull(order.deletedAt),
+          sql`${order.receivedDate} >= ${startDate}`,
+          sql`${order.receivedDate} <= ${endDate}`,
+        )
+      )
       .groupBy(order.status),
     db
       .select({
@@ -256,6 +296,7 @@ export async function getDashboardStats(
         productName: order.productName,
         deliveryDate: sql<string>`TO_CHAR(${order.deliveryDate}::date, 'YYYY-MM-DD')`,
         totalPriceCents: order.totalPriceCents,
+        depositCents: order.depositCents,
       })
       .from(order)
       .where(
@@ -276,11 +317,28 @@ export async function getDashboardStats(
       .where(
         and(
           isNull(order.deletedAt),
-          sql`${order.status} <> 'cancelled'`,
-          sql`coalesce(${order.depositDate}, ${order.createdAt})::date >= ${startDate}::date`,
-          sql`coalesce(${order.depositDate}, ${order.createdAt})::date <= ${endDate}::date`,
+          sql`${order.status} not in ('delivered', 'cancelled')`,  // F-P1-2: match tooltip
+          sql`coalesce(${order.depositDate}, ${order.receivedDate})::date >= ${startDate}::date`,  // F-P1-3: match balance sheet
+          sql`coalesce(${order.depositDate}, ${order.receivedDate})::date <= ${endDate}::date`,
         ),
       ),
+    db
+      .select({
+        category: expense.category,
+        totalCents: sql<any>`coalesce(sum(${expense.amountCents}), 0)::bigint`,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(expense)
+      .where(
+        and(
+          isNull(expense.deletedAt),
+          sql`${expense.date} >= date_trunc('month', CURRENT_DATE)::date`,
+          sql`${expense.date} <= (date_trunc('month', CURRENT_DATE) + INTERVAL '1 month - 1 day')::date`
+        )
+      )
+      .groupBy(expense.category)
+      .orderBy(desc(sql`sum(${expense.amountCents})`))
+      .limit(3),
   ]);
 
   const ordersByStatus: Record<string, number> = {
@@ -300,11 +358,18 @@ export async function getDashboardStats(
     productName: o.productName,
     deliveryDate: o.deliveryDate,
     totalPriceCents: o.totalPriceCents,
+    depositCents: o.depositCents || 0,
   }));
 
   const totalDepositsCents = Number(depositsPromise[0]?.total) || 0;
 
-  return { ordersByStatus, upcomingOrders, totalDepositsCents };
+  const topExpensesThisMonth = expensesPromise.map((e) => ({
+    category: e.category,
+    totalCents: Number(e.totalCents) || 0,
+    count: e.count,
+  }));
+
+  return { ordersByStatus, upcomingOrders, totalDepositsCents, topExpensesThisMonth };
 }
 
 export interface CashSummary {

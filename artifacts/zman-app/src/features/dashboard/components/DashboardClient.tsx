@@ -146,7 +146,7 @@ export function DashboardClient() {
     isLoading: isLoadingActivities,
     isError: isErrorActivities,
     refetch: refetchActivities,
-  } = useRecentActivities();
+  } = useRecentActivities(startDateStr, endDateStr);
   const {
     data: trendData,
     isLoading: isLoadingTrend,
@@ -214,11 +214,11 @@ export function DashboardClient() {
 
   // حساب إجمالي النقد في الصندوق والبنك (التزاماً بـ §8.2)
   const totalCashCents = accountBalances
-    ? accountBalances.filter((a) => a.type === "cash" && !a.isArchived).reduce((acc, a) => acc + a.balanceCents, 0)
+    ? accountBalances.filter((a) => a.type === "cash").reduce((acc, a) => acc + a.balanceCents, 0)
     : 0;
 
   const totalBankCents = accountBalances
-    ? accountBalances.filter((a) => a.type === "bank" && !a.isArchived).reduce((acc, a) => acc + a.balanceCents, 0)
+    ? accountBalances.filter((a) => a.type === "bank").reduce((acc, a) => acc + a.balanceCents, 0)
     : 0;
 
   // معالجة صافي الأرباح لتحديد اللون والإشارة للتسهيل على فاقدي التمييز اللوني (§14.3)
@@ -320,7 +320,7 @@ export function DashboardClient() {
             </div>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-5">
             {/* لافتة الإعداد الأولي — تظهر فقط قبل إدخال الأرصدة الافتتاحية */}
             {openingBal === null && (
               <Link
@@ -338,7 +338,216 @@ export function DashboardClient() {
               </Link>
             )}
 
-            {/* طلبات للتسليم (الأهم — أول عنصر في الصفحة) */}
+            {/* 1. الوضع النقدي الحالي (Current Cash Position Hero) */}
+            {cashSummary && (
+              <div className="bg-gradient-to-r from-info-soft to-info/5 p-6 rounded-xl border border-info/20 shadow-sm flex flex-col justify-between gap-4">
+                <div className="flex items-center justify-between w-full">
+                  <div className="space-y-1">
+                    <span className="text-xs font-bold text-ink/65 flex items-center gap-1.5">
+                      <Wallet className="h-4.5 w-4.5 text-info animate-pulse" />
+                      النقد الحر (المتاح للتصرف الفعلي)
+                    </span>
+                    <h2 className="text-2xl lg:text-3xl font-black text-info flex items-baseline gap-1 whitespace-nowrap min-w-0">
+                      <AmountText amount={(totalCashCents + totalBankCents) - (cashSummary.depositsHeldCents || 0)} />
+                    </h2>
+                  </div>
+                  <div className="px-3 py-1 bg-info/10 text-info text-[10px] font-extrabold rounded-full border border-info/20">
+                    أساس نقدي
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-hairline-2">
+                  <div className="space-y-0.5">
+                    <p className="text-[10px] text-ink/40">صندوق (نقد متاح)</p>
+                    <p className="text-sm font-bold text-ink-3">
+                      <AmountText amount={totalCashCents} />
+                    </p>
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-[10px] text-ink/40">حسابات البنك</p>
+                    <p className="text-sm font-bold text-ink-3">
+                      <AmountText amount={totalBankCents} />
+                    </p>
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-[10px] text-ink/40">إجمالي النقد المتاح</p>
+                    <p className="text-sm font-bold text-ink">
+                      <AmountText amount={totalCashCents + totalBankCents} />
+                    </p>
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-[10px] text-ink/40">منها عربونات كالتزام</p>
+                    <p className="text-sm font-bold text-alert">
+                      <AmountText amount={cashSummary.depositsHeldCents || 0} />
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 2. ملخص الفترة (Period Summary 4-card Grid) */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* صافي التدفق النقدي (الربح) */}
+              <div className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col justify-between">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-ink/65 flex items-center gap-1">
+                    <NetIcon className={`h-4 w-4 ${netColorClass}`} />
+                    صافي التدفق النقدي (الربح)
+                  </span>
+                  <TrendArrow data={netTrendData} goodWhenUp={true} />
+                </div>
+                <div className="mt-2 flex flex-col min-w-0">
+                  <span
+                    className={`text-lg lg:text-xl font-bold flex items-baseline gap-1 ${netColorClass} whitespace-nowrap min-w-0`}
+                  >
+                    <span className="font-mono text-base shrink-0">{netSign}</span>
+                    <AmountText amount={Math.abs(net)} />
+                  </span>
+                  <span className="text-[10px] text-ink/40 mt-1 truncate" title="مبيعات − مشتريات − مصاريف">
+                    صافي السيولة النقدية للفترة
+                  </span>
+                </div>
+              </div>
+
+              {/* المبيعات المحصلة */}
+              <Link
+                href="/finance?tab=sales"
+                className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col justify-between hover:border-info/40 hover:shadow-md transition-all group"
+              >
+                <div className="flex items-center justify-between w-full">
+                  <span className="text-xs font-bold text-ink/65 flex items-center gap-1">
+                    <ShoppingBag className="h-4 w-4 text-info" />
+                    المبيعات المُحصَّلة
+                  </span>
+                  <ArrowLeft className="h-4 w-4 text-info/0 group-hover:text-info transition-all transform group-hover:-translate-x-1" />
+                </div>
+                <div className="mt-2 flex flex-col min-w-0">
+                  <span className="text-lg lg:text-xl font-bold text-info flex items-baseline gap-1 whitespace-nowrap min-w-0">
+                    <span className="font-mono text-base shrink-0">+</span>
+                    <AmountText amount={summary?.sales ?? 0} />
+                  </span>
+                  <span className="text-[10px] text-ink/40 mt-1 truncate">
+                    كافة المقبوضات والنقد الوارد
+                  </span>
+                </div>
+              </Link>
+
+              {/* المشتريات المدفوعة */}
+              <Link
+                href="/finance?tab=purchases"
+                className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col justify-between hover:border-alert/40 hover:shadow-md transition-all group"
+              >
+                <div className="flex items-center justify-between w-full">
+                  <span className="text-xs font-bold text-ink/65 flex items-center gap-1">
+                    <ShoppingCart className="h-4 w-4 text-alert" />
+                    المشتريات المدفوعة
+                  </span>
+                  <ArrowLeft className="h-4 w-4 text-alert/0 group-hover:text-alert transition-all transform group-hover:-translate-x-1" />
+                </div>
+                <div className="mt-2 flex flex-col min-w-0">
+                  <span className="text-lg lg:text-xl font-bold text-alert flex items-baseline gap-1 whitespace-nowrap min-w-0">
+                    <span className="font-mono text-base shrink-0">−</span>
+                    <AmountText amount={summary?.purchases ?? 0} />
+                  </span>
+                  <span className="text-[10px] text-ink/40 mt-1 truncate">
+                    تكلفة الخامات والمواد
+                  </span>
+                </div>
+              </Link>
+
+              {/* المصاريف المدفوعة */}
+              <Link
+                href="/finance?tab=expenses"
+                className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col justify-between hover:border-alert/40 hover:shadow-md transition-all group"
+              >
+                <div className="flex items-center justify-between w-full">
+                  <span className="text-xs font-bold text-ink/65 flex items-center gap-1">
+                    <ArrowDownRight className="h-4 w-4 text-alert" />
+                    المصاريف المدفوعة
+                  </span>
+                  <ArrowLeft className="h-4 w-4 text-alert/0 group-hover:text-alert transition-all transform group-hover:-translate-x-1" />
+                </div>
+                <div className="mt-2 flex flex-col min-w-0">
+                  <span className="text-lg lg:text-xl font-bold text-alert flex items-baseline gap-1 whitespace-nowrap min-w-0">
+                    <span className="font-mono text-base shrink-0">−</span>
+                    <AmountText amount={summary?.expenses ?? 0} />
+                  </span>
+                  <span className="text-[10px] text-ink/40 mt-1 truncate">
+                    المصاريف التشغيلية والرواتب
+                  </span>
+                </div>
+              </Link>
+            </div>
+
+            {/* 3. أبرز فئات المصاريف لهذا الشهر (Metric 3) */}
+            {stats && stats.topExpensesThisMonth && stats.topExpensesThisMonth.length > 0 && (
+              <div className="bg-paper p-5 rounded-lg border border-hairline shadow-sm space-y-3">
+                <h3 className="text-xs font-bold text-ink/65 flex items-center gap-1.5">
+                  <ArrowDownRight className="h-4.5 w-4.5 text-alert" />
+                  أبرز فئات مصاريف التشغيل (هذا الشهر)
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {stats.topExpensesThisMonth.map((exp) => (
+                    <div key={exp.category} className="p-3 bg-canvas rounded-lg border border-hairline flex items-center justify-between gap-3 text-sm">
+                      <div className="min-w-0">
+                        <p className="font-bold text-ink truncate">{exp.category}</p>
+                        <p className="text-[10px] text-ink/45 mt-0.5">{exp.count} حركات مالية</p>
+                      </div>
+                      <span className="font-bold text-alert shrink-0">
+                        <AmountText amount={exp.totalCents} />
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 4. الالتزامات والعربونات (Obligations & Deposits Held 2-card Grid) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* عربونات بحوزتك (التزام مالي) */}
+              <div className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col justify-between">
+                <div className="flex items-center justify-between w-full">
+                  <span className="text-xs font-bold text-ink/65 flex items-center gap-1.5 truncate">
+                    <TrendingUp className="h-4.5 w-4.5 text-ink-3" />
+                    عربونات بحوزتك (التزام مالي)
+                  </span>
+                  <span className="px-2 py-0.5 bg-ink/10 text-ink-2 text-[10px] font-extrabold rounded">
+                    التزام ذمة
+                  </span>
+                </div>
+                <div className="mt-2 flex flex-col min-w-0">
+                  <span className="text-lg lg:text-xl font-bold text-ink flex items-baseline gap-1 whitespace-nowrap min-w-0">
+                    <AmountText amount={cashSummary?.depositsHeldCents ?? 0} />
+                  </span>
+                  <span className="text-[10px] text-ink/40 mt-1 truncate">
+                    عربونات محتجَزة لطلبات قيد التنفيذ
+                  </span>
+                </div>
+              </div>
+
+              {/* مبالغ متوقعة (متبقي الطلبات) */}
+              <div className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col justify-between">
+                <div className="flex items-center justify-between w-full">
+                  <span className="text-xs font-bold text-ink/65 flex items-center gap-1.5 truncate">
+                    <Calendar className="h-4.5 w-4.5 text-ink-3" />
+                    مبالغ متوقعة (متبقي الطلبات)
+                  </span>
+                  <span className="px-2 py-0.5 bg-ink/10 text-ink-2 text-[10px] font-extrabold rounded">
+                    متوقّع
+                  </span>
+                </div>
+                <div className="mt-2 flex flex-col min-w-0">
+                  <span className="text-lg lg:text-xl font-bold text-ink-2 flex items-baseline gap-1 whitespace-nowrap min-w-0">
+                    <AmountText amount={cashSummary?.expectedRemainingCents ?? 0} />
+                  </span>
+                  <span className="text-[10px] text-ink/40 mt-1 truncate">
+                    مبالغ متبقية تُحصَّل عند تسليم الطلبات
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* 5. طلبات للتسليم (طلبات يستحق تسليمها) */}
             {stats && (
               <div className="bg-paper p-6 rounded-lg border border-hairline shadow-sm space-y-4">
                 <div className={
@@ -378,8 +587,11 @@ export function DashboardClient() {
                                 })
                               : "تاريخ غير محدد"}
                           </p>
-                          <p className="text-sm font-bold text-info mt-0.5 whitespace-nowrap">
-                            <AmountText amount={o.totalPriceCents} />
+                          <p className="text-xs text-ink-2 mt-1 whitespace-nowrap flex flex-col items-end gap-0.5">
+                            <span>قيمة الطلب: <AmountText amount={o.totalPriceCents} /></span>
+                            {o.depositCents > 0 && (
+                              <span className="text-[10px] text-info font-bold">العربون المُحصَّل: +<AmountText amount={o.depositCents} /></span>
+                            )}
                           </p>
                         </div>
                       </Link>
@@ -388,226 +600,6 @@ export function DashboardClient() {
                 )}
               </div>
             )}
-
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-              {/* صافي التدفق النقدي (أزرق في الربح، أحمر في الخسارة - غير معتمد على اللون فقط) */}
-              <div className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col justify-between">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-ink/65 flex items-center gap-1">
-                    <NetIcon className={`h-4 w-4 ${netColorClass}`} />
-                    صافي التدفق النقدي
-                  </span>
-                  <TrendArrow data={netTrendData} goodWhenUp={true} />
-                </div>
-                <div className="mt-2 flex flex-col min-w-0">
-                  <span
-                    className={`text-lg lg:text-xl font-bold flex items-baseline gap-1 ${netColorClass} whitespace-nowrap min-w-0`}
-                  >
-                    <span className="font-mono text-base shrink-0">{netSign}</span>
-                    <AmountText amount={Math.abs(net)} />
-                  </span>
-                  <span className="text-[10px] text-ink/40 mt-1 truncate" title="مبيعات − مشتريات − مصاريف">
-                    مبيعات − مشتريات − مصاريف
-                  </span>
-                </div>
-              </div>
-
-              {/* إجمالي المبيعات (أزرق - Info) */}
-              <Link
-                href="/finance?tab=sales"
-                className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col justify-between hover:border-info/40 hover:shadow-md transition-all group"
-              >
-                <div className="flex items-center justify-between w-full">
-                  <span className="text-xs font-bold text-ink/65 flex items-center gap-1">
-                    <ShoppingBag className="h-4 w-4 text-info" />
-                    المبيعات
-                  </span>
-                  <ArrowLeft className="h-4 w-4 text-info/0 group-hover:text-info transition-all transform group-hover:-translate-x-1" />
-                </div>
-                <div className="mt-2 flex flex-col min-w-0">
-                  <span className="text-lg lg:text-xl font-bold text-info flex items-baseline gap-1 whitespace-nowrap min-w-0">
-                    <span className="font-mono text-base shrink-0">+</span>
-                    <AmountText amount={summary?.sales ?? 0} />
-                  </span>
-                  <span className="text-[10px] text-ink/40 mt-1 truncate">
-                    إجمالي الإيرادات
-                  </span>
-                  {stats && stats.totalDepositsCents > 0 && (
-                    <span
-                      className="text-[10px] text-ink-3 mt-1 flex flex-wrap items-baseline gap-x-1 cursor-help"
-                      title="يمثل قيمة العربون المدفوعة مقدماً لطلبات لم تُسلّم بعد في هذه الفترة (دخلت ماليّاً قبل التسليم)"
-                    >
-                      <span>يشمل طلبات بعربون:</span>
-                      <AmountText amount={stats.totalDepositsCents} />
-                    </span>
-                  )}
-                </div>
-              </Link>
-
-              {/* إجمالي المشتريات (أحمر - Alert) */}
-              <Link
-                href="/finance?tab=purchases"
-                className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col justify-between hover:border-alert/40 hover:shadow-md transition-all group"
-              >
-                <div className="flex items-center justify-between w-full">
-                  <span className="text-xs font-bold text-ink/65 flex items-center gap-1">
-                    <ShoppingCart className="h-4 w-4 text-alert" />
-                    المشتريات
-                  </span>
-                  <ArrowLeft className="h-4 w-4 text-alert/0 group-hover:text-alert transition-all transform group-hover:-translate-x-1" />
-                </div>
-                <div className="mt-2 flex flex-col min-w-0">
-                  <span className="text-lg lg:text-xl font-bold text-alert flex items-baseline gap-1 whitespace-nowrap min-w-0">
-                    <span className="font-mono text-base shrink-0">−</span>
-                    <AmountText amount={summary?.purchases ?? 0} />
-                  </span>
-                  <span className="text-[10px] text-ink/40 mt-1 truncate">
-                    مواد خام
-                  </span>
-                </div>
-              </Link>
-
-              {/* إجمالي المصاريف (أحمر - Alert) */}
-              <Link
-                href="/finance?tab=expenses"
-                className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col justify-between hover:border-alert/40 hover:shadow-md transition-all group"
-              >
-                <div className="flex items-center justify-between w-full">
-                  <span className="text-xs font-bold text-ink/65 flex items-center gap-1">
-                    <ArrowDownRight className="h-4 w-4 text-alert" />
-                    المصاريف
-                  </span>
-                  <ArrowLeft className="h-4 w-4 text-alert/0 group-hover:text-alert transition-all transform group-hover:-translate-x-1" />
-                </div>
-                <div className="mt-2 flex flex-col min-w-0">
-                  <span className="text-lg lg:text-xl font-bold text-alert flex items-baseline gap-1 whitespace-nowrap min-w-0">
-                    <span className="font-mono text-base shrink-0">−</span>
-                    <AmountText amount={summary?.expenses ?? 0} />
-                  </span>
-                  <span className="text-[10px] text-ink/40 mt-1 truncate">
-                    تشغيل ورواتب
-                  </span>
-                </div>
-              </Link>
-
-              {/* بطاقة التقارير (أزرق - Info) */}
-              <Link
-                href="/reports"
-                className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col justify-between hover:border-info/40 hover:shadow-md transition-all group col-span-2 lg:col-span-1"
-              >
-                <div className="flex items-center justify-between w-full">
-                  <span className="text-xs font-bold text-ink/65 flex items-center gap-1">
-                    <BarChart3 className="h-4 w-4 text-info" />
-                    التقارير
-                  </span>
-                  <ArrowLeft className="h-4 w-4 text-info/0 group-hover:text-info transition-all transform group-hover:-translate-x-1" />
-                </div>
-                <div className="mt-2 flex flex-col min-w-0">
-                  <span className="text-lg lg:text-xl font-bold text-info whitespace-nowrap">
-                    عرض التقارير
-                  </span>
-                  <span className="text-[10px] text-ink/40 mt-1 truncate">
-                    الربح والوضع المالي
-                  </span>
-                </div>
-              </Link>
-            </div>
-
-            {/* قسم الملخص النقدي الجديد (التزاماً بـ §8.2) */}
-            <div className="space-y-3 pt-2">
-              <h3 className="text-base font-bold text-ink flex items-center gap-2">
-                <Clock className="h-4.5 w-4.5 text-info" />
-                الملخص النقدي
-              </h3>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {/* كاش الصندوق — تحويل سريع */}
-                <Link
-                  href="/finance?tab=accounts&newTransfer=true"
-                  className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col justify-between hover:border-info/40 hover:shadow-md transition-all group"
-                >
-                  <div className="flex items-center justify-between w-full">
-                    <span className="text-xs font-bold text-ink/65 flex items-center gap-1 truncate">
-                      <Wallet className="h-4 w-4 text-info animate-pulse" />
-                      كاش الصندوق
-                    </span>
-                    <ArrowLeft className="h-4 w-4 text-info/0 group-hover:text-info transition-all transform group-hover:-translate-x-1" />
-                  </div>
-                  <div className="mt-2 flex flex-col min-w-0">
-                    <span className="text-lg lg:text-xl font-bold text-info flex items-baseline gap-1 whitespace-nowrap min-w-0">
-                      <span className="font-mono text-base shrink-0">+</span>
-                      <AmountText amount={totalCashCents} />
-                    </span>
-                    <span className="text-[10px] text-ink/40 mt-1 truncate">
-                      رصيد النقدية الحالي
-                    </span>
-                  </div>
-                </Link>
-
-                {/* رصيد البنك — تحويل سريع */}
-                <Link
-                  href="/finance?tab=accounts&newTransfer=true"
-                  className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col justify-between hover:border-info/40 hover:shadow-md transition-all group"
-                >
-                  <div className="flex items-center justify-between w-full">
-                    <span className="text-xs font-bold text-ink/65 flex items-center gap-1 truncate">
-                      <Landmark className="h-4 w-4 text-info" />
-                      رصيد البنك
-                    </span>
-                    <ArrowLeft className="h-4 w-4 text-info/0 group-hover:text-info transition-all transform group-hover:-translate-x-1" />
-                  </div>
-                  <div className="mt-2 flex flex-col min-w-0">
-                    <span className="text-lg lg:text-xl font-bold text-info flex items-baseline gap-1 whitespace-nowrap min-w-0">
-                      <span className="font-mono text-base shrink-0">+</span>
-                      <AmountText amount={totalBankCents} />
-                    </span>
-                    <span className="text-[10px] text-ink/40 mt-1 truncate">
-                      إجمالي حسابات البنك
-                    </span>
-                  </div>
-                </Link>
-
-                {/* العربون بحوزتك — سحب مالك */}
-                <Link
-                  href="/finance?tab=owner&newOwnerTx=true"
-                  className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col justify-between hover:border-info/40 hover:shadow-md transition-all group"
-                >
-                  <div className="flex items-center justify-between w-full">
-                    <span className="text-xs font-bold text-ink/65 flex items-center gap-1 truncate">
-                      <TrendingUp className="h-4 w-4 text-info" />
-                      العربون بحوزتك
-                    </span>
-                    <ArrowLeft className="h-4 w-4 text-info/0 group-hover:text-info transition-all transform group-hover:-translate-x-1" />
-                  </div>
-                  <div className="mt-2 flex flex-col min-w-0">
-                    <span className="text-lg lg:text-xl font-bold text-info flex items-baseline gap-1 whitespace-nowrap min-w-0">
-                      <span className="font-mono text-base shrink-0">+</span>
-                      <AmountText amount={cashSummary?.depositsHeldCents ?? 0} />
-                    </span>
-                    <span className="text-[10px] text-ink/40 mt-1 truncate">
-                      عربون محتجَز للطلبات
-                    </span>
-                  </div>
-                </Link>
-
-                {/* مبالغ متوقعة (متبقي الطلبات) — display only */}
-                <div className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col justify-between">
-                  <span className="text-xs font-bold text-ink/65 flex items-center gap-1 truncate">
-                    <Calendar className="h-4 w-4 text-ink-3" />
-                    مبالغ متوقعة (متبقي الطلبات)
-                  </span>
-                  <div className="mt-2 flex flex-col min-w-0">
-                    <span className="text-lg lg:text-xl font-bold text-ink-2 flex items-baseline gap-1 whitespace-nowrap min-w-0">
-                      <span className="font-mono text-base shrink-0">+</span>
-                      <AmountText amount={cashSummary?.expectedRemainingCents ?? 0} />
-                    </span>
-                    <span className="text-[10px] text-ink/40 mt-1 truncate">
-                      متبقٍّ متوقّع عند التسليم
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         )}
 
@@ -733,14 +725,23 @@ export function DashboardClient() {
                       </span>
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
-                      <span
-                        className={`text-sm font-bold ${act.type === "order" || act.type === "sale" ? "text-info" : "text-alert"}`}
-                      >
-                        {act.type === "order" || act.type === "sale"
-                          ? "+"
-                          : "−"}
-                        <AmountText amount={act.amount} />
-                      </span>
+                      {(() => {
+                        const isRealizedSale = act.type === "sale";
+                        const isCashOut = act.type === "expense" || act.type === "purchase";
+                        const isOrderWithDeposit = act.type === "order" && !!act.hasCashImpact;
+                        const sign = (isRealizedSale || isOrderWithDeposit) ? "+" : isCashOut ? "−" : "";
+                        const colorClass = (isRealizedSale || isOrderWithDeposit)
+                          ? "text-info"
+                          : isCashOut ? "text-alert" : "text-ink/45";
+                        return (
+                          <span className={`text-sm font-bold ${colorClass}`}>
+                            {sign}
+                            {act.amount > 0 || isRealizedSale || isCashOut
+                              ? <AmountText amount={act.amount} />
+                              : <span className="text-xs font-normal">بدون أثر نقدي</span>}
+                          </span>
+                        );
+                      })()}
                       <ArrowLeft className="h-4 w-4 text-ink/30 shrink-0" />
                     </div>
                   </Link>

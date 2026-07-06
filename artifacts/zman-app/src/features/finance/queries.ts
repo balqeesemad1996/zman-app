@@ -13,6 +13,7 @@ import {
 import { db } from "@/lib/db/client";
 import { expense, purchase, sale } from "./db";
 import type { Expense, Purchase, Sale } from "./types";
+import { order } from "@/features/orders/db";
 
 export interface GetFinanceFilters {
   cursor?: string;
@@ -203,8 +204,10 @@ export async function getSales(filters: GetSalesFilters) {
       deletedAt: sale.deletedAt,
       createdAt: sale.createdAt,
       updatedAt: sale.updatedAt,
+      depositCents: order.depositCents,
     })
     .from(sale)
+    .leftJoin(order, eq(sale.orderId, order.id))
     .where(and(...conditions))
     .orderBy(desc(sale.createdAt), desc(sale.id))
     .limit(limit + 1);

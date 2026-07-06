@@ -7,36 +7,42 @@ import { expense, purchase, sale, account, cashMovement, ownerTransaction, openi
 import { order } from "../orders/db";
 import { mapDbError } from "@/lib/db/errors";
 
-function formatJOD(cents: number): string {
-  const jod = cents / 1000;
-  return `${jod.toLocaleString("en-JO", {
-    minimumFractionDigits: 3,
-    maximumFractionDigits: 3,
-  })} د.أ`;
+import { formatFilsToJod } from "@/lib/money";
+
+function rangeStartDate(range?: "all" | "month" | "30d"): string | null {
+  if (range === "month") {
+    const ammanToday = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Amman" });
+    const [year, month] = ammanToday.split("-");
+    return `${year}-${month}-01`;
+  }
+  if (range === "30d") {
+    const now = new Date();
+    const startOf30Days = new Date(now.getTime() - 29 * 24 * 60 * 60 * 1000);
+    return startOf30Days.toLocaleDateString("en-CA", { timeZone: "Asia/Amman" });
+  }
+  return null;
+}
+
+function rangeEndDate(range?: "all" | "month" | "30d"): string | null {
+  if (range === "month") {
+    const ammanToday = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Amman" });
+    const [year, month] = ammanToday.split("-");
+    const lastDayNum = new Date(Number(year), Number(month), 0).getDate();
+    return `${year}-${month}-${String(lastDayNum).padStart(2, "0")}`;
+  }
+  if (range === "30d") {
+    return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Amman" });
+  }
+  return null;
 }
 
 function buildDateCondition(table: any, range?: "all" | "month" | "30d") {
   const conditions = [isNull(table.deletedAt)];
   const dateField = table.receivedDate ?? table.date;
-
-  if (range === "month") {
-    const ammanToday = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Amman" });
-    const [year, month] = ammanToday.split("-");
-    const start = `${year}-${month}-01`;
-    const lastDayNum = new Date(Number(year), Number(month), 0).getDate();
-    const end = `${year}-${month}-${String(lastDayNum).padStart(2, "0")}`;
-
-    conditions.push(sql`${dateField} >= ${start}`);
-    conditions.push(sql`${dateField} <= ${end}`);
-  } else if (range === "30d") {
-    const now = new Date();
-    const startOf30Days = new Date(now.getTime() - 29 * 24 * 60 * 60 * 1000);
-    const start = startOf30Days.toLocaleDateString("en-CA", { timeZone: "Asia/Amman" });
-    const end = now.toLocaleDateString("en-CA", { timeZone: "Asia/Amman" });
-
-    conditions.push(sql`${dateField} >= ${start}`);
-    conditions.push(sql`${dateField} <= ${end}`);
-  }
+  const start = rangeStartDate(range);
+  const end = rangeEndDate(range);
+  if (start) conditions.push(sql`${dateField} >= ${start}`);
+  if (end) conditions.push(sql`${dateField} <= ${end}`);
   return and(...conditions);
 }
 
@@ -56,11 +62,21 @@ export async function downloadReport(
 
     if (type === "pnl") {
       // 1. P&L Report
+      const salesDateConds = [
+        isNull(cashMovement.deletedAt),
+        eq(cashMovement.direction, "in"),
+        sql`${cashMovement.sourceType} in ('sale', 'deposit')`
+      ];
+      const sStart = rangeStartDate(range);
+      const sEnd = rangeEndDate(range);
+      if (sStart) salesDateConds.push(sql`${cashMovement.date} >= ${sStart}`);
+      if (sEnd) salesDateConds.push(sql`${cashMovement.date} <= ${sEnd}`);
+
       const [[salesRes], [purchasesRes], [expensesRes]] = await Promise.all([
         db
-          .select({ total: sum(sale.amountCents) })
-          .from(sale)
-          .where(buildDateCondition(sale, range)),
+          .select({ total: sum(cashMovement.amountCents) })
+          .from(cashMovement)
+          .where(and(...salesDateConds)),
         db
           .select({ total: sum(purchase.totalCents) })
           .from(purchase)
@@ -86,10 +102,10 @@ export async function downloadReport(
 
 | البند المالي | القيمة الإجمالية | التفاصيل |
 | :--- | :--- | :--- |
-| **إجمالي المبيعات (الإيرادات)** | ${formatJOD(salesCents)} | مجموع المدفوعات المستلمة من الزبائن |
-| **إجمالي المشتريات (المواد)** | ${formatJOD(purchasesCents)} | تكاليف الخامات والمشتريات التشغيلية للورشة |
-| **إجمالي المصاريف (العمومية)** | ${formatJOD(expensesCents)} | المصاريف التشغيلية، الإيجارات، الفواتير، والرواتب |
-| **صافي الأرباح / الخسائر** | **${formatJOD(netCents)}** | **الأرباح الصافية المحتسبة بعد خصم كافة التكاليف** |
+| **إجمالي المبيعات (الإيرادات)** | ${formatFilsToJod(salesCents)} | مجموع المدفوعات المستلمة من الزبائن |
+| **إجمالي المشتريات (المواد)** | ${formatFilsToJod(purchasesCents)} | تكاليف الخامات والمشتريات التشغيلية للورشة |
+| **إجمالي المصاريف (العمومية)** | ${formatFilsToJod(expensesCents)} | المصاريف التشغيلية، الإيجارات، الفواتير، والرواتب |
+| **صافي الأرباح / الخسائر** | **${formatFilsToJod(netCents)}** | **الأرباح الصافية المحتسبة بعد خصم كافة التكاليف** |
 
 ---
 *تم إنشاء هذا التقرير تلقائياً بواسطة نظام Zman الداخلي لإدارة الورش والمخازن.*
@@ -127,10 +143,10 @@ ${categories
     const cCents = Number(c.total) || 0;
     const percentage =
       totalCents > 0 ? `${((cCents / totalCents) * 100).toFixed(1)}%` : "0%";
-    return `| ${c.category} | ${c.count} | ${formatJOD(cCents)} | ${percentage} |`;
+    return `| ${c.category} | ${c.count} | ${formatFilsToJod(cCents)} | ${percentage} |`;
   })
   .join("\n")}
-| **المجموع الكلي** | **${categories.reduce((s, c) => s + c.count, 0)}** | **${formatJOD(totalCents)}** | **100%** |
+| **المجموع الكلي** | **${categories.reduce((s, c) => s + c.count, 0)}** | **${formatFilsToJod(totalCents)}** | **100%** |
 
 ---
 *تم إنشاء هذا التقرير تلقائياً بواسطة نظام Zman الداخلي لإدارة الورش والمخازن.*
@@ -174,10 +190,10 @@ ${sources
     const percentage =
       totalCents > 0 ? `${((sCents / totalCents) * 100).toFixed(1)}%` : "0%";
     const label = sourceLabels[s.source] || s.source;
-    return `| ${label} | ${s.count} | ${formatJOD(sCents)} | ${percentage} |`;
+    return `| ${label} | ${s.count} | ${formatFilsToJod(sCents)} | ${percentage} |`;
   })
   .join("\n")}
-| **المجموع الكلي** | **${sources.reduce((sum, s) => sum + s.count, 0)}** | **${formatJOD(totalCents)}** | **100%** |
+| **المجموع الكلي** | **${sources.reduce((sum, s) => sum + s.count, 0)}** | **${formatFilsToJod(totalCents)}** | **100%** |
 
 ---
 *تم إنشاء هذا التقرير تلقائياً بواسطة نظام Zman الداخلي لإدارة الورش والمخازن.*
@@ -224,10 +240,10 @@ ${funnels
     const percentage =
       totalCount > 0 ? `${((f.count / totalCount) * 100).toFixed(1)}%` : "0%";
     const label = statusLabels[f.status] || f.status;
-    return `| ${label} | ${f.count} | ${formatJOD(fCents)} | ${percentage} |`;
+    return `| ${label} | ${f.count} | ${formatFilsToJod(fCents)} | ${percentage} |`;
   })
   .join("\n")}
-| **المجموع الكلي** | **${totalCount}** | **${formatJOD(totalCents)}** | **100%** |
+| **المجموع الكلي** | **${totalCount}** | **${formatFilsToJod(totalCents)}** | **100%** |
 
 ---
 *تم إنشاء هذا التقرير تلقائياً بواسطة نظام Zman الداخلي لإدارة الورش والمخازن.*
@@ -260,7 +276,7 @@ ${funnels
 ${products
   .map((p) => {
     const revCents = Number(p.totalRevenue) || 0;
-    return `| ${p.productName} | ${p.count} | ${p.totalQuantity || 0} | ${formatJOD(revCents)} |`;
+    return `| ${p.productName} | ${p.count} | ${p.totalQuantity || 0} | ${formatFilsToJod(revCents)} |`;
   })
   .join("\n")}
 
@@ -319,9 +335,19 @@ export async function getAllReportData(
   range: "all" | "month" | "30d" = "all",
 ): Promise<ActionResponse<StructuredReportData>> {
   try {
+    const salesDateConds = [
+      isNull(cashMovement.deletedAt),
+      eq(cashMovement.direction, "in"),
+      sql`${cashMovement.sourceType} in ('sale', 'deposit')`
+    ];
+    const sStart = rangeStartDate(range);
+    const sEnd = rangeEndDate(range);
+    if (sStart) salesDateConds.push(sql`${cashMovement.date} >= ${sStart}`);
+    if (sEnd) salesDateConds.push(sql`${cashMovement.date} <= ${sEnd}`);
+
     const [salesRes, purchasesRes, expensesRes, categoriesRes, sourcesRes, funnelsRes, productsRes] =
       await Promise.all([
-        db.select({ total: sum(sale.amountCents) }).from(sale).where(buildDateCondition(sale, range)),
+        db.select({ total: sum(cashMovement.amountCents) }).from(cashMovement).where(and(...salesDateConds)),
         db.select({ total: sum(purchase.totalCents) }).from(purchase).where(buildDateCondition(purchase, range)),
         db.select({ total: sum(expense.amountCents) }).from(expense).where(buildDateCondition(expense, range)),
         db
@@ -336,14 +362,14 @@ export async function getAllReportData(
           .orderBy(desc(sql`sum(${expense.amountCents})`)),
         db
           .select({
-            source: sale.source,
-            total: sum(sale.amountCents),
-            count: count(sale.id),
+            sourceType: cashMovement.sourceType,
+            total: sum(cashMovement.amountCents),
+            count: count(cashMovement.id),
           })
-          .from(sale)
-          .where(buildDateCondition(sale, range))
-          .groupBy(sale.source)
-          .orderBy(desc(sql`sum(${sale.amountCents})`)),
+          .from(cashMovement)
+          .where(and(...salesDateConds))
+          .groupBy(cashMovement.sourceType)
+          .orderBy(desc(sql`sum(${cashMovement.amountCents})`)),
         db
           .select({
             status: order.status,
@@ -386,9 +412,9 @@ export async function getAllReportData(
       };
     });
 
-    const sourceLabels: Record<string, string> = {
-      manual: "إدخال يدوي مباشر",
-      order: "مبيعات مرتبطة بطلب",
+    const sourceTypeLabels: Record<string, string> = {
+      deposit: "عربونات طلبات (دُفعت مقدماً)",
+      sale: "تسويات مبيعات (متبقّي مُحصَّل)",
     };
     const totalSalesCents = sourcesRes.reduce(
       (s, r) => s + (Number(r.total) || 0),
@@ -396,9 +422,10 @@ export async function getAllReportData(
     );
     const salesBySource = sourcesRes.map((s) => {
       const sCents = Number(s.total) || 0;
+      const src = s.sourceType ?? "sale";
       return {
-        source: s.source,
-        label: sourceLabels[s.source] ?? s.source,
+        source: src,
+        label: sourceTypeLabels[src] ?? src,
         totalCents: sCents,
         count: s.count,
         pct: totalSalesCents > 0 ? (sCents / totalSalesCents) * 100 : 0,
@@ -463,6 +490,9 @@ export type FinancialPositionData = {
   };
   balanced: boolean;
   differenceCents: number;
+  equityDriftCents: number;
+  pnlAllTimeNetCents: number;
+  pnlReconciliationCents: number;
 };
 
 export async function getFinancialPosition(
@@ -534,6 +564,7 @@ export async function getFinancialPosition(
           and(
             isNull(order.deletedAt),
             sql`${order.status} not in ('delivered', 'cancelled')`,
+            sql`${order.depositCents} > 0`,  // F-P2-4: skip zero-deposit orders
             sql`coalesce(${order.depositDate}, ${order.receivedDate}) <= ${asOfDate}`
           )
         );
@@ -632,14 +663,18 @@ export async function getFinancialPosition(
       // حساب إجمالي حقوق الملكية بناء على نقدية البداية الفعلية بدلاً من رأس المال الافتتاحي المصرح به لضمان توازن الميزانية دائماً
       const totalEquity = openingCashInEquityCents + injectionsCents - drawingsCents + retainedProfitCents;
 
-      const differenceCents = totalAssets - (totalLiabilities + totalEquity);
-      const balanced = Math.abs(differenceCents) === 0;
+      // D5: REAL reconciliation — two independently-derived checks that CAN fail.
+      // Check 1: equity-from-ledger vs equity-from-components.
+      const equityFromLedger = totalAssets - totalLiabilities;
+      const equityFromComponents = totalEquity;
+      const equityDriftCents = equityFromLedger - equityFromComponents;
 
-      if (!balanced) {
-        return {
-          status: "error",
-          message: `الميزانية غير متوازنة! الفارق: ${differenceCents / 1000} د.أ. يرجى التحقق من المدخلات الحسابية وتطابق القيود.`,
-        };
+      // Check 2: retained profit (cash-basis, all time) vs cash-basis P&L (all time).
+      const pnlAllTimeNetCents = salesCashInCents - expensesPurchasesCashOutCents;
+      const pnlReconciliationCents = pnlAllTimeNetCents - (retainedProfitCents + depositsCents);
+
+      if (Math.abs(equityDriftCents) > 0) {
+        console.warn(`[balance-sheet] equity drift detected: ${equityDriftCents} fils`);
       }
 
       return {
@@ -662,8 +697,11 @@ export async function getFinancialPosition(
             retainedProfitCents,
             totalCents: totalEquity,
           },
-          balanced: true,
-          differenceCents: 0,
+          balanced: Math.abs(equityDriftCents) === 0,
+          differenceCents: equityDriftCents,
+          equityDriftCents,
+          pnlAllTimeNetCents,
+          pnlReconciliationCents,
         },
       };
     });

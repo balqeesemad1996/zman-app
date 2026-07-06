@@ -15,7 +15,7 @@ export const dashboardKeys = {
   all: ["dashboard"] as const,
   summary: (startDate: string, endDate: string) =>
     [...dashboardKeys.all, "summary", startDate, endDate] as const,
-  activities: () => [...dashboardKeys.all, "activities"] as const,
+  activities: (startDate?: string, endDate?: string) => [...dashboardKeys.all, "activities", startDate, endDate] as const,
   trend: (startDate: string, endDate: string) =>
     [...dashboardKeys.all, "trend", startDate, endDate] as const,
   stats: (startDate: string, endDate: string) =>
@@ -32,10 +32,10 @@ export function useFinancialSummary(startDate: string, endDate: string) {
   });
 }
 
-export function useRecentActivities() {
+export function useRecentActivities(startDate?: string, endDate?: string) {
   return useQuery({
-    queryKey: dashboardKeys.activities(),
-    queryFn: () => getRecentActivities(),
+    queryKey: dashboardKeys.activities(startDate, endDate),
+    queryFn: () => getRecentActivities(startDate, endDate),
   });
 }
 

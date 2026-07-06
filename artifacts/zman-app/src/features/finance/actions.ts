@@ -64,17 +64,16 @@ export async function getOrCreateDefaultCashAccount(tx: any): Promise<string> {
   // إدراج مباشر (لا onConflict — لا يوجد قيد فريد على account.name في القاعدة،
   // فاستخدام ON CONFLICT (name) يفشل بـ "no unique constraint matching").
   // السباق النادر (tx متزامن ينشئ الحساب) نعالجه بقراءة الحساب مجدداً عند الخطأ.
-  let newAcc: { id: string; openingBalanceCents: number } | undefined;
+  let newAccId: string | undefined;
   try {
     const [inserted] = await tx
       .insert(account)
       .values({
         name: "الصندوق الرئيسي",
         type: "cash",
-        openingBalanceCents: 0,
       })
       .returning();
-    newAcc = inserted;
+    newAccId = inserted.id;
   } catch {
     // ربما أنشأه tx متزامن — اقرأه مجدداً
     const [existing2] = await tx
@@ -86,7 +85,7 @@ export async function getOrCreateDefaultCashAccount(tx: any): Promise<string> {
     return existing2.id;
   }
 
-  if (!newAcc) {
+  if (!newAccId) {
     const [existing2] = await tx
       .select()
       .from(account)
@@ -96,19 +95,7 @@ export async function getOrCreateDefaultCashAccount(tx: any): Promise<string> {
     return existing2.id;
   }
 
-  // إضافة حركة الرصيد الافتتاحي التلقائي (فقط إذا كان الحساب جديداً تماماً والرصيد الافتتاحي أكبر من صفر)
-  if (newAcc.openingBalanceCents > 0) {
-    await tx.insert(cashMovement).values({
-      date: getAmmanDate(),
-      accountId: newAcc.id,
-      direction: "in",
-      amountCents: newAcc.openingBalanceCents,
-      sourceType: "opening",
-      description: "رصيد افتتاحي تلقائي (تم إنشاؤه عند تسجيل حركة مالية أولى)",
-    });
-  }
-
-  return newAcc.id;
+  return newAccId;
 }
 
 // -------------------------------------------------------------
@@ -710,17 +697,28 @@ export async function createSale(
 
       if (!newSale) throw new Error("فشل إدخال المبيعات");
 
-      // إدراج حركة الصندوق (التزاماً بـ §3)
+      // إدراج حركة الصندوق (التزاماً بـ §3) — D1/D2: للطلبات، نرحّل المتبقي فقط
+      // لتفادي ازدواج عدّ العربون (سُجّل مسبقاً كمصدر 'deposit' عند إنشاء الطلب).
       const defaultAccountId = await getOrCreateDefaultCashAccount(tx);
-      await tx.insert(cashMovement).values({
-        date: newSale.date,
-        accountId: defaultAccountId,
-        direction: "in",
-        amountCents: newSale.amountCents,
-        sourceType: "sale",
-        sourceId: newSale.id,
-        description: newSale.description || "مبيعات يدوية مباشرة",
-      });
+      let amountToPost = newSale.amountCents;
+      if (newSale.source === "order" && newSale.orderId) {
+        const [ord] = await tx.select().from(order).where(eq(order.id, newSale.orderId));
+        if (ord) {
+          amountToPost = Math.max(0, newSale.amountCents - ord.depositCents);
+        }
+      }
+
+      if (amountToPost > 0) {
+        await tx.insert(cashMovement).values({
+          date: newSale.date,
+          accountId: defaultAccountId,
+          direction: "in",
+          amountCents: amountToPost,
+          sourceType: "sale",
+          sourceId: newSale.id,
+          description: newSale.description || "مبيعات نقدية",
+        });
+      }
 
       if (requestId) {
         await tx.insert(idempotencyKey).values({
@@ -1306,20 +1304,19 @@ export async function createAccount(rawInput: unknown): Promise<ActionResponse> 
         .values({
           name: parsed.data.name,
           type: parsed.data.type,
-          openingBalanceCents: parsed.data.openingBalanceCents,
         })
         .returning();
 
       if (!newAcc) throw new Error("فشل إنشاء الحساب");
 
-      // Invariant: opening amounts live in cash_movement(sourceType='opening'); openingBalanceCents is display-only.
-      if (parsed.data.openingBalanceCents > 0) {
+      // Invariant: opening amounts live in cash_movement(sourceType='opening')
+      if (parsed.data.openingSeedCents > 0) {
         // إدراج حركة الرصيد الافتتاحي
         await tx.insert(cashMovement).values({
           date: getAmmanDate(),
           accountId: newAcc.id,
           direction: "in",
-          amountCents: parsed.data.openingBalanceCents,
+          amountCents: parsed.data.openingSeedCents,
           sourceType: "opening",
           description: `رصيد افتتاحي لحساب: ${newAcc.name}`,
         });
@@ -1340,6 +1337,31 @@ export async function archiveAccount(id: string): Promise<ActionResponse> {
   }
 
   try {
+    // D4: refuse to archive a non-zero-balance account (mirror deleteAccount)
+    const [movIn] = await db
+      .select({ total: sum(cashMovement.amountCents) })
+      .from(cashMovement)
+      .where(and(
+        eq(cashMovement.accountId, id),
+        eq(cashMovement.direction, "in"),
+        isNull(cashMovement.deletedAt),
+      ));
+    const [movOut] = await db
+      .select({ total: sum(cashMovement.amountCents) })
+      .from(cashMovement)
+      .where(and(
+        eq(cashMovement.accountId, id),
+        eq(cashMovement.direction, "out"),
+        isNull(cashMovement.deletedAt),
+      ));
+    const balance = (Number(movIn?.total) || 0) - (Number(movOut?.total) || 0);
+    if (balance !== 0) {
+      return {
+        status: "error",
+        message: `لا يمكن أرشفة حساب برصيد غير صفري (${(balance / 1000).toFixed(3)} د.أ). حوّل الرصيد إلى حساب آخر أولاً.`,
+      };
+    }
+
     const [updated] = await db
       .update(account)
       .set({ isArchived: true, updatedAt: new Date() })
@@ -1451,12 +1473,19 @@ export async function getAccounts(): Promise<ActionResponse<Account[]>> {
   }
 }
 
-export async function getAccountBalances(asOfDate?: string): Promise<ActionResponse<{ id: string; name: string; type: string; balanceCents: number; isArchived: boolean }[]>> {
+export async function getAccountBalances(
+  asOfDate?: string,
+  includeArchived: boolean = false,
+): Promise<ActionResponse<{ id: string; name: string; type: string; balanceCents: number; isArchived: boolean }[]>> {
   try {
+    const accountConditions = [isNull(account.deletedAt)];
+    if (!includeArchived) {
+      accountConditions.push(eq(account.isArchived, false));
+    }
     const accs = await db
       .select()
       .from(account)
-      .where(isNull(account.deletedAt))
+      .where(and(...accountConditions))
       .orderBy(account.createdAt);
 
     const conditions = [
@@ -1786,13 +1815,12 @@ export async function saveOpeningBalance(rawInput: unknown): Promise<ActionRespo
           .values({
             name: "الصندوق الرئيسي",
             type: "cash",
-            openingBalanceCents: cashCents,
           })
           .returning();
       } else {
         await tx
           .update(account)
-          .set({ openingBalanceCents: cashCents, updatedAt: new Date() })
+          .set({ updatedAt: new Date() })
           .where(eq(account.id, cashAcc.id));
       }
 
@@ -1807,13 +1835,12 @@ export async function saveOpeningBalance(rawInput: unknown): Promise<ActionRespo
           .values({
             name: "حساب البنك الرئيسي",
             type: "bank",
-            openingBalanceCents: bankCents,
           })
           .returning();
       } else {
         await tx
           .update(account)
-          .set({ openingBalanceCents: bankCents, updatedAt: new Date() })
+          .set({ updatedAt: new Date() })
           .where(eq(account.id, bankAcc.id));
       }
 

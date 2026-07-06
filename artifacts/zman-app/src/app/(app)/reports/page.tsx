@@ -13,6 +13,7 @@ import {
   TrendingUp,
   Wallet,
   Calendar,
+  AlertCircle,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useState } from "react";
@@ -264,25 +265,47 @@ export default function ReportsPage() {
           ) : (
             <div className="space-y-6">
               {/* تبويبات الأقسام الخمسة للتقارير */}
-              <div className="overflow-x-auto no-scrollbar -mx-1 px-1">
-                <SegmentedControl
-                  value={activeReportTab}
-                  onChange={(val) => setActiveReportTab(val as any)}
-                  compact
-                  options={[
-                    { value: "pnl", label: "الأرباح والخسائر", icon: <TrendingUp className="h-4 w-4" /> },
-                    { value: "expenses", label: "المصاريف", icon: <Wallet className="h-4 w-4" /> },
-                    { value: "sales", label: "المبيعات", icon: <ShoppingBag className="h-4 w-4" /> },
-                    { value: "orders", label: "الطلبات", icon: <Archive className="h-4 w-4" /> },
-                    { value: "products", label: "المنتجات", icon: <BarChart2 className="h-4 w-4" /> },
-                  ]}
-                  className="shrink-0 gap-0.5"
-                />
+              <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-start overflow-x-auto no-scrollbar pb-1">
+                {/* تقارير مالية */}
+                <div className="flex items-center gap-1.5 bg-canvas/60 p-1 rounded-lg border border-hairline shrink-0">
+                  <span className="text-[10px] font-bold text-ink-3 px-1.5">تقارير مالية:</span>
+                  <SegmentedControl
+                    value={["pnl", "expenses", "sales"].includes(activeReportTab) ? activeReportTab : ""}
+                    onChange={(val) => val && setActiveReportTab(val as any)}
+                    compact
+                    options={[
+                      { value: "pnl", label: "الأرباح والخسائر", icon: <TrendingUp className="h-3.5 w-3.5" /> },
+                      { value: "expenses", label: "المصاريف", icon: <Wallet className="h-3.5 w-3.5" /> },
+                      { value: "sales", label: "المبيعات", icon: <ShoppingBag className="h-3.5 w-3.5" /> },
+                    ]}
+                    className="gap-0.5 border-0 bg-transparent"
+                  />
+                </div>
+
+                {/* تقارير تشغيلية */}
+                <div className="flex items-center gap-1.5 bg-canvas/60 p-1 rounded-lg border border-hairline shrink-0">
+                  <span className="text-[10px] font-bold text-ink-3 px-1.5">تقارير تشغيلية:</span>
+                  <SegmentedControl
+                    value={["orders", "products"].includes(activeReportTab) ? activeReportTab : ""}
+                    onChange={(val) => val && setActiveReportTab(val as any)}
+                    compact
+                    options={[
+                      { value: "orders", label: "الطلبات", icon: <Archive className="h-3.5 w-3.5" /> },
+                      { value: "products", label: "المنتجات", icon: <BarChart2 className="h-3.5 w-3.5" /> },
+                    ]}
+                    className="gap-0.5 border-0 bg-transparent"
+                  />
+                </div>
               </div>
 
               {activeReportTab === "pnl" && (
                 /* ===== ١ — ملخص الأرباح والخسائر ===== */
                 <section className="bg-paper rounded-lg border border-hairline shadow-sm p-5 space-y-4">
+                  <div className="p-3 bg-info-soft border border-info/10 rounded-lg text-xs font-semibold text-info flex items-center gap-1.5 w-full">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span>أساس نقدي: يتم احتساب الإيرادات والمصاريف بناءً على المقبوضات والمدفوعات النقدية الفعلية فقط.</span>
+                  </div>
+
                   <div className="flex items-center justify-between">
                     <SectionTitle>
                       <span className="flex items-center gap-2">
@@ -460,6 +483,11 @@ export default function ReportsPage() {
               {activeReportTab === "orders" && (
                 /* ===== ٤ — حالة الطلبات ===== */
                 <section className="bg-paper rounded-lg border border-hairline shadow-sm p-5 space-y-4">
+                  <div className="p-3 bg-canvas border border-hairline rounded-lg text-xs font-semibold text-ink-3 flex items-center gap-1.5 w-full">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span>أرقام تقديرية — لا تُمثّل نقداً مُحصَّلاً</span>
+                  </div>
+
                   <div className="flex items-center justify-between">
                     <SectionTitle>
                       <span className="flex items-center gap-2">
@@ -490,8 +518,9 @@ export default function ReportsPage() {
                           <span className="text-xs text-ink/45 w-8 text-end flex-shrink-0">
                             {row.count}
                           </span>
-                          <span className="text-sm font-bold text-ink w-28 text-end flex-shrink-0">
+                          <span className="text-sm font-bold text-ink-2 w-36 text-end flex-shrink-0 flex items-center justify-end gap-1.5">
                             <AmountText amount={row.totalCents} />
+                            <span className="text-[10px] bg-ink/10 text-ink-2 px-1 rounded font-normal shrink-0">تقديري</span>
                           </span>
                         </div>
                       ))}
@@ -503,11 +532,16 @@ export default function ReportsPage() {
               {activeReportTab === "products" && (
                 /* ===== ٥ — أكثر المنتجات طلباً ===== */
                 <section className="bg-paper rounded-lg border border-hairline shadow-sm p-5 space-y-4">
+                  <div className="p-3 bg-canvas border border-hairline rounded-lg text-xs font-semibold text-ink-3 flex items-center gap-1.5 w-full">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span>أرقام تقديرية — لا تُمثّل نقداً مُحصَّلاً</span>
+                  </div>
+
                   <div className="flex items-center justify-between">
                     <SectionTitle>
                       <span className="flex items-center gap-2">
                         <Archive className="h-4 w-4 text-ink/60" />
-                        أكثر المنتجات طلباً (أعلى 15)
+                        أكثر المنتجات طلباً (قيمة تقديرية)
                       </span>
                     </SectionTitle>
                     <DownloadBtn type="products" title="أكثر المنتجات طلباً" downloadingId={downloadingId} onDownload={handleDownload} />
@@ -526,10 +560,11 @@ export default function ReportsPage() {
                             {product.name}
                           </span>
                           <span className="text-xs text-ink/45 flex-shrink-0">
-                            {product.orderCount} طلب
+                            {product.orderCount} طلب · {product.totalQty} قطعة
                           </span>
-                          <span className="text-sm font-bold text-info flex-shrink-0">
+                          <span className="text-sm font-bold text-ink-2 flex-shrink-0 flex items-center gap-1.5">
                             <AmountText amount={product.revenueCents} />
+                            <span className="text-[10px] bg-ink/10 text-ink-2 px-1 rounded font-normal shrink-0">تقديري</span>
                           </span>
                         </div>
                       ))}
@@ -668,15 +703,51 @@ export default function ReportsPage() {
                 </div>
 
                 {/* تأكيد التوازن المحاسبي */}
-                <div className="p-4 bg-info/10 border border-info/20 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs font-semibold text-info-dark">
-                  <span className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-info animate-pulse" />
-                    المعادلة متوازنة محاسبياً: الأصول = الالتزامات + حقوق الملكية
-                  </span>
-                  <div className="flex flex-wrap gap-x-6 gap-y-1 font-mono">
-                    <span>الأصول: <AmountText amount={positionData.assets.totalCents} /></span>
-                    <span>المطلوبات وحقوق الملكية: <AmountText amount={positionData.liabilities.totalCents + positionData.equity.totalCents} /></span>
+                {positionData.balanced ? (
+                  <div className="p-4 bg-info/10 border border-info/20 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs font-semibold text-info-dark">
+                    <span className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-info animate-pulse" />
+                      المعادلة متوازنة محاسبياً: الأصول = الالتزامات + حقوق الملكية
+                    </span>
+                    <div className="flex flex-wrap gap-x-6 gap-y-1 font-mono">
+                      <span>الأصول: <AmountText amount={positionData.assets.totalCents} /></span>
+                      <span>المطلوبات وحقوق الملكية: <AmountText amount={positionData.liabilities.totalCents + positionData.equity.totalCents} /></span>
+                    </div>
                   </div>
+                ) : (
+                  <div className="p-4 bg-alert/10 border border-alert/20 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs font-semibold text-alert">
+                    <span className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-alert animate-pulse" />
+                      تنبيه: انحراف محاسبي قدره <AmountText amount={Math.abs(positionData.equityDriftCents)} />
+                    </span>
+                    <span className="text-xs">يرجى مراجعة الحركات المالية أو الاتصال بالدعم.</span>
+                  </div>
+                )}
+
+                {/* تسوية متقدمة مع قائمة الدخل */}
+                <div className="mt-4 border border-hairline rounded-lg overflow-hidden">
+                  <details className="group">
+                    <summary className="p-3 bg-canvas/30 hover:bg-canvas/50 text-xs font-bold text-ink/70 flex items-center justify-between cursor-pointer select-none">
+                      <span>تفاصيل المطابقة المتقدمة (مع قائمة الأرباح والخسائر)</span>
+                      <span className="transition-transform group-open:rotate-180 text-ink/40">▼</span>
+                    </summary>
+                    <div className="p-4 bg-paper text-xs space-y-2 border-t border-hairline font-mono text-ink/80">
+                      <div className="flex justify-between">
+                        <span>صافي الأرباح النقدي التراكمي (P&L All-Time Net):</span>
+                        <span><AmountText amount={positionData.pnlAllTimeNetCents} /></span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>الأرباح المحتجزة + العربونات كالتزام:</span>
+                        <span><AmountText amount={positionData.equity.retainedProfitCents + positionData.liabilities.depositsCents} /></span>
+                      </div>
+                      <div className="flex justify-between border-t border-hairline pt-2 font-bold">
+                        <span>فرق التسوية (Reconciliation Difference):</span>
+                        <span className={positionData.pnlReconciliationCents === 0 ? "text-info" : "text-alert"}>
+                          <AmountText amount={positionData.pnlReconciliationCents} />
+                        </span>
+                      </div>
+                    </div>
+                  </details>
                 </div>
               </div>
             )}

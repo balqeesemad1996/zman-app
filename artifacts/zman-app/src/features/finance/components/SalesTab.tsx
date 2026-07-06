@@ -168,6 +168,12 @@ export function SalesTab() {
                     <AmountText amount={item.amountCents} />
                   </span>
                 </div>
+                 {item.source === "order" && (item as any).depositCents !== undefined && (item as any).depositCents !== null && (
+                  <div className="text-xs text-ink/50 border-t border-hairline/60 pt-1.5 mt-0.5 flex justify-between items-center font-medium">
+                    <span>منها عربون مُحصَّل سابقاً: <span className="font-mono text-info font-bold"><AmountText amount={(item as any).depositCents} /></span></span>
+                    <span>المتبقي المُرحَّل: <span className="font-mono text-info font-bold"><AmountText amount={item.amountCents} /></span></span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center text-xs text-ink/60">
                   <span className="flex items-center gap-1">
                     {item.source === "order" ? (

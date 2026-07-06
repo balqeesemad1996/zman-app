@@ -464,11 +464,11 @@ export function useAccounts() {
   });
 }
 
-export function useAccountBalancesQuery(asOfDate?: string) {
+export function useAccountBalancesQuery(asOfDate?: string, includeArchived: boolean = false) {
   return useQuery({
-    queryKey: ["finance", "account-balances", asOfDate] as const,
+    queryKey: ["finance", "account-balances", asOfDate, includeArchived] as const,
     queryFn: async () => {
-      const res = await getAccountBalances(asOfDate);
+      const res = await getAccountBalances(asOfDate, includeArchived);
       if (res.status === "error") throw new Error(res.message);
       return res.data || [];
     },

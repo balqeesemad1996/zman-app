@@ -90,7 +90,7 @@ export const accountInputSchema = z.object({
     .min(1, { message: "اسم الحساب مطلوب" })
     .max(200, { message: "الاسم لا يتعدى 200 حرف" }),
   type: z.enum(["cash", "bank"], { message: "نوع الحساب غير صالح" }),
-  openingBalanceCents: z.coerce
+  openingSeedCents: z.coerce
     .number()
     .int({ message: "الرصيد الافتتاحي يجب أن يكون صحيحاً" })
     .nonnegative({ message: "الرصيد الافتتاحي لا يمكن أن يكون سالباً" }),
