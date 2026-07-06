@@ -128,125 +128,125 @@ export function PageToolbar({
   }
 
   return (
-    <div className="flex items-center flex-nowrap justify-between w-full">
-      {/* يمين: زر الإضافة (الإجراء الأساسي) */}
-      {trailing}
+    <div className="flex items-center flex-nowrap justify-between w-full gap-2">
+      {/* يمين (start في RTL): زر الإضافة (الإجراء الأساسي) */}
+      <div className="flex items-center shrink-0">
+        {trailing}
+      </div>
 
-      {/* الوسط: فلتر + بحث + تبديل العرض (مجموعة متماسكة بينهما مسافات) */}
-      <div className="flex items-center gap-2 flex-nowrap">
-      {/* فلتر مخصّص (يحلّ محلّ الفلتر الافتراضي) */}
-      {filterSlot}
+      {/* الوسط: فلتر + بحث + تبديل العرض (مجموعة متماسكة تتمدد وتتوسط) */}
+      <div className="flex items-center justify-center gap-2 flex-nowrap flex-1">
+        {/* فلتر مخصّص (يحلّ محلّ الفلتر الافتراضي) */}
+        {filterSlot}
 
-      {!filterSlot && filters && filters.length > 0 && (
-        <div ref={filterRef} className="relative">
-          <HeaderIconButton
-            label="تصفية"
-            isActive={filterOpen}
-            badge={hasActiveFilter}
-            onClick={() => setFilterOpen((o) => !o)}
-          >
-            <Filter className="w-5 h-5" />
-          </HeaderIconButton>
-          {filterOpen && (
-            <div className="absolute end-0 top-full mt-2 z-dropdown w-60 max-w-[80vw] bg-paper rounded-lg border border-hairline-2 shadow-lg p-3 space-y-4 animate-fade-in">
-              {filters.map((group) => (
-                <div key={group.key} className="space-y-1.5">
-                  <p className="text-[11px] font-bold text-ink/50 px-1">
-                    {group.label}
-                  </p>
-                  <div className="flex flex-col gap-0.5">
-                    {group.options.map((opt) => {
-                      const active = group.value === opt.value;
-                      return (
-                        <button
-                          key={opt.value}
-                          type="button"
-                          onClick={() => {
-                            group.onChange(opt.value);
-                            setFilterOpen(false);
-                          }}
-                          className={cn(
-                            "flex items-center justify-between gap-2 min-h-[40px] px-2.5 rounded-md text-sm text-start transition-colors",
-                            active
-                              ? "bg-info-soft text-info font-bold"
-                              : "text-ink-2 hover:bg-canvas",
-                          )}
-                        >
-                          <span>{opt.label}</span>
-                          {active && <Check className="w-4 h-4 shrink-0" />}
-                        </button>
-                      );
-                    })}
+        {!filterSlot && filters && filters.length > 0 && (
+          <div ref={filterRef} className="relative">
+            <HeaderIconButton
+              label="تصفية"
+              isActive={filterOpen}
+              badge={hasActiveFilter}
+              onClick={() => setFilterOpen((o) => !o)}
+            >
+              <Filter className="w-5 h-5" />
+            </HeaderIconButton>
+            {filterOpen && (
+              <div className="absolute start-0 top-full mt-2 z-dropdown w-60 max-w-[80vw] max-h-[70vh] overflow-y-auto bg-paper rounded-lg border border-hairline-2 shadow-lg p-3 space-y-4 animate-fade-in">
+                {filters.map((group) => (
+                  <div key={group.key} className="space-y-1.5">
+                    <p className="text-[11px] font-bold text-ink/50 px-1">
+                      {group.label}
+                    </p>
+                    <div className="flex flex-col gap-0.5">
+                      {group.options.map((opt) => {
+                        const active = group.value === opt.value;
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => {
+                              group.onChange(opt.value);
+                              setFilterOpen(false);
+                            }}
+                            className={cn(
+                              "flex items-center justify-between gap-2 min-h-[40px] px-2.5 rounded-md text-sm text-start transition-colors",
+                              active
+                                ? "bg-info-soft text-info font-bold"
+                                : "text-ink-2 hover:bg-canvas",
+                            )}
+                          >
+                            <span>{opt.label}</span>
+                            {active && <Check className="w-4 h-4 shrink-0" />}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* حجز مساحة زر الفلتر عند غيابه (منع قفز التخطيط بين التبويبات) */}
-      {!filterSlot &&
-        (!filters || filters.length === 0) &&
-        reserveFilterSpace && (
-          <span className="w-11 h-11 shrink-0" aria-hidden="true" />
+                ))}
+              </div>
+            )}
+          </div>
         )}
 
-      {/* فاصل بسيط قبل البحث */}
-      {search && <span className="w-2 shrink-0" aria-hidden="true" />}
-
-      {search && (
-        <HeaderIconButton
-          label="بحث"
-          isActive={!!search.value}
-          onClick={() => setSearchOpen(true)}
-        >
-          <Search className="w-5 h-5" />
-        </HeaderIconButton>
-      )}
-
-      {/* فاصل بسيط قبل مبدّل العرض */}
-      {leading && <span className="w-2 shrink-0" aria-hidden="true" />}
-
-      {leading}
-      </div>
-      {/* نهاية مجموعة الوسط */}
-
-      {/* يسار: زر الإعدادات */}
-      {menuItems && menuItems.length > 0 && (
-        <div ref={menuRef} className="relative">
-          <HeaderIconButton
-            label="إعدادات"
-            isActive={menuOpen}
-            onClick={() => setMenuOpen((o) => !o)}
-          >
-            <Settings2 className="w-5 h-5" />
-          </HeaderIconButton>
-          {menuOpen && (
-            <div className="absolute end-0 top-full mt-2 z-dropdown w-56 max-w-[80vw] bg-paper rounded-lg border border-hairline-2 shadow-lg p-1.5 animate-fade-in">
-              {menuItems.map((item) => (
-                <button
-                  key={item.key}
-                  type="button"
-                  onClick={() => {
-                    item.onClick();
-                    setMenuOpen(false);
-                  }}
-                  className="w-full flex items-center gap-2.5 min-h-[44px] px-3 rounded-md text-sm text-ink-2 hover:bg-canvas hover:text-ink transition-colors text-start"
-                >
-                  {item.icon && <span className="shrink-0">{item.icon}</span>}
-                  <span>{item.label}</span>
-                </button>
-              ))}
-            </div>
+        {/* حجز مساحة زر الفلتر عند غيابه (منع قفز التخطيط بين التبويبات) */}
+        {!filterSlot &&
+          (!filters || filters.length === 0) &&
+          reserveFilterSpace && (
+            <span className="w-11 h-11 shrink-0" aria-hidden="true" />
           )}
-        </div>
-      )}
 
-      {/* حجز مساحة زر الإعدادات عند غيابه (منع قفز التخطيط بين التبويبات) */}
-      {(!menuItems || menuItems.length === 0) && reserveMenuSpace && (
-        <span className="w-11 h-11 shrink-0" aria-hidden="true" />
-      )}
+        {/* فاصل بسيط قبل البحث */}
+        {search && <span className="w-2 shrink-0" aria-hidden="true" />}
+
+        {search && (
+          <HeaderIconButton
+            label="بحث"
+            isActive={!!search.value}
+            onClick={() => setSearchOpen(true)}
+          >
+            <Search className="w-5 h-5" />
+          </HeaderIconButton>
+        )}
+
+        {/* فاصل بسيط قبل مبدّل العرض */}
+        {leading && <span className="w-2 shrink-0" aria-hidden="true" />}
+
+        {leading}
+      </div>
+
+      {/* يسار (end في RTL): زر الإعدادات */}
+      <div className="flex items-center shrink-0 justify-end">
+        {menuItems && menuItems.length > 0 ? (
+          <div ref={menuRef} className="relative">
+            <HeaderIconButton
+              label="إعدادات"
+              isActive={menuOpen}
+              onClick={() => setMenuOpen((o) => !o)}
+            >
+              <Settings2 className="w-5 h-5" />
+            </HeaderIconButton>
+            {menuOpen && (
+              <div className="absolute start-0 top-full mt-2 z-dropdown w-56 max-w-[80vw] bg-paper rounded-lg border border-hairline-2 shadow-lg p-1.5 animate-fade-in">
+                {menuItems.map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    onClick={() => {
+                      item.onClick();
+                      setMenuOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2.5 min-h-[44px] px-3 rounded-md text-sm text-ink-2 hover:bg-canvas hover:text-ink transition-colors text-start"
+                  >
+                    {item.icon && <span className="shrink-0">{item.icon}</span>}
+                    <span>{item.label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : reserveMenuSpace ? (
+          <span className="w-11 h-11 shrink-0" aria-hidden="true" />
+        ) : null}
+      </div>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { Banknote, ShoppingCart, Wallet, Plus, Boxes, Landmark, User, Settings, ArrowLeftRight } from "lucide-react";
+import { Banknote, ShoppingCart, Wallet, Plus, Boxes, Landmark, User, Settings, ArrowLeftRight, Loader2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTransition, useState, useEffect } from "react";
@@ -96,9 +96,11 @@ export default function FinanceClient() {
 
   // الحصول على التبويب النشط من محددات الـ URL (§7.3)
   // التقصير ذكي: افتح على الافتتاحي أولاً إذا لم تُدخل أي أرصدة بعد لتوجيه المستخدم
-  const { data: opBal } = useOpeningBalance();
-  const defaultTab = opBal === null ? "opening" : "purchases";
+  const { data: opBal, isLoading: opBalLoading } = useOpeningBalance();
+  // لا نقرّر "opening" إلا بعد اكتمال التحميل (يمنع وميض purchases→opening)
+  const defaultTab = !opBalLoading && opBal === null ? "opening" : "purchases";
   const activeTab = searchParams.get("tab") || defaultTab;
+  const isReady = !opBalLoading || searchParams.has("tab");
 
   const tabs = [
     { id: "purchases", label: "المشتريات", icon: ShoppingCart },
@@ -268,7 +270,7 @@ export default function FinanceClient() {
           compact
           options={tabs.map((t) => ({
             value: t.id,
-            label: "", // أيقونات فقط لتفادي القص على الموبايل
+            label: t.label, // التسميات تظهر على الديسكتوب وتختفي تلقائياً على الجوال
             icon: <t.icon className="h-5 w-5 shrink-0" />,
           }))}
           className="shrink-0 gap-0.5"
@@ -298,12 +300,20 @@ export default function FinanceClient() {
       <div className="flex-1 flex flex-col gap-6">
         {/* محتوى التبويب النشط */}
         <div className="flex-1 flex flex-col">
-          {activeTab === "purchases" && <PurchasesTab />}
-          {activeTab === "expenses" && <ExpensesTab />}
-          {activeTab === "sales" && <SalesTab />}
-          {activeTab === "accounts" && <AccountsTab />}
-          {activeTab === "owner" && <OwnerTab />}
-          {activeTab === "opening" && <OpeningTab />}
+          {!isReady ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="h-8 w-8 animate-spin text-info" />
+            </div>
+          ) : (
+            <>
+              {activeTab === "purchases" && <PurchasesTab />}
+              {activeTab === "expenses" && <ExpensesTab />}
+              {activeTab === "sales" && <SalesTab />}
+              {activeTab === "accounts" && <AccountsTab />}
+              {activeTab === "owner" && <OwnerTab />}
+              {activeTab === "opening" && <OpeningTab />}
+            </>
+          )}
         </div>
       </div>
 

@@ -28,7 +28,7 @@ export function SegmentedControl<T = string>({
   return (
     <div
       className={cn(
-        "flex items-center rounded-lg border border-hairline bg-canvas p-1 gap-0.5",
+        "flex items-center rounded-lg border border-hairline bg-canvas p-1 gap-0.5 overflow-x-auto no-scrollbar whitespace-nowrap",
         className
       )}
     >

@@ -1535,6 +1535,10 @@ export async function transferBetweenAccounts(
         return { status: "error", message: "الحسابات غير موجودة" };
       }
 
+      if (fromAcc.isArchived || toAcc.isArchived) {
+        return { status: "error", message: "لا يمكن التحويل من أو إلى حساب مؤرشف" };
+      }
+
       const transferId = crypto.randomUUID();
 
       // حركة خارجة من المرسل

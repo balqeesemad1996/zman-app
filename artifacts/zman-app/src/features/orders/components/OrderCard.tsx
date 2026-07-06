@@ -153,12 +153,12 @@ export function OrderCard({
             onClick(order);
           }
         }}
-        className="rounded-xl bg-paper border border-hairline-2 shadow-sm hover:shadow-md hover:border-ink/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info focus-visible:ring-offset-2 active:scale-[0.99] transition-all duration-200 cursor-pointer flex flex-col overflow-hidden relative"
+        className="rounded-xl bg-paper border border-hairline-2 shadow-sm hover:shadow-md hover:border-ink/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info focus-visible:ring-offset-2 active:scale-[0.99] transition-all duration-200 cursor-pointer flex flex-col relative"
       >
         {/* الشريط العلوي: حالة الطلب الحالية — كامل العرض بلون الحالة */}
         <div
           className={cn(
-            "flex items-center gap-2 px-4 h-9 text-sm font-bold",
+            "flex items-center gap-2 px-4 h-9 text-sm font-bold rounded-t-xl",
             STATUS_STRIP[localStatus] || "bg-info-soft text-info",
           )}
         >
@@ -211,7 +211,7 @@ export function OrderCard({
             <span className="text-lg font-bold text-info leading-none">
               <AmountText amount={order.totalPriceCents} />
             </span>
-            {order.depositCents > 0 && order.status !== "delivered" && (
+            {order.depositCents > 0 && order.status !== "delivered" && order.status !== "cancelled" && (
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-canvas border border-hairline text-ink-2 font-medium">
                 متبقي: <AmountText amount={order.totalPriceCents - order.depositCents} />
               </span>

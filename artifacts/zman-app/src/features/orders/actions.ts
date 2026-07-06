@@ -272,8 +272,9 @@ export async function updateOrder(rawInput: unknown): Promise<ActionResponse> {
           notes: notes ?? "",
           deliveryDate: deliveryDate || null,
           receivedDate: receivedDate || getAmmanDate(),
-          depositCents: depositCents ?? 0,
-          depositDate: depositDate || null,
+          // للطلبات الملغاة: لا نحتفظ بعربون في صف الطلب (لا حركة نقدية مطابقة)
+          depositCents: existing.status === "cancelled" ? 0 : (depositCents ?? 0),
+          depositDate: existing.status === "cancelled" ? null : (depositDate || null),
           updatedAt: new Date(),
         })
         .where(eq(order.id, id))
@@ -526,7 +527,11 @@ export async function updateOrderStatus(
       // 5. تحديث الحالة
       const [updated] = await tx
         .update(order)
-        .set({ status: newStatus as OrderStatus })
+        .set({
+          status: newStatus as OrderStatus,
+          // إذا أصبحت الحالة ملغاة: صفّر العربون في جدول الطلبات ليتناسق مع حذف حركة النقدية
+          ...(newStatus === "cancelled" ? { depositCents: 0, depositDate: null } : {}),
+        })
         .where(eq(order.id, id))
         .returning();
 

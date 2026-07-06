@@ -11,9 +11,9 @@
   "dependencies": {
     "@hookform/resolvers": "catalog:",
     "@t3-oss/env-nextjs": "catalog:",
+    "@tanstack/query-sync-storage-persister": "catalog:",
     "@tanstack/react-query": "catalog:",
     "@tanstack/react-query-persist-client": "catalog:",
-    "@tanstack/query-sync-storage-persister": "catalog:",
     "@upstash/ratelimit": "catalog:",
     "@upstash/redis": "catalog:",
     "clsx": "catalog:",
@@ -30,11 +30,13 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@tailwindcss/oxide-win32-x64-msvc": "^4.3.2",
     "@tailwindcss/postcss": "catalog:",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "drizzle-kit": "catalog:",
+    "lightningcss-win32-x64-msvc": "^1.32.0",
     "tailwindcss": "catalog:",
     "typescript": "^5"
   }

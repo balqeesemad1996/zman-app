@@ -485,9 +485,11 @@ export async function getFinancialPosition(
           total: sum(cashMovement.amountCents),
         })
         .from(cashMovement)
+        .innerJoin(account, eq(cashMovement.accountId, account.id))
         .where(
           and(
             isNull(cashMovement.deletedAt),
+            isNull(account.deletedAt),
             sql`${cashMovement.date} <= ${asOfDate}`
           )
         )
@@ -538,9 +540,11 @@ export async function getFinancialPosition(
       const [openingAssetsRes] = await tx
         .select({ total: sum(cashMovement.amountCents) })
         .from(cashMovement)
+        .innerJoin(account, eq(cashMovement.accountId, account.id))
         .where(
           and(
             eq(cashMovement.sourceType, "opening"),
+            isNull(account.deletedAt),
             sql`${cashMovement.date} <= ${asOfDate}`,
             isNull(cashMovement.deletedAt)
           )
@@ -583,10 +587,12 @@ export async function getFinancialPosition(
       const [salesCashInRes] = await tx
         .select({ total: sum(cashMovement.amountCents) })
         .from(cashMovement)
+        .innerJoin(account, eq(cashMovement.accountId, account.id))
         .where(
           and(
             eq(cashMovement.direction, "in"),
             sql`${cashMovement.sourceType} in ('sale', 'deposit')`,
+            isNull(account.deletedAt),
             sql`${cashMovement.date} <= ${asOfDate}`,
             isNull(cashMovement.deletedAt)
           )
@@ -596,10 +602,12 @@ export async function getFinancialPosition(
       const [expensesPurchasesCashOutRes] = await tx
         .select({ total: sum(cashMovement.amountCents) })
         .from(cashMovement)
+        .innerJoin(account, eq(cashMovement.accountId, account.id))
         .where(
           and(
             eq(cashMovement.direction, "out"),
             sql`${cashMovement.sourceType} in ('expense', 'purchase')`,
+            isNull(account.deletedAt),
             sql`${cashMovement.date} <= ${asOfDate}`,
             isNull(cashMovement.deletedAt)
           )

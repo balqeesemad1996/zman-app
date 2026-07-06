@@ -135,7 +135,7 @@ export function AppShell({ children, title: propTitle, action: propAction }: App
           <h1 className="text-base font-bold text-ink truncate">{title}</h1>
         ) : null}
         {action && (
-          <div className={`flex items-center ${title ? "ms-3" : "flex-1 w-full"}`}>
+          <div className={cn("flex items-center", !title ? "flex-1 w-full" : "ms-3")}>
             {action}
           </div>
         )}
@@ -150,7 +150,11 @@ export function AppShell({ children, title: propTitle, action: propAction }: App
           ) : (
             <span />
           )}
-          {action && <div>{action}</div>}
+          {action && (
+            <div className={cn("flex items-center", !title ? "flex-1 w-full" : "ms-3")}>
+              {action}
+            </div>
+          )}
         </div>
 
         {/* منطقة المحتوى القابلة للتمرير مع دعم السحب للتحديث */}
