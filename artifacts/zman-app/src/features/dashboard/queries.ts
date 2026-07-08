@@ -1,7 +1,7 @@
 "use server";
 
 import { and, desc, isNull, sql, eq } from "drizzle-orm";
-import { expense, purchase, sale, cashMovement } from "@/features/finance/db";
+import { expense, purchase, sale, cashMovement, account } from "@/features/finance/db";
 import { order } from "@/features/orders/db";
 import { db } from "@/lib/db/client";
 
@@ -330,22 +330,31 @@ export async function getDashboardStats(
           sql`coalesce(${order.depositDate}, ${order.receivedDate})::date <= ${endDate}::date`,
         ),
       ),
+    // أبرز فئات المصاريف (هذا الشهر) — من دفتر الصندوق (cash_movement) لا من جدول expense
+    // مربوط بـ expense لاستعادة الفئة، وبـ account لاستبعاد الحسابات المحذوفة. أساس نقدي متّسق مع باقي الأرقام.
     db
       .select({
         category: expense.category,
-        totalCents: sql<any>`coalesce(sum(${expense.amountCents}), 0)::bigint`,
+        totalCents: sql<any>`coalesce(sum(${cashMovement.amountCents}), 0)::bigint`,
         count: sql<number>`count(*)::int`,
       })
-      .from(expense)
+      .from(cashMovement)
+      .innerJoin(account, eq(cashMovement.accountId, account.id))
+      .innerJoin(
+        expense,
+        and(eq(cashMovement.sourceType, "expense"), eq(cashMovement.sourceId, expense.id))
+      )
       .where(
         and(
-          isNull(expense.deletedAt),
-          sql`${expense.date} >= date_trunc('month', CURRENT_DATE)::date`,
-          sql`${expense.date} <= (date_trunc('month', CURRENT_DATE) + INTERVAL '1 month - 1 day')::date`
+          isNull(cashMovement.deletedAt),
+          isNull(account.deletedAt),
+          eq(cashMovement.direction, "out"),
+          sql`${cashMovement.date} >= date_trunc('month', CURRENT_DATE)::date`,
+          sql`${cashMovement.date} <= (date_trunc('month', CURRENT_DATE) + INTERVAL '1 month - 1 day')::date`
         )
       )
       .groupBy(expense.category)
-      .orderBy(desc(sql`sum(${expense.amountCents})`))
+      .orderBy(desc(sql`sum(${cashMovement.amountCents})`))
       .limit(3),
   ]);
 

@@ -381,16 +381,29 @@ export async function getAllReportData(
     const [pnl, categoriesRes, sourcesRes, funnelsRes, productsRes] =
       await Promise.all([
         computeCashBasisPnl(range),
+        // تفاصيل المصاريف حسب الفئة — من دفتر الصندوق (cash_movement) لا من جدول expense
+        // مربوط بـ expense لاستعادة الفئة (لا يوجد عمود category في cash_movement)، وبـ account لاستبعاد المحذوفة. أساس نقدي.
         db
           .select({
             category: expense.category,
-            total: sum(expense.amountCents),
-            count: count(expense.id),
+            total: sum(cashMovement.amountCents),
+            count: count(cashMovement.id),
           })
-          .from(expense)
-          .where(buildDateCondition(expense, range))
+          .from(cashMovement)
+          .innerJoin(account, eq(cashMovement.accountId, account.id))
+          .innerJoin(
+            expense,
+            and(eq(cashMovement.sourceType, "expense"), eq(cashMovement.sourceId, expense.id))
+          )
+          .where(
+            and(
+              buildDateCondition(cashMovement, range),
+              isNull(account.deletedAt),
+              eq(cashMovement.direction, "out")
+            )
+          )
           .groupBy(expense.category)
-          .orderBy(desc(sql`sum(${expense.amountCents})`)),
+          .orderBy(desc(sql`sum(${cashMovement.amountCents})`)),
         db
           .select({
             sourceType: cashMovement.sourceType,
