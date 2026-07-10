@@ -1,6 +1,6 @@
 "use client";
 
-import { Banknote, ShoppingCart, Wallet, Plus, Boxes, Landmark, User, Settings, ArrowLeftRight, Loader2, Search, X, Filter, Settings2, Check } from "lucide-react";
+import { Banknote, ShoppingCart, Wallet, Plus, Boxes, Landmark, User, Settings, ArrowLeftRight, Loader2, Search, X, Filter, MoreHorizontal, Check } from "lucide-react";
 import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTransition, useState, useEffect, useCallback, useRef } from "react";
@@ -94,7 +94,7 @@ const TABS = [
   { id: "expenses", label: "المصاريف", icon: Wallet },
   { id: "sales", label: "المبيعات", icon: Banknote },
   { id: "accounts", label: "الحسابات", icon: Landmark },
-  { id: "owner", label: "المالك", icon: User },
+  { id: "owner", label: "المصاريف الشخصية", icon: User },
   { id: "opening", label: "الافتتاحي", icon: Settings },
 ] as const;
 
@@ -153,12 +153,13 @@ export default function FinanceClient() {
 
   // حالات القوائم المنسدلة
   const [filterOpen, setFilterOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const moreRef = useRef<HTMLDivElement>(null);
 
   // حالة مودال الكتالوج
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
+  const [catalogType, setCatalogType] = useState<"purchases" | "expenses">("purchases");
 
   // مزامنة البحث مع URL
   useEffect(() => { setSearchInput(currentQuery); }, [currentQuery]);
@@ -181,7 +182,7 @@ export default function FinanceClient() {
   // إغلاق القوائم عند النقر خارجها
   useClickOutside(searchRef, () => { if (!searchInput) setSearchOpen(false); }, searchOpen);
   useClickOutside(filterRef, () => setFilterOpen(false), filterOpen);
-  useClickOutside(menuRef, () => setMenuOpen(false), menuOpen);
+  useClickOutside(moreRef, () => setMoreOpen(false), moreOpen);
 
   /* ─── تبديل التبويبات ─── */
   const handleTabChange = useCallback((tabId: string) => {
@@ -198,13 +199,26 @@ export default function FinanceClient() {
     params.delete("editSale");
     setSearchOpen(false);
     setFilterOpen(false);
-    setMenuOpen(false);
+    setMoreOpen(false);
     startTransition(() => {
       router.push(`${pathname}?${params.toString()}`);
     });
   }, [searchParams, pathname, router, startTransition]);
 
-  /* ─── حساب المتغيرات المشتقة ─── */
+  /* ─── حساب المتغيرات المشتقة للكتالوج ─── */
+  const manageCatalogParam = searchParams.get("manageCatalog");
+  const showCatalog = isCatalogOpen || !!manageCatalogParam;
+  const resolvedCatalogType = (manageCatalogParam as "purchases" | "expenses") || catalogType;
+
+  const handleCloseCatalog = () => {
+    setIsCatalogOpen(false);
+    if (searchParams.has("manageCatalog")) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("manageCatalog");
+      router.replace(`${pathname}?${params.toString()}`);
+    }
+  };
+
   const isActionableTab = activeTab !== "opening";
   const hasSearch = activeTab === "purchases" || activeTab === "expenses" || activeTab === "sales";
 
@@ -238,24 +252,6 @@ export default function FinanceClient() {
 
   const hasActiveFilter = filters?.some((g) => g.value !== g.options[0]?.value) ?? false;
 
-  // إجراءات ثانوية (منيو)
-  type MenuItem = { key: string; label: string; icon: React.ReactNode; onClick: () => void };
-  let menuItems: MenuItem[] | null = null;
-  if (activeTab === "purchases") {
-    menuItems = [{ key: "catalog", label: "إدارة أصناف المشتريات", icon: <Boxes className="w-5 h-5" />, onClick: () => setIsCatalogOpen(true) }];
-  } else if (activeTab === "expenses") {
-    menuItems = [{ key: "catalog", label: "إدارة فئات المصاريف", icon: <Boxes className="w-5 h-5" />, onClick: () => setIsCatalogOpen(true) }];
-  } else if (activeTab === "accounts") {
-    menuItems = [{
-      key: "transfer", label: "تحويل بيني", icon: <ArrowLeftRight className="w-5 h-5" />,
-      onClick: () => {
-        const params = new URLSearchParams(searchParams.toString());
-        params.set("newTransfer", "true");
-        router.replace(`${pathname}?${params.toString()}`);
-      },
-    }];
-  }
-
   /* ─── الإجراء الأساسي (+) ─── */
   const handleAdd = useCallback(() => {
     const paramMap: Record<string, string> = {
@@ -275,13 +271,6 @@ export default function FinanceClient() {
   };
 
   /* ─── بناء شريط الأدوات المُخصّص ─── */
-  /*
-   * تخطيط ثابت بثلاثة أعمدة:
-   *   [يمين RTL: زر الإضافة]  [وسط: التبويبات]  [يسار RTL: بحث + فلتر + إعدادات]
-   *
-   * الأعمدة اليمنى واليسرى لها عرض ثابت (min-w) حتى لو كانت فارغة،
-   * مما يمنع أي إزاحة أو تغيّر حجم عند التنقل بين التبويبات.
-   */
   const buildToolbar = () => {
     // ── حالة البحث المتوسّع: يأخذ كامل العرض ──
     if (searchOpen && hasSearch) {
@@ -330,7 +319,6 @@ export default function FinanceClient() {
     return (
       <div className="flex items-center w-full gap-1">
         {/* ─ العمود الأيمن (start في RTL): زر الإضافة ─ */}
-        {/* حجم ثابت 44px دائماً على الجوال، ومرن على الديسكتوب */}
         <div className="w-11 lg:w-auto h-11 shrink-0 flex items-center justify-center">
           {isActionableTab ? (
             <Button
@@ -349,10 +337,14 @@ export default function FinanceClient() {
         </div>
 
         {/* ─ العمود الوسط: شريط التبويبات ─ */}
-        {/* يتوزع كشبكة من 6 أعمدة متساوية بكامل العرض على الجوال، ويتحول إلى flex حر متناسق على الديسكتوب */}
         <div className="flex-1 flex items-center justify-center min-w-0 overflow-x-auto no-scrollbar">
-          <div className="grid grid-cols-6 lg:flex items-center rounded-lg border border-hairline bg-canvas p-1 gap-0.5 w-full lg:w-auto shrink-0">
-            {TABS.map((tab) => {
+          <div className="grid grid-cols-5 lg:flex items-center rounded-lg border border-hairline bg-canvas p-1 gap-0.5 w-full lg:w-auto shrink-0">
+            {[
+              TABS.find((t) => t.id === "purchases")!,
+              TABS.find((t) => t.id === "expenses")!,
+              TABS.find((t) => t.id === "owner")!,
+              TABS.find((t) => t.id === "sales")!,
+            ].map((tab) => {
               const isActive = tab.id === activeTab;
               const Icon = tab.icon;
               return (
@@ -374,11 +366,111 @@ export default function FinanceClient() {
                 </button>
               );
             })}
+
+            {/* زر المزيد */}
+            <div ref={moreRef} className="relative w-full lg:w-auto">
+              <button
+                type="button"
+                onClick={() => setMoreOpen((o) => !o)}
+                title="المزيد"
+                aria-label="المزيد"
+                className={cn(
+                  "flex items-center justify-center min-h-[36px] h-9 w-full lg:w-auto lg:px-3 gap-1.5 rounded-md transition-all duration-[120ms] ease-out active:scale-[0.94]",
+                  activeTab === "accounts" || activeTab === "opening"
+                    ? "bg-info text-paper shadow-sm"
+                    : "text-ink-3 hover:text-ink hover:bg-paper/60"
+                )}
+              >
+                <MoreHorizontal className="h-5 w-5 shrink-0" />
+                <span className="text-xs font-bold whitespace-nowrap">المزيد</span>
+              </button>
+              {moreOpen && (
+                <div className="absolute end-0 top-full mt-2 z-dropdown w-56 max-w-[calc(100vw-1rem)] bg-paper rounded-lg border border-hairline-2 shadow-lg p-1.5 animate-fade-in">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleTabChange("accounts");
+                    }}
+                    className={cn(
+                      "w-full flex items-center gap-2.5 min-h-[44px] px-3 rounded-md text-sm transition-colors text-start",
+                      activeTab === "accounts"
+                        ? "bg-info-soft text-info font-bold"
+                        : "text-ink-2 hover:bg-canvas hover:text-ink"
+                    )}
+                  >
+                    <Landmark className="w-5 h-5 shrink-0 text-info" />
+                    <span>الحسابات</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleTabChange("opening");
+                    }}
+                    className={cn(
+                      "w-full flex items-center gap-2.5 min-h-[44px] px-3 rounded-md text-sm transition-colors text-start",
+                      activeTab === "opening"
+                        ? "bg-info-soft text-info font-bold"
+                        : "text-ink-2 hover:bg-canvas hover:text-ink"
+                    )}
+                  >
+                    <Settings className="w-5 h-5 shrink-0 text-info" />
+                    <span>الافتتاحي</span>
+                  </button>
+
+                  <div className="my-1 border-t border-hairline" />
+
+                  {activeTab === "accounts" && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const params = new URLSearchParams(searchParams.toString());
+                          params.set("newTransfer", "true");
+                          router.replace(`${pathname}?${params.toString()}`);
+                          setMoreOpen(false);
+                        }}
+                        className="w-full flex items-center gap-2.5 min-h-[44px] px-3 rounded-md text-sm text-ink-2 hover:bg-canvas hover:text-ink transition-colors text-start"
+                      >
+                        <ArrowLeftRight className="w-5 h-5 shrink-0 text-info" />
+                        <span>تحويل بيني</span>
+                      </button>
+                      <div className="my-1 border-t border-hairline" />
+                    </>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCatalogType("purchases");
+                      setIsCatalogOpen(true);
+                      setMoreOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2.5 min-h-[44px] px-3 rounded-md text-sm text-ink-2 hover:bg-canvas hover:text-ink transition-colors text-start"
+                  >
+                    <Boxes className="w-5 h-5 shrink-0 text-info" />
+                    <span>إدارة أصناف المشتريات</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCatalogType("expenses");
+                      setIsCatalogOpen(true);
+                      setMoreOpen(false);
+                    }}
+                    className="w-full flex items-center gap-2.5 min-h-[44px] px-3 rounded-md text-sm text-ink-2 hover:bg-canvas hover:text-ink transition-colors text-start"
+                  >
+                    <Boxes className="w-5 h-5 shrink-0 text-info" />
+                    <span>إدارة فئات المصاريف</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* ─ العمود الأيسر (end في RTL): بحث + فلتر + إعدادات ─ */}
-        {/* يتم إخفاء الفراغات المحجوزة على الجوال لتوفير المساحة وتمديد شريط التبويبات، وتظهر فقط على الشاشات الأكبر لتأكيد الاتزان */}
+        {/* ─ العمود الأيسر (end في RTL): بحث + فلتر ─ */}
         <div className="flex items-center gap-1 shrink-0">
           {/* زر البحث */}
           {hasSearch ? (
@@ -437,35 +529,8 @@ export default function FinanceClient() {
             <span className="hidden sm:inline-block w-11 h-11 shrink-0" aria-hidden="true" />
           )}
 
-          {/* زر الإعدادات/القائمة */}
-          {menuItems && menuItems.length > 0 ? (
-            <div ref={menuRef} className="relative">
-              <ToolbarBtn
-                label="إعدادات"
-                isActive={menuOpen}
-                onClick={() => setMenuOpen((o) => !o)}
-              >
-                <Settings2 className="w-5 h-5" />
-              </ToolbarBtn>
-              {menuOpen && (
-                <div className="absolute end-0 top-full mt-2 z-dropdown w-56 max-w-[calc(100vw-1rem)] bg-paper rounded-lg border border-hairline-2 shadow-lg p-1.5 animate-fade-in">
-                  {menuItems.map((item) => (
-                    <button
-                      key={item.key}
-                      type="button"
-                      onClick={() => { item.onClick(); setMenuOpen(false); }}
-                      className="w-full flex items-center gap-2.5 min-h-[44px] px-3 rounded-md text-sm text-ink-2 hover:bg-canvas hover:text-ink transition-colors text-start"
-                    >
-                      {item.icon && <span className="shrink-0">{item.icon}</span>}
-                      <span>{item.label}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : (
-            <span className="hidden sm:inline-block w-11 h-11 shrink-0" aria-hidden="true" />
-          )}
+          {/* مساحة محجوزة للترس الملغى */}
+          <span className="hidden sm:inline-block w-11 h-11 shrink-0" aria-hidden="true" />
         </div>
       </div>
     );
@@ -494,11 +559,11 @@ export default function FinanceClient() {
         </div>
       </div>
 
-      {isCatalogOpen && (activeTab === "purchases" || activeTab === "expenses") && (
+      {showCatalog && (
         <FinanceCatalogModal
-          isOpen={isCatalogOpen}
-          onClose={() => setIsCatalogOpen(false)}
-          type={activeTab as "purchases" | "expenses"}
+          isOpen={showCatalog}
+          onClose={handleCloseCatalog}
+          type={resolvedCatalogType}
         />
       )}
     </>

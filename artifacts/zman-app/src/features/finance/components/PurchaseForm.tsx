@@ -1,9 +1,10 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { List, Trash2 } from "lucide-react";
+import { List, Trash2, Boxes } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AmountText } from "@/components/shared/AmountText";
 import { MoneyInput } from "@/components/shared/MoneyInput";
 import { Button } from "@/components/shared/Button";
@@ -27,6 +28,18 @@ export function PurchaseForm({
   isSubmitting,
 }: PurchaseFormProps) {
   const formId = useId();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const handleManageCatalog = () => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("newPurchase");   // أغلق فورم الإضافة
+    params.delete("editPurchase");  // أغلق فورم التعديل إن كان مفتوحاً
+    params.set("manageCatalog", "purchases");
+    router.replace(`${pathname}?${params.toString()}`);
+  };
+
   const [isCustomItem, setIsCustomItem] = useState(!initialData?.item);
 
   // جلب العناصر الشائعة للمشتريات
@@ -139,12 +152,22 @@ export function PurchaseForm({
 
         {/* بيان المشتريات */}
         <div className="space-y-2 flex flex-col">
-          <label
-            htmlFor={`${formId}-item`}
-            className="text-sm font-bold text-ink/75"
-          >
-            بيان المواد / الأصناف
-          </label>
+          <div className="flex items-center justify-between">
+            <label
+              htmlFor={`${formId}-item`}
+              className="text-sm font-bold text-ink/75"
+            >
+              بيان المواد / الأصناف
+            </label>
+            <button
+              type="button"
+              onClick={handleManageCatalog}
+              className="text-xs text-info hover:underline flex items-center gap-1.5 min-h-[44px] px-2 -my-2.5"
+            >
+              <Boxes className="w-4 h-4 shrink-0" />
+              <span>إدارة الأصناف</span>
+            </button>
+          </div>
           {!isCustomItem && catalogItems.length > 0 ? (
             <Select
               id={`${formId}-item-select`}
