@@ -11,7 +11,6 @@ import { Button } from "@/components/shared/Button";
 import { HeaderIconButton } from "@/components/shared/HeaderIconButton";
 import { PageToolbar } from "@/components/shared/PageToolbar";
 import { FloatingActionButton } from "@/components/shared/FloatingActionButton";
-import { cn } from "@/lib/utils";
 import { StatusFilterSheet } from "@/features/orders/components/StatusFilterSheet";
 import { useOrder, useOrderStatusCounts } from "@/features/orders/hooks";
 import type { Order } from "@/features/orders/types";
@@ -142,6 +141,18 @@ export default function OrdersClient() {
     if (isInSubView) return null;
     return (
       <PageToolbar
+        leading={
+          <HeaderIconButton
+            label={tab === "calendar" ? "عرض القائمة" : "عرض التقويم"}
+            onClick={() => setTab(tab === "calendar" ? "list" : "calendar")}
+          >
+            {tab === "calendar" ? (
+              <LayoutList className="w-5 h-5" />
+            ) : (
+              <CalendarDays className="w-5 h-5" />
+            )}
+          </HeaderIconButton>
+        }
         search={{
           value: searchInput,
           onChange: setSearchInput,
@@ -180,6 +191,8 @@ export default function OrdersClient() {
     );
   }, [
     isInSubView,
+    tab,
+    setTab,
     searchInput,
     setSearchInput,
     currentStatus,
@@ -211,39 +224,6 @@ export default function OrdersClient() {
   return (
     <>
       <AppShellHeader title={pageTitle} action={pageAction} />
-
-      {!isInSubView && (
-        <div className="flex items-stretch border-b border-hairline -mx-4 px-1 sm:mx-0 sm:px-0">
-          {[
-            { id: "list", label: "قائمة الطلبات", icon: LayoutList },
-            { id: "calendar", label: "تقويم الطلبات", icon: CalendarDays },
-          ].map((t) => {
-            const isActive = t.id === tab || (t.id === "list" && !tab);
-            const Icon = t.icon;
-            return (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => setTab(t.id as any)}
-                title={t.label}
-                aria-label={t.label}
-                aria-current={isActive ? "page" : undefined}
-                className={cn(
-                  "flex-1 flex flex-col items-center justify-center gap-1 min-h-[52px] px-1 border-b-2 -mb-px transition-colors",
-                  isActive
-                    ? "border-info text-info font-bold"
-                    : "border-transparent text-ink-3 hover:text-ink",
-                )}
-              >
-                <Icon className="h-5 w-5 shrink-0" />
-                <span className="text-[11px] font-semibold whitespace-nowrap">
-                  {t.label}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      )}
 
       {isNew && (
         <OrderForm onSubmitSuccess={handleShowList} onCancel={handleShowList} />

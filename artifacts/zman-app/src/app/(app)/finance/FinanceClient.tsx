@@ -10,6 +10,7 @@ import { Button } from "@/components/shared/Button";
 import { FinanceCatalogModal } from "@/features/finance/components/FinanceCatalogModal";
 import { useOpeningBalance } from "@/features/finance/hooks";
 import { cn } from "@/lib/utils";
+import { HeaderIconButton } from "@/components/shared/HeaderIconButton";
 import { PageToolbar } from "@/components/shared/PageToolbar";
 import { FloatingActionButton } from "@/components/shared/FloatingActionButton";
 
@@ -236,6 +237,29 @@ export default function FinanceClient() {
         title=""
         action={
           <PageToolbar
+            leading={
+              <div className="flex items-center gap-0.5 overflow-x-auto no-scrollbar max-w-full">
+                {[
+                  TABS.find((t) => t.id === "purchases")!,
+                  TABS.find((t) => t.id === "expenses")!,
+                  TABS.find((t) => t.id === "owner")!,
+                  TABS.find((t) => t.id === "sales")!,
+                ].map((tab) => {
+                  const isActive = tab.id === activeTab;
+                  const Icon = tab.icon;
+                  return (
+                    <HeaderIconButton
+                      key={tab.id}
+                      label={tab.label}
+                      isActive={isActive}
+                      onClick={() => handleTabChange(tab.id)}
+                    >
+                      <Icon className="h-5 w-5 shrink-0" />
+                    </HeaderIconButton>
+                  );
+                })}
+              </div>
+            }
             search={{
               value: searchInput,
               onChange: setSearchInput,
@@ -259,40 +283,6 @@ export default function FinanceClient() {
           />
         }
       />
-
-      {/* صف التبويبات المستقل — عرض كامل بلا قصّ، كل تبويب حصة متساوية */}
-      <div className="flex items-stretch border-b border-hairline -mx-4 px-1 sm:mx-0 sm:px-0">
-        {[
-          TABS.find((t) => t.id === "purchases")!,
-          TABS.find((t) => t.id === "expenses")!,
-          TABS.find((t) => t.id === "owner")!,
-          TABS.find((t) => t.id === "sales")!,
-        ].map((tab) => {
-          const isActive = tab.id === activeTab;
-          const Icon = tab.icon;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => handleTabChange(tab.id)}
-              title={tab.label}
-              aria-label={tab.label}
-              aria-current={isActive ? "page" : undefined}
-              className={cn(
-                "flex-1 flex flex-col items-center justify-center gap-1 min-h-[52px] px-1 border-b-2 -mb-px transition-colors",
-                isActive
-                  ? "border-info text-info font-bold"
-                  : "border-transparent text-ink-3 hover:text-ink",
-              )}
-            >
-              <Icon className="h-5 w-5 shrink-0" />
-              <span className="text-[11px] font-semibold whitespace-nowrap">
-                {tab.label}
-              </span>
-            </button>
-          );
-        })}
-      </div>
 
       <div className="flex-1 flex flex-col gap-6 pt-4">
         <div className="flex-1 flex flex-col">
