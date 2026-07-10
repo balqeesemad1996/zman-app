@@ -11,6 +11,7 @@ import { FinanceCatalogModal } from "@/features/finance/components/FinanceCatalo
 import { useOpeningBalance } from "@/features/finance/hooks";
 import { cn } from "@/lib/utils";
 import { PageToolbar } from "@/components/shared/PageToolbar";
+import { FloatingActionButton } from "@/components/shared/FloatingActionButton";
 
 // استيراد تبويبات المالية ديناميكياً لتقسيم الحزم البرمجية (§12.1)
 const PurchasesTab = dynamic(
@@ -166,7 +167,6 @@ export default function FinanceClient() {
   };
 
   const isActionableTab = activeTab !== "opening";
-  const hasSearch = activeTab === "purchases" || activeTab === "expenses" || activeTab === "sales";
 
   // فلاتر ديناميكية حسب التبويب
   const filters = activeTab === "expenses" ? [{
@@ -192,6 +192,21 @@ export default function FinanceClient() {
       const params = new URLSearchParams(searchParams.toString());
       if (val === "all") params.delete("source");
       else params.set("source", val);
+      router.replace(`${pathname}?${params.toString()}`);
+    },
+  }] : activeTab === "owner" ? [{
+    key: "type",
+    label: "النوع",
+    value: searchParams.get("type") || "all",
+    options: [
+      { value: "all", label: "الكل" },
+      { value: "draw", label: "مسحوبات شخصية" },
+      { value: "inject", label: "حقن رأس مال" },
+    ],
+    onChange: (val: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (val === "all") params.delete("type");
+      else params.set("type", val);
       router.replace(`${pathname}?${params.toString()}`);
     },
   }] : null;
@@ -221,42 +236,26 @@ export default function FinanceClient() {
         title=""
         action={
           <PageToolbar
-            search={
-              hasSearch
-                ? {
-                    value: searchInput,
-                    onChange: setSearchInput,
-                    placeholder:
-                      activeTab === "purchases"
-                        ? "البحث في المشتريات..."
-                        : activeTab === "expenses"
-                          ? "البحث في المصاريف..."
-                          : "البحث في بيان المبيعات...",
-                  }
-                : undefined
-            }
+            search={{
+              value: searchInput,
+              onChange: setSearchInput,
+              placeholder:
+                activeTab === "purchases"
+                  ? "البحث في المشتريات..."
+                  : activeTab === "expenses"
+                    ? "البحث في المصاريف..."
+                    : activeTab === "sales"
+                      ? "البحث في بيان المبيعات..."
+                      : activeTab === "owner"
+                        ? "البحث في المصاريف الشخصية..."
+                        : activeTab === "accounts"
+                          ? "البحث في الحسابات..."
+                          : "البحث...",
+            }}
             reserveSearchSpace={true}
             filters={filters || undefined}
             reserveFilterSpace={true}
             reserveMenuSpace={false}
-            trailing={
-              isActionableTab ? (
-                <Button
-                  onClick={handleAdd}
-                  size="icon"
-                  className="lg:w-auto lg:min-w-0 lg:px-4 lg:py-2 lg:gap-2 flex items-center justify-center font-bold"
-                  aria-label={addLabel[activeTab] ?? ""}
-                  title={addLabel[activeTab] ?? ""}
-                >
-                  <Plus className="w-5 h-5 shrink-0" />
-                  <span className="hidden lg:inline text-sm font-bold whitespace-nowrap">
-                    {addLabel[activeTab]}
-                  </span>
-                </Button>
-              ) : (
-                <span className="w-11 h-11 shrink-0" aria-hidden="true" />
-              )
-            }
           />
         }
       />
@@ -319,6 +318,12 @@ export default function FinanceClient() {
           isOpen={showCatalog}
           onClose={handleCloseCatalog}
           type={resolvedCatalogType}
+        />
+      )}
+      {isActionableTab && (
+        <FloatingActionButton
+          onClick={handleAdd}
+          label={addLabel[activeTab] || ""}
         />
       )}
     </>

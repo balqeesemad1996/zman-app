@@ -562,11 +562,11 @@ export function useTransferBetweenAccounts() {
 // 8. سحوبات المالك (Owner Drawings Hooks)
 // -------------------------------------------------------------
 
-export function useOwnerTransactions() {
+export function useOwnerTransactions(filters?: { q?: string; type?: string }) {
   return useQuery({
-    queryKey: ["finance", "owner-transactions"] as const,
+    queryKey: ["finance", "owner-transactions", filters] as const,
     queryFn: async () => {
-      const res = await getOwnerTransactions();
+      const res = await getOwnerTransactions(filters);
       if (res.status === "error") throw new Error(res.message);
       return res.data || [];
     },

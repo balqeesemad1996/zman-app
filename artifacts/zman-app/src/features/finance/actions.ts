@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq, isNull, sql, sum, desc, ne } from "drizzle-orm";
+import { and, eq, isNull, sql, sum, desc, ne, like } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { db } from "@/lib/db/client";
@@ -1725,12 +1725,19 @@ export async function createOwnerTransaction(
   }
 }
 
-export async function getOwnerTransactions(): Promise<ActionResponse<OwnerTransaction[]>> {
+export async function getOwnerTransactions(filters?: { q?: string; type?: string }): Promise<ActionResponse<OwnerTransaction[]>> {
   try {
+    const conditions = [isNull(ownerTransaction.deletedAt)];
+    if (filters?.type && filters.type !== "all") {
+      conditions.push(eq(ownerTransaction.type, filters.type));
+    }
+    if (filters?.q) {
+      conditions.push(like(ownerTransaction.reason, `%${filters.q}%`));
+    }
     const list = await db
       .select()
       .from(ownerTransaction)
-      .where(isNull(ownerTransaction.deletedAt))
+      .where(and(...conditions))
       .orderBy(desc(ownerTransaction.date), desc(ownerTransaction.createdAt));
     return { status: "ok", data: list };
   } catch (error) {

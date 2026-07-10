@@ -14,7 +14,10 @@ export function OwnerTab() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const { data: transactions, isLoading } = useOwnerTransactions();
+  const search = searchParams.get("search") || "";
+  const type = searchParams.get("type") || "all";
+
+  const { data: transactions, isLoading } = useOwnerTransactions({ q: search, type });
   const { data: accounts } = useAccounts();
   const createTxMutation = useCreateOwnerTransaction();
   const deleteTxMutation = useDeleteOwnerTransaction();

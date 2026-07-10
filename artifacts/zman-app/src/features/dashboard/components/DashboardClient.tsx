@@ -40,6 +40,7 @@ import {
   useCurrentMonthNet,
 } from "../hooks";
 import { useOpeningBalance } from "@/features/finance/hooks";
+import { FloatingActionButton } from "@/components/shared/FloatingActionButton";
 
 /**
  * اتجاه سلسلة قيم عبر الفترة: نقارن مجموع النصف الأول بالنصف الثاني.
@@ -899,14 +900,10 @@ export function DashboardClient() {
       </ResponsiveModal>
 
       {/* الزر العائم للهواتف المحمولة والديسكتوب (FAB) (§H3) */}
-      <button
-        type="button"
+      <FloatingActionButton
         onClick={() => setIsFabOpen(true)}
-        className="fixed bottom-20 lg:bottom-6 inset-s-4 z-dropdown h-14 w-14 rounded-full bg-ink text-paper shadow-lg flex items-center justify-center hover:bg-ink/90 active:scale-95 transition-all"
-        aria-label="إضافة عملية جديدة"
-      >
-        <Plus className="h-6 w-6" />
-      </button>
+        label="إضافة عملية جديدة"
+      />
 
       {/* مودال العمليات السريعة للزر العائم (§H3) */}
       <ResponsiveModal

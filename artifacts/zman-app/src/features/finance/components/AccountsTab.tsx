@@ -15,6 +15,10 @@ export function AccountsTab() {
   const searchParams = useSearchParams();
 
   const { data: accounts, isLoading, refetch } = useAccountBalancesQuery(undefined, true);
+  const search = searchParams.get("search") || "";
+  const filteredAccounts = accounts?.filter((acc) =>
+    acc.name.toLowerCase().includes(search.toLowerCase())
+  );
   const createAccountMutation = useCreateAccount();
   const transferMutation = useTransferBetweenAccounts();
   const archiveMutation = useArchiveAccount();
@@ -158,7 +162,7 @@ export function AccountsTab() {
 
       {/* قائمة الحسابات */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {accounts?.map((acc) => (
+        {filteredAccounts?.map((acc) => (
           <div
             key={acc.id}
             className={`bg-paper p-5 rounded-lg border shadow-sm flex flex-col justify-between space-y-4 transition-all ${
@@ -216,9 +220,11 @@ export function AccountsTab() {
             </div>
           </div>
         ))}
-        {(!accounts || accounts.length === 0) && (
+        {(!filteredAccounts || filteredAccounts.length === 0) && (
           <div className="col-span-full bg-paper p-10 rounded-lg border border-hairline text-center">
-            <p className="text-sm text-ink/50">لا توجد حسابات مالية معرفة بعد.</p>
+            <p className="text-sm text-ink/50">
+              {search ? "لا توجد حسابات مالية مطابقة للبحث." : "لا توجد حسابات مالية معرفة بعد."}
+            </p>
           </div>
         )}
       </div>
