@@ -83,8 +83,9 @@ export function AppShell({ children, title: propTitle, action: propAction }: App
 
   const isMoreActive = moreNavItems.some(
     (item) =>
-      pathname === item.href ||
-      (item.href !== "/" && pathname.startsWith(item.href)),
+      !item.href.includes("?") &&
+      (pathname === item.href ||
+        (item.href !== "/" && pathname.startsWith(item.href))),
   );
 
   return (
@@ -246,8 +247,9 @@ export function AppShell({ children, title: propTitle, action: propAction }: App
         <div className="py-1">
           {moreNavItems.map((item) => {
             const isActive =
-              pathname === item.href ||
-              (item.href !== "/" && pathname.startsWith(item.href));
+              !item.href.includes("?") &&
+              (pathname === item.href ||
+                (item.href !== "/" && pathname.startsWith(item.href)));
             const Icon = item.icon;
             return (
               <Link

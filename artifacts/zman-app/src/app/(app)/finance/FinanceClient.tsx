@@ -1,6 +1,6 @@
 "use client";
 
-import { Banknote, ShoppingCart, Wallet, Plus, Boxes, Landmark, User, Settings, ArrowLeftRight, Loader2, Search, X, Filter, MoreHorizontal, Check } from "lucide-react";
+import { Banknote, ShoppingCart, Wallet, Plus, Boxes, Landmark, User, Settings, ArrowLeftRight, Loader2, Search, X, Filter, Check } from "lucide-react";
 import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTransition, useState, useEffect, useCallback, useRef } from "react";
@@ -153,9 +153,7 @@ export default function FinanceClient() {
 
   // حالات القوائم المنسدلة
   const [filterOpen, setFilterOpen] = useState(false);
-  const [moreOpen, setMoreOpen] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
-  const moreRef = useRef<HTMLDivElement>(null);
 
   // حالة مودال الكتالوج
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
@@ -182,7 +180,6 @@ export default function FinanceClient() {
   // إغلاق القوائم عند النقر خارجها
   useClickOutside(searchRef, () => { if (!searchInput) setSearchOpen(false); }, searchOpen);
   useClickOutside(filterRef, () => setFilterOpen(false), filterOpen);
-  useClickOutside(moreRef, () => setMoreOpen(false), moreOpen);
 
   /* ─── تبديل التبويبات ─── */
   const handleTabChange = useCallback((tabId: string) => {
@@ -199,7 +196,6 @@ export default function FinanceClient() {
     params.delete("editSale");
     setSearchOpen(false);
     setFilterOpen(false);
-    setMoreOpen(false);
     startTransition(() => {
       router.push(`${pathname}?${params.toString()}`);
     });
@@ -338,7 +334,7 @@ export default function FinanceClient() {
 
         {/* ─ العمود الوسط: شريط التبويبات ─ */}
         <div className="flex-1 flex items-center justify-center min-w-0 overflow-x-auto no-scrollbar">
-          <div className="grid grid-cols-5 lg:flex items-center rounded-lg border border-hairline bg-canvas p-1 gap-0.5 w-full lg:w-auto shrink-0">
+          <div className="grid grid-cols-4 lg:flex items-center rounded-lg border border-hairline bg-canvas p-1 gap-0.5 w-full lg:w-auto shrink-0">
             {[
               TABS.find((t) => t.id === "purchases")!,
               TABS.find((t) => t.id === "expenses")!,
@@ -366,107 +362,6 @@ export default function FinanceClient() {
                 </button>
               );
             })}
-
-            {/* زر المزيد */}
-            <div ref={moreRef} className="relative w-full lg:w-auto">
-              <button
-                type="button"
-                onClick={() => setMoreOpen((o) => !o)}
-                title="المزيد"
-                aria-label="المزيد"
-                className={cn(
-                  "flex items-center justify-center min-h-[36px] h-9 w-full lg:w-auto lg:px-3 gap-1.5 rounded-md transition-all duration-[120ms] ease-out active:scale-[0.94]",
-                  activeTab === "accounts" || activeTab === "opening"
-                    ? "bg-info text-paper shadow-sm"
-                    : "text-ink-3 hover:text-ink hover:bg-paper/60"
-                )}
-              >
-                <MoreHorizontal className="h-5 w-5 shrink-0" />
-                <span className="text-xs font-bold whitespace-nowrap">المزيد</span>
-              </button>
-              {moreOpen && (
-                <div className="absolute end-0 top-full mt-2 z-dropdown w-56 max-w-[calc(100vw-1rem)] bg-paper rounded-lg border border-hairline-2 shadow-lg p-1.5 animate-fade-in">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      handleTabChange("accounts");
-                    }}
-                    className={cn(
-                      "w-full flex items-center gap-2.5 min-h-[44px] px-3 rounded-md text-sm transition-colors text-start",
-                      activeTab === "accounts"
-                        ? "bg-info-soft text-info font-bold"
-                        : "text-ink-2 hover:bg-canvas hover:text-ink"
-                    )}
-                  >
-                    <Landmark className="w-5 h-5 shrink-0 text-info" />
-                    <span>الحسابات</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      handleTabChange("opening");
-                    }}
-                    className={cn(
-                      "w-full flex items-center gap-2.5 min-h-[44px] px-3 rounded-md text-sm transition-colors text-start",
-                      activeTab === "opening"
-                        ? "bg-info-soft text-info font-bold"
-                        : "text-ink-2 hover:bg-canvas hover:text-ink"
-                    )}
-                  >
-                    <Settings className="w-5 h-5 shrink-0 text-info" />
-                    <span>الافتتاحي</span>
-                  </button>
-
-                  <div className="my-1 border-t border-hairline" />
-
-                  {activeTab === "accounts" && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const params = new URLSearchParams(searchParams.toString());
-                          params.set("newTransfer", "true");
-                          router.replace(`${pathname}?${params.toString()}`);
-                          setMoreOpen(false);
-                        }}
-                        className="w-full flex items-center gap-2.5 min-h-[44px] px-3 rounded-md text-sm text-ink-2 hover:bg-canvas hover:text-ink transition-colors text-start"
-                      >
-                        <ArrowLeftRight className="w-5 h-5 shrink-0 text-info" />
-                        <span>تحويل بيني</span>
-                      </button>
-                      <div className="my-1 border-t border-hairline" />
-                    </>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCatalogType("purchases");
-                      setIsCatalogOpen(true);
-                      setMoreOpen(false);
-                    }}
-                    className="w-full flex items-center gap-2.5 min-h-[44px] px-3 rounded-md text-sm text-ink-2 hover:bg-canvas hover:text-ink transition-colors text-start"
-                  >
-                    <Boxes className="w-5 h-5 shrink-0 text-info" />
-                    <span>إدارة أصناف المشتريات</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setCatalogType("expenses");
-                      setIsCatalogOpen(true);
-                      setMoreOpen(false);
-                    }}
-                    className="w-full flex items-center gap-2.5 min-h-[44px] px-3 rounded-md text-sm text-ink-2 hover:bg-canvas hover:text-ink transition-colors text-start"
-                  >
-                    <Boxes className="w-5 h-5 shrink-0 text-info" />
-                    <span>إدارة فئات المصاريف</span>
-                  </button>
-                </div>
-              )}
-            </div>
           </div>
         </div>
 
