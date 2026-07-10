@@ -12,6 +12,7 @@ export interface FinancialSummary {
   expenses: number;
   purchases: number;
   netProfit: number;
+  ownerNet: number;
 }
 
 export interface ActivityItem {
@@ -82,11 +83,46 @@ export async function getFinancialSummary(
       ),
     );
 
-  const [actualSalesResult, depositsResult, expensesResult, purchasesResult] = await Promise.all([
+  const ownerInjectPromise = db
+    .select({ total: sql<any>`coalesce(sum(${cashMovement.amountCents}), 0)::bigint` })
+    .from(cashMovement)
+    .where(
+      and(
+        isNull(cashMovement.deletedAt),
+        eq(cashMovement.direction, "in"),
+        eq(cashMovement.sourceType, "owner_inject"),
+        sql`${cashMovement.date} >= ${startDate}`,
+        sql`${cashMovement.date} <= ${endDate}`,
+      ),
+    );
+
+  const ownerDrawPromise = db
+    .select({ total: sql<any>`coalesce(sum(${cashMovement.amountCents}), 0)::bigint` })
+    .from(cashMovement)
+    .where(
+      and(
+        isNull(cashMovement.deletedAt),
+        eq(cashMovement.direction, "out"),
+        eq(cashMovement.sourceType, "owner_draw"),
+        sql`${cashMovement.date} >= ${startDate}`,
+        sql`${cashMovement.date} <= ${endDate}`,
+      ),
+    );
+
+  const [
+    actualSalesResult,
+    depositsResult,
+    expensesResult,
+    purchasesResult,
+    ownerInjectResult,
+    ownerDrawResult,
+  ] = await Promise.all([
     actualSalesPromise,
     depositsPromise,
     expensesPromise,
     purchasesPromise,
+    ownerInjectPromise,
+    ownerDrawPromise,
   ]);
 
   const actualSales = Number(actualSalesResult[0]?.total) || 0;
@@ -95,8 +131,11 @@ export async function getFinancialSummary(
   const expenses = Number(expensesResult[0]?.total) || 0;
   const purchases = Number(purchasesResult[0]?.total) || 0;
   const netProfit = sales - expenses - purchases;
+  const ownerInject = Number(ownerInjectResult[0]?.total) || 0;
+  const ownerDraw = Number(ownerDrawResult[0]?.total) || 0;
+  const ownerNet = ownerInject - ownerDraw;
 
-  return { sales, actualSales, deposits, expenses, purchases, netProfit };
+  return { sales, actualSales, deposits, expenses, purchases, netProfit, ownerNet };
 }
 
 // 2. جلب آخر النشاطات عبر الجداول الأربعة بشكل متوازٍ (§5.7)
@@ -295,7 +334,7 @@ export interface DashboardStats {
   ordersByStatus: Record<string, number>;
   upcomingOrders: UpcomingOrder[];
   totalDepositsCents: number;
-  topExpensesThisMonth: TopExpenseCategory[];
+  topExpenses: TopExpenseCategory[];
 }
 
 export async function getDashboardStats(
@@ -350,7 +389,7 @@ export async function getDashboardStats(
           sql`coalesce(${order.depositDate}, ${order.receivedDate})::date <= ${endDate}::date`,
         ),
       ),
-    // أبرز فئات المصاريف (هذا الشهر) — من دفتر الصندوق (cash_movement) لا من جدول expense
+    // أبرز فئات المصاريف (للفترة المختارة) — من دفتر الصندوق (cash_movement) لا من جدول expense
     // مربوط بـ expense لاستعادة الفئة، وبـ account لاستبعاد الحسابات المحذوفة. أساس نقدي متّسق مع باقي الأرقام.
     db
       .select({
@@ -369,8 +408,8 @@ export async function getDashboardStats(
           isNull(cashMovement.deletedAt),
           isNull(account.deletedAt),
           eq(cashMovement.direction, "out"),
-          sql`${cashMovement.date} >= date_trunc('month', CURRENT_DATE)::date`,
-          sql`${cashMovement.date} <= (date_trunc('month', CURRENT_DATE) + INTERVAL '1 month - 1 day')::date`
+          sql`${cashMovement.date} >= ${startDate}`,
+          sql`${cashMovement.date} <= ${endDate}`
         )
       )
       .groupBy(expense.category)
@@ -400,13 +439,13 @@ export async function getDashboardStats(
 
   const totalDepositsCents = Number(depositsPromise[0]?.total) || 0;
 
-  const topExpensesThisMonth = expensesPromise.map((e) => ({
+  const topExpenses = expensesPromise.map((e) => ({
     category: e.category,
     totalCents: Number(e.totalCents) || 0,
     count: e.count,
   }));
 
-  return { ordersByStatus, upcomingOrders, totalDepositsCents, topExpensesThisMonth };
+  return { ordersByStatus, upcomingOrders, totalDepositsCents, topExpenses };
 }
 
 export interface CashSummary {

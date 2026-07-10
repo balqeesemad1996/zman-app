@@ -236,6 +236,7 @@ export function DashboardClient() {
 
   // معالجة صافي الأرباح لتحديد اللون والإشارة للتسهيل على فاقدي التمييز اللوني (§14.3)
   const net = summary?.netProfit ?? 0;
+  const ownerNet = summary?.ownerNet ?? 0;
   const isProfit = net >= 0;
   const netSign = isProfit ? "+" : "−";
   const netColorClass = isProfit ? "text-info" : "text-alert";
@@ -443,8 +444,8 @@ export function DashboardClient() {
                         = نقد الصندوق + البنك (كل ما تملكه نقدًا)
                       </p>
                     </div>
-                    <div className="px-3 py-1 bg-info/10 text-info text-[10px] font-extrabold rounded-full border border-info/20">
-                      أساس نقدي
+                    <div className="px-2 py-0.5 bg-ink/10 text-ink-2 text-[9px] font-extrabold rounded">
+                      رصيد لحظي
                     </div>
                   </div>
 
@@ -473,7 +474,7 @@ export function DashboardClient() {
                     صافي هذا الشهر
                   </span>
                   <span className="px-2 py-0.5 bg-ink/10 text-ink-2 text-[9px] font-extrabold rounded">
-                    تراكمي ثابت
+                    الشهر الحالي
                   </span>
                 </div>
                 <div className="flex flex-col min-w-0">
@@ -492,14 +493,19 @@ export function DashboardClient() {
 
             {/* 2. ملخص الفترة (Period Summary 4-card Grid) */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* صافي التدفق النقدي (الربح) */}
+              {/* صافي التدفق النقدي */}
               <div className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col justify-between">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-ink/65 flex items-center gap-1">
                     <NetIcon className={`h-4 w-4 ${netColorClass}`} />
-                    صافي التدفق النقدي (الربح)
+                    صافي التدفق النقدي
                   </span>
-                  <TrendArrow data={netTrendData} goodWhenUp={true} />
+                  <div className="flex items-center gap-1.5">
+                    <span className="px-2 py-0.5 bg-ink/10 text-ink-2 text-[9px] font-extrabold rounded">
+                      للفترة المختارة
+                    </span>
+                    <TrendArrow data={netTrendData} goodWhenUp={true} />
+                  </div>
                 </div>
                 <div className="mt-2 flex flex-col min-w-0">
                   <span
@@ -512,6 +518,19 @@ export function DashboardClient() {
                     صافي السيولة النقدية للفترة
                   </span>
                 </div>
+                {/* صافي حركة المالك (سحب/حقن) */}
+                <div className="mt-3 pt-2.5 border-t border-hairline flex flex-col gap-1">
+                  <div className="flex items-center justify-between text-[11px] font-semibold text-ink-2">
+                    <span>صافي حركة المالك (سحب/حقن):</span>
+                    <span className={`font-mono font-bold ${ownerNet >= 0 ? "text-info" : "text-alert"}`}>
+                      {ownerNet >= 0 ? "+" : "−"}
+                      <AmountText amount={Math.abs(ownerNet)} />
+                    </span>
+                  </div>
+                  <span className="text-[9px] text-ink/50 leading-snug">
+                    سحوبات المالك تُخصم من النقد لكنها ليست مصروف تشغيل
+                  </span>
+                </div>
               </div>
 
               {/* السيولة المتاحة (بيع + عربون) — نقد داخل خلال الفترة */}
@@ -520,11 +539,16 @@ export function DashboardClient() {
                 className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col justify-between hover:border-info/40 hover:shadow-md transition-all group"
               >
                 <div className="flex items-center justify-between w-full">
-                  <span className="text-xs font-bold text-ink/65 flex items-center gap-1">
+                  <span className="text-xs font-bold text-ink/65 flex items-center gap-1 truncate">
                     <ShoppingBag className="h-4 w-4 text-info" />
                     السيولة المتاحة (بيع + عربون)
                   </span>
-                  <ArrowLeft className="h-4 w-4 text-info/0 group-hover:text-info transition-all transform group-hover:-translate-x-1" />
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="px-2 py-0.5 bg-ink/10 text-ink-2 text-[9px] font-extrabold rounded">
+                      للفترة المختارة
+                    </span>
+                    <ArrowLeft className="h-4 w-4 text-info/0 group-hover:text-info transition-all transform group-hover:-translate-x-1" />
+                  </div>
                 </div>
                 <div className="mt-2 space-y-2">
                   <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-0.5">
@@ -560,11 +584,16 @@ export function DashboardClient() {
                 className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col justify-between hover:border-alert/40 hover:shadow-md transition-all group"
               >
                 <div className="flex items-center justify-between w-full">
-                  <span className="text-xs font-bold text-ink/65 flex items-center gap-1">
+                  <span className="text-xs font-bold text-ink/65 flex items-center gap-1 truncate">
                     <ShoppingCart className="h-4 w-4 text-alert" />
                     المشتريات المدفوعة
                   </span>
-                  <ArrowLeft className="h-4 w-4 text-alert/0 group-hover:text-alert transition-all transform group-hover:-translate-x-1" />
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="px-2 py-0.5 bg-ink/10 text-ink-2 text-[9px] font-extrabold rounded">
+                      للفترة المختارة
+                    </span>
+                    <ArrowLeft className="h-4 w-4 text-alert/0 group-hover:text-alert transition-all transform group-hover:-translate-x-1" />
+                  </div>
                 </div>
                 <div className="mt-2 flex flex-col min-w-0">
                   <span className="text-lg lg:text-xl font-bold text-alert flex items-baseline gap-1 whitespace-nowrap min-w-0">
@@ -583,11 +612,16 @@ export function DashboardClient() {
                 className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col justify-between hover:border-alert/40 hover:shadow-md transition-all group"
               >
                 <div className="flex items-center justify-between w-full">
-                  <span className="text-xs font-bold text-ink/65 flex items-center gap-1">
+                  <span className="text-xs font-bold text-ink/65 flex items-center gap-1 truncate">
                     <ArrowDownRight className="h-4 w-4 text-alert" />
                     المصاريف المدفوعة
                   </span>
-                  <ArrowLeft className="h-4 w-4 text-alert/0 group-hover:text-alert transition-all transform group-hover:-translate-x-1" />
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className="px-2 py-0.5 bg-ink/10 text-ink-2 text-[9px] font-extrabold rounded">
+                      للفترة المختارة
+                    </span>
+                    <ArrowLeft className="h-4 w-4 text-alert/0 group-hover:text-alert transition-all transform group-hover:-translate-x-1" />
+                  </div>
                 </div>
                 <div className="mt-2 flex flex-col min-w-0">
                   <span className="text-lg lg:text-xl font-bold text-alert flex items-baseline gap-1 whitespace-nowrap min-w-0">
@@ -601,15 +635,20 @@ export function DashboardClient() {
               </Link>
             </div>
 
-            {/* 3. أبرز فئات المصاريف لهذا الشهر (Metric 3) */}
-            {stats && stats.topExpensesThisMonth && stats.topExpensesThisMonth.length > 0 && (
+            {/* 3. أبرز فئات المصاريف للفترة المختارة */}
+            {stats && stats.topExpenses && stats.topExpenses.length > 0 && (
               <div className="bg-paper p-5 rounded-lg border border-hairline shadow-sm space-y-3">
-                <h3 className="text-xs font-bold text-ink/65 flex items-center gap-1.5">
-                  <ArrowDownRight className="h-4.5 w-4.5 text-alert" />
-                  أبرز فئات مصاريف التشغيل (هذا الشهر)
+                <h3 className="text-xs font-bold text-ink/65 flex items-center justify-between gap-1.5 w-full">
+                  <span className="flex items-center gap-1.5 truncate">
+                    <ArrowDownRight className="h-4.5 w-4.5 text-alert" />
+                    أبرز فئات مصاريف التشغيل (للفترة المختارة)
+                  </span>
+                  <span className="px-2 py-0.5 bg-ink/10 text-ink-2 text-[9px] font-extrabold rounded shrink-0">
+                    للفترة المختارة
+                  </span>
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  {stats.topExpensesThisMonth.map((exp) => (
+                  {stats.topExpenses.map((exp) => (
                     <div key={exp.category} className="p-3 bg-canvas rounded-lg border border-hairline flex items-center justify-between gap-3 text-sm">
                       <div className="min-w-0">
                         <p className="font-bold text-ink truncate">{exp.category}</p>
@@ -630,11 +669,11 @@ export function DashboardClient() {
               <div className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col justify-between">
                 <div className="flex items-center justify-between w-full">
                   <span className="text-xs font-bold text-ink/65 flex items-center gap-1.5 truncate">
-                    <TrendingUp className="h-4.5 w-4.5 text-ink-3" />
+                    <Landmark className="h-4.5 w-4.5 text-ink-3" />
                     عربونات بحوزتك (التزام مالي)
                   </span>
-                  <span className="px-2 py-0.5 bg-ink/10 text-ink-2 text-[10px] font-extrabold rounded">
-                    التزام ذمة
+                  <span className="px-2 py-0.5 bg-ink/10 text-ink-2 text-[9px] font-extrabold rounded">
+                    رصيد لحظي
                   </span>
                 </div>
                 <div className="mt-2 flex flex-col min-w-0">
@@ -654,8 +693,8 @@ export function DashboardClient() {
                     <Calendar className="h-4.5 w-4.5 text-ink-3" />
                     مبالغ متوقعة (متبقي الطلبات)
                   </span>
-                  <span className="px-2 py-0.5 bg-ink/10 text-ink-2 text-[10px] font-extrabold rounded">
-                    متوقّع
+                  <span className="px-2 py-0.5 bg-ink/10 text-ink-2 text-[9px] font-extrabold rounded">
+                    رصيد لحظي
                   </span>
                 </div>
                 <div className="mt-2 flex flex-col min-w-0">
