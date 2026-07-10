@@ -79,12 +79,16 @@ export function ComponentsEditor({
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
         <h4 className="text-base font-semibold text-ink-2">
-          مكوّنات الطلب وتكلفة المواد
+          مكوّنات الوحدة الواحدة
         </h4>
         <span className="text-xs text-ink-3 hidden sm:block">
-          تكلفة كل قطعة فرعية
+          يُضرب تلقائياً في الكمية
         </span>
       </div>
+      <p className="text-xs text-ink-3 -mt-2">
+        صف المكوّنات داخل الوحدة الواحدة (الشتلة). «التكرار في الوحدة» = كم مرة
+        يتكرر المكوّن في الوحدة الواحدة، والنظام يضربه في كمية المنتج.
+      </p>
 
       {fields.length === 0 ? (
         <div className="border border-dashed border-hairline-2 rounded-lg p-6 text-center bg-paper">
@@ -151,7 +155,7 @@ export function ComponentsEditor({
                       htmlFor={`comp-qty-${field.id}`}
                       className="text-xs font-semibold text-ink-3 block mb-1"
                     >
-                      الكمية
+                      التكرار في الوحدة
                     </label>
                     <input
                       id={`comp-qty-${field.id}`}

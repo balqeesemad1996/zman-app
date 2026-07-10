@@ -66,6 +66,8 @@ export async function createOrder(rawInput: unknown): Promise<ActionResponse> {
     receivedDate,
     depositCents,
     depositDate,
+    deliveryPaidCents,
+    additionalProfitCents,
   } = parsed.data;
 
   if (depositCents > totalPriceCents) {
@@ -96,11 +98,14 @@ export async function createOrder(rawInput: unknown): Promise<ActionResponse> {
         }
       }
 
-      // 4. احتساب إجمالي التكلفة = تكلفة المكونات + التكاليف الإضافية (§5.5)
-      const componentsCostCents = components.reduce(
+      // 4. احتساب إجمالي التكلفة (§5.5).
+      //    كمية المكوّن هي "تكرار في الوحدة"، فتكلفة الوحدة الواحدة = Σ(تكلفة×تكرار)،
+      //    وتكلفة المكوّنات الكلية = تكلفة الوحدة × كمية المنتج.
+      const unitComponentsCostCents = components.reduce(
         (sum, c) => sum + c.costCents * c.quantity,
         0,
       );
+      const componentsCostCents = unitComponentsCostCents * quantity;
       const totalCostCents = componentsCostCents + (additionalCostsCents ?? 0);
 
       // 5. إدراج الطلب الرئيسي
@@ -121,6 +126,8 @@ export async function createOrder(rawInput: unknown): Promise<ActionResponse> {
           receivedDate: receivedDate || getAmmanDate(),
           depositCents: depositCents ?? 0,
           depositDate: depositDate || null,
+          deliveryPaidCents: deliveryPaidCents ?? 0,
+          additionalProfitCents: additionalProfitCents ?? 0,
         })
         .returning();
 
@@ -219,6 +226,8 @@ export async function updateOrder(rawInput: unknown): Promise<ActionResponse> {
     receivedDate,
     depositCents,
     depositDate,
+    deliveryPaidCents,
+    additionalProfitCents,
   } = parsed.data;
 
   if (depositCents > totalPriceCents) {
@@ -251,11 +260,13 @@ export async function updateOrder(rawInput: unknown): Promise<ActionResponse> {
         };
       }
 
-      // 5. احتساب إجمالي التكلفة = تكلفة المكونات + التكاليف الإضافية (§5.5)
-      const componentsCostCents = components.reduce(
+      // 5. احتساب إجمالي التكلفة (§5.5). كمية المكوّن = تكرار في الوحدة،
+      //    فتكلفة المكوّنات الكلية = Σ(تكلفة×تكرار) × كمية المنتج.
+      const unitComponentsCostCents = components.reduce(
         (sum, c) => sum + c.costCents * c.quantity,
         0,
       );
+      const componentsCostCents = unitComponentsCostCents * quantity;
       const totalCostCents = componentsCostCents + (additionalCostsCents ?? 0);
 
       // 6. تحديث الطلب مع شروط الأمان والتزامن المتفائل
@@ -273,6 +284,8 @@ export async function updateOrder(rawInput: unknown): Promise<ActionResponse> {
           notes: notes ?? "",
           deliveryDate: deliveryDate || null,
           receivedDate: receivedDate || getAmmanDate(),
+          deliveryPaidCents: deliveryPaidCents ?? 0,
+          additionalProfitCents: additionalProfitCents ?? 0,
           // للطلبات الملغاة: لا نحتفظ بعربون في صف الطلب (لا حركة نقدية مطابقة)
           depositCents: existing.status === "cancelled" ? 0 : (depositCents ?? 0),
           depositDate: existing.status === "cancelled" ? null : (depositDate || null),

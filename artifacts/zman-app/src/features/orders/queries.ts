@@ -121,6 +121,8 @@ export async function getOrders({
       receivedDate: order.receivedDate,
       depositCents: order.depositCents,
       depositDate: order.depositDate,
+      deliveryPaidCents: order.deliveryPaidCents,
+      additionalProfitCents: order.additionalProfitCents,
       createdAt: order.createdAt,
       updatedAt: order.updatedAt,
       deletedAt: order.deletedAt,

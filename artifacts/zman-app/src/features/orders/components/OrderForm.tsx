@@ -70,6 +70,8 @@ export function OrderForm({
             : new Date().toLocaleDateString("en-CA"),
           depositCents: initialData.depositCents ?? 0,
           depositDate: initialData.depositDate || "",
+          deliveryPaidCents: initialData.deliveryPaidCents ?? 0,
+          additionalProfitCents: initialData.additionalProfitCents ?? 0,
         }
       : {
           requestId,
@@ -86,6 +88,8 @@ export function OrderForm({
           receivedDate: new Date().toLocaleDateString("en-CA"),
           depositCents: 0,
           depositDate: "",
+          deliveryPaidCents: 0,
+          additionalProfitCents: 0,
         },
   });
 
@@ -112,31 +116,40 @@ export function OrderForm({
           : new Date().toLocaleDateString("en-CA"),
         depositCents: initialData.depositCents ?? 0,
         depositDate: initialData.depositDate || "",
+        deliveryPaidCents: initialData.deliveryPaidCents ?? 0,
+        additionalProfitCents: initialData.additionalProfitCents ?? 0,
       });
     }
   }, [initialData, reset]);
 
   // مراقبة الحقول للحساب الحي (§9.2)
   const watchedComponents = watch("components") || [];
+  const watchedQuantity = Number(watch("quantity")) || 0;
   const watchedAdditionalCosts = Number(watch("additionalCostsCents")) || 0;
+  const watchedAdditionalProfit = Number(watch("additionalProfitCents")) || 0;
   const watchedTotalPrice = Number(watch("totalPriceCents")) || 0;
   const watchedDeposit = Number(watch("depositCents")) || 0;
+  const watchedDeliveryPaid = Number(watch("deliveryPaidCents")) || 0;
   const remainingCents = Math.max(0, watchedTotalPrice - watchedDeposit);
 
   // المعادلات الصحيحة:
-  // تكلفة المكونات = مجموع (تكلفة كل مكون × كميته)
-  const componentsCostCents = watchedComponents.reduce(
+  // تكلفة الوحدة الواحدة = Σ(تكلفة المكوّن × تكراره في الوحدة)
+  const unitComponentsCostCents = watchedComponents.reduce(
     (sum: number, c: { costCents?: number; quantity?: number }) => {
       const cost = Number(c?.costCents) || 0;
-      const qty = Number(c?.quantity) || 0;
-      return sum + cost * qty;
+      const repeat = Number(c?.quantity) || 0;
+      return sum + cost * repeat;
     },
     0,
   );
-  // إجمالي التكلفة = تكلفة المكونات + التكاليف الإضافية
+  // تكلفة المكوّنات الكلية = تكلفة الوحدة × كمية المنتج
+  const componentsCostCents = unitComponentsCostCents * watchedQuantity;
+  // إجمالي التكلفة = تكلفة المكوّنات الكلية + التكاليف الإضافية (تُخصم، مرة واحدة)
   const totalCostCents = componentsCostCents + watchedAdditionalCosts;
-  // صافي الربح = السعر المتفق عليه − إجمالي التكلفة
-  const netProfitCents = watchedTotalPrice - totalCostCents;
+  // صافي الربح = السعر − إجمالي التكلفة + الأرباح الإضافية (تُضاف، مرة واحدة).
+  // التوصيل رقم مرجعي فقط ولا يدخل هذه المعادلة إطلاقاً.
+  const netProfitCents =
+    watchedTotalPrice - totalCostCents + watchedAdditionalProfit;
   const isProfit = netProfitCents >= 0;
 
   const onSubmit = async (data: CreateOrderInput | UpdateOrderInput) => {
@@ -283,6 +296,53 @@ export function OrderForm({
         />
       </div>
 
+      {/* التوصيل — رقم واحد مسجّل للتوثيق فقط، لا يدخل أي حساب */}
+      <div className="bg-paper p-5 rounded-lg border border-hairline shadow-sm space-y-3">
+        <div>
+          <h3 className="text-base font-bold text-ink">التوصيل</h3>
+          <p className="text-xs text-ink-3 mt-0.5">
+            يُسجَّل للتوثيق فقط ولا يدخل حساب صافي الربح. إن كان في ربح من فرق
+            التوصيل، سجّله في «أرباح إضافية».
+          </p>
+        </div>
+        <Controller
+          control={control}
+          name="deliveryPaidCents"
+          render={({ field: { value, onChange } }) => (
+            <MoneyInput
+              label=""
+              value={value}
+              onChange={onChange}
+              placeholder="0.000"
+              error={errors.deliveryPaidCents?.message as string}
+            />
+          )}
+        />
+      </div>
+
+      {/* الأرباح الإضافية — تُضاف إلى صافي الربح */}
+      <div className="bg-paper p-5 rounded-lg border border-hairline shadow-sm space-y-3">
+        <div>
+          <h3 className="text-base font-bold text-ink">أرباح إضافية</h3>
+          <p className="text-xs text-ink-3 mt-0.5">
+            ربح جانبي يُضاف إلى صافي ربح الطلب (مرة واحدة على الطلب كاملاً)
+          </p>
+        </div>
+        <Controller
+          control={control}
+          name="additionalProfitCents"
+          render={({ field: { value, onChange } }) => (
+            <MoneyInput
+              label=""
+              value={value}
+              onChange={onChange}
+              placeholder="0.000"
+              error={errors.additionalProfitCents?.message as string}
+            />
+          )}
+        />
+      </div>
+
       {/* التسعير */}
       <div className="bg-paper p-5 rounded-lg border border-hairline shadow-sm space-y-4">
         <h3 className="text-base font-bold text-ink border-b border-hairline pb-2">
@@ -361,7 +421,15 @@ export function OrderForm({
         </div>
         <div className="divide-y divide-hairline">
           <div className="flex justify-between items-center px-5 py-3">
-            <span className="text-sm text-ink-2">تكلفة المكوّنات</span>
+            <span className="text-sm text-ink-2">تكلفة الوحدة الواحدة</span>
+            <span className="text-sm font-semibold text-ink">
+              <AmountText amount={unitComponentsCostCents} />
+            </span>
+          </div>
+          <div className="flex justify-between items-center px-5 py-3">
+            <span className="text-sm text-ink-2">
+              × الكمية ({watchedQuantity || 0})
+            </span>
             <span className="text-sm font-semibold text-ink">
               <AmountText amount={componentsCostCents} />
             </span>
@@ -384,6 +452,14 @@ export function OrderForm({
               <AmountText amount={watchedTotalPrice} />
             </span>
           </div>
+          {watchedAdditionalProfit > 0 && (
+            <div className="flex justify-between items-center px-5 py-3">
+              <span className="text-sm text-ink-2">أرباح إضافية</span>
+              <span className="text-sm font-semibold text-info">
+                +<AmountText amount={watchedAdditionalProfit} />
+              </span>
+            </div>
+          )}
           {watchedDeposit > 0 && (
             <>
               <div className="flex justify-between items-center px-5 py-3">
@@ -421,6 +497,16 @@ export function OrderForm({
               <AmountText amount={Math.abs(netProfitCents)} />
             </span>
           </div>
+
+          {/* التوصيل — رقم مرجعي فقط، خارج حساب الربح */}
+          {watchedDeliveryPaid > 0 && (
+            <div className="flex justify-between items-center px-5 py-3">
+              <span className="text-sm text-ink-3">التوصيل — مرجعي</span>
+              <span className="text-sm font-medium text-ink-2">
+                <AmountText amount={watchedDeliveryPaid} />
+              </span>
+            </div>
+          )}
         </div>
       </div>
 

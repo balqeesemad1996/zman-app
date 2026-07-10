@@ -150,6 +150,7 @@ export function ExpenseForm({
               />
               {finalCategories.length > 0 && (
                 <Button
+                  type="button"
                   onClick={() => {
                     setIsCustomCategory(false);
                     setValue("category", finalCategories[0] || "");

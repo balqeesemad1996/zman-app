@@ -91,8 +91,12 @@ export function OrderDetail({ orderId, onEdit, onBack }: OrderDetailProps) {
 
 
 
-  // احتساب الهامش المرجعي غير المخزن (§5.5)
-  const estimatedProfit = orderData.totalPriceCents - orderData.totalCostCents;
+  // احتساب الهامش المرجعي غير المخزن (§5.5). الأرباح الإضافية تُضاف،
+  // والتوصيل لا يدخل هذه المعادلة (رقم مرجعي فقط).
+  const estimatedProfit =
+    orderData.totalPriceCents -
+    orderData.totalCostCents +
+    (orderData.additionalProfitCents ?? 0);
 
   // معالجة الحذف المتأكد (Tier 2 Deletes) (§9.4)
   const handleDeleteConfirm = async () => {
@@ -278,11 +282,12 @@ export function OrderDetail({ orderId, onEdit, onBack }: OrderDetailProps) {
                 <div>
                   <span className="font-semibold text-ink">{c.name}</span>
                   <span className="text-xs text-ink-3 block">
-                    {c.quantity} × <AmountText amount={c.costCents} />
+                    {c.quantity} × <AmountText amount={c.costCents} /> ×{" "}
+                    {orderData.quantity} وحدة
                   </span>
                 </div>
                 <span className="font-bold text-ink-2">
-                  <AmountText amount={c.costCents * c.quantity} />
+                  <AmountText amount={c.costCents * c.quantity * orderData.quantity} />
                 </span>
               </div>
             ))}
@@ -341,6 +346,15 @@ export function OrderDetail({ orderId, onEdit, onBack }: OrderDetailProps) {
             </span>
           </div>
 
+          {(orderData.additionalProfitCents ?? 0) > 0 && (
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-ink-2">أرباح إضافية:</span>
+              <span className="font-semibold text-info">
+                +<AmountText amount={orderData.additionalProfitCents ?? 0} />
+              </span>
+            </div>
+          )}
+
           <hr className="border-hairline" />
 
           <div className="flex justify-between items-center text-base font-bold">
@@ -351,6 +365,18 @@ export function OrderDetail({ orderId, onEdit, onBack }: OrderDetailProps) {
               <AmountText amount={estimatedProfit} />
             </span>
           </div>
+
+          {/* التوصيل — رقم مرجعي فقط، خارج حساب الربح */}
+          {(orderData.deliveryPaidCents ?? 0) > 0 && (
+            <div className="pt-2 mt-1 border-t border-hairline">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-ink-3">التوصيل — مرجعي:</span>
+                <span className="font-medium text-ink-2">
+                  <AmountText amount={orderData.deliveryPaidCents ?? 0} />
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

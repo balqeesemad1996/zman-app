@@ -28,6 +28,11 @@ export const order = pgTable(
     receivedDate: date("received_date").notNull().default(sql`CURRENT_DATE`),
     depositCents: integer("deposit_cents").notNull().default(0),
     depositDate: date("deposit_date"),
+    // التوصيل: رقم واحد مسجّل للتوثيق فقط — لا يدخل أي حساب. أي ربح من فرق
+    // التوصيل يُسجَّل يدوياً ضمن additionalProfitCents.
+    deliveryPaidCents: integer("delivery_paid_cents").notNull().default(0),
+    // ربح جانبي يُضاف إلى صافي الربح (مرة واحدة، لا يُضرب في الكمية).
+    additionalProfitCents: integer("additional_profit_cents").notNull().default(0),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -59,6 +64,11 @@ export const order = pgTable(
       check("additional_costs_nonneg", sql`${table.additionalCostsCents} >= 0`),
       check("total_price_nonnegative", sql`${table.totalPriceCents} >= 0`),
       check("order_deposit_nonnegative", sql`${table.depositCents} >= 0`),
+      check("order_delivery_paid_nonneg", sql`${table.deliveryPaidCents} >= 0`),
+      check(
+        "order_additional_profit_nonneg",
+        sql`${table.additionalProfitCents} >= 0`,
+      ),
       check(
         "status_enum",
         sql`${table.status} in ('draft','sent','confirmed','delivered','cancelled')`,

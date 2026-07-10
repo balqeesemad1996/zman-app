@@ -183,6 +183,7 @@ export function PurchaseForm({
               />
               {catalogItems.length > 0 && (
                 <Button
+                  type="button"
                   onClick={() => {
                     setIsCustomItem(false);
                     setValue("item", catalogItems[0]?.name || "");

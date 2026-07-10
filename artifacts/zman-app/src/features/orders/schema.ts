@@ -4,7 +4,12 @@ export const orderComponentInputSchema = z.object({
   id: z.string().uuid().optional(),
   name: z.string().min(1, "اسم المكوّن مطلوب").max(200, "اسم المكوّن طويل جداً"),
   costCents: z.number().int().nonnegative("التكلفة يجب أن تكون صفر أو أكثر"),
-  quantity: z.number().int().positive("الكمية يجب أن تكون أكبر من صفر"),
+  // "التكرار في الوحدة": كم مرة يتكرر هذا المكوّن داخل الوحدة الواحدة (الشتلة).
+  // إجمالي عدد القطع = quantity × كمية المنتج في الطلب.
+  quantity: z
+    .number()
+    .int()
+    .positive("التكرار في الوحدة يجب أن يكون أكبر من صفر"),
 });
 
 export const createOrderSchema = z.object({
@@ -46,6 +51,19 @@ export const createOrderSchema = z.object({
     .nonnegative("العربون يجب أن يكون صفر أو أكثر")
     .default(0),
   depositDate: z.string().nullable().optional(),
+  // التوصيل: رقم واحد مسجّل للتوثيق فقط — لا يدخل أي حساب. أي ربح من فرق
+  // التوصيل يُسجَّل يدوياً ضمن "الأرباح الإضافية".
+  deliveryPaidCents: z
+    .number()
+    .int()
+    .nonnegative("مبلغ التوصيل يجب أن يكون صفر أو أكثر")
+    .default(0),
+  // أرباح إضافية: ربح جانبي يُضاف إلى صافي الربح (مرة واحدة، لا يُضرب في الكمية).
+  additionalProfitCents: z
+    .number()
+    .int()
+    .nonnegative("الأرباح الإضافية يجب أن تكون صفر أو أكثر")
+    .default(0),
 }).refine((data) => data.depositCents <= data.totalPriceCents, {
   message: "العربون لا يمكن أن يتجاوز السعر الإجمالي المتفق عليه",
   path: ["depositCents"],
@@ -93,6 +111,19 @@ export const updateOrderSchema = z.object({
     .nonnegative("العربون يجب أن يكون صفر أو أكثر")
     .default(0),
   depositDate: z.string().nullable().optional(),
+  // التوصيل: رقم واحد مسجّل للتوثيق فقط — لا يدخل أي حساب. أي ربح من فرق
+  // التوصيل يُسجَّل يدوياً ضمن "الأرباح الإضافية".
+  deliveryPaidCents: z
+    .number()
+    .int()
+    .nonnegative("مبلغ التوصيل يجب أن يكون صفر أو أكثر")
+    .default(0),
+  // أرباح إضافية: ربح جانبي يُضاف إلى صافي الربح (مرة واحدة، لا يُضرب في الكمية).
+  additionalProfitCents: z
+    .number()
+    .int()
+    .nonnegative("الأرباح الإضافية يجب أن تكون صفر أو أكثر")
+    .default(0),
 }).refine((data) => data.depositCents <= data.totalPriceCents, {
   message: "العربون لا يمكن أن يتجاوز السعر الإجمالي المتفق عليه",
   path: ["depositCents"],
