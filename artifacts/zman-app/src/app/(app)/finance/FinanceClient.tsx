@@ -1,6 +1,6 @@
 "use client";
 
-import { Banknote, ShoppingCart, Wallet, Plus, Boxes, Landmark, User, Settings, ArrowLeftRight, Loader2, Search, X, Filter, Check } from "lucide-react";
+import { Banknote, ShoppingCart, Wallet, Plus, Landmark, User, Settings, Loader2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTransition, useState, useEffect, useCallback, useRef } from "react";
@@ -10,7 +10,8 @@ import { Button } from "@/components/shared/Button";
 import { FinanceCatalogModal } from "@/features/finance/components/FinanceCatalogModal";
 import { useOpeningBalance } from "@/features/finance/hooks";
 import { cn } from "@/lib/utils";
-import { useClickOutside } from "@/components/shared/useClickOutside";
+import { PageToolbar } from "@/components/shared/PageToolbar";
+import { HeaderIconButton } from "@/components/shared/HeaderIconButton";
 
 // استيراد تبويبات المالية ديناميكياً لتقسيم الحزم البرمجية (§12.1)
 const PurchasesTab = dynamic(
@@ -98,40 +99,7 @@ const TABS = [
   { id: "opening", label: "الافتتاحي", icon: Settings },
 ] as const;
 
-/* ─── زر أيقونة مُضمّن (بديل HeaderIconButton لتجنب التبعية) ─── */
-function ToolbarBtn({
-  label,
-  isActive = false,
-  badge = false,
-  className,
-  children,
-  ...props
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  label: string;
-  isActive?: boolean;
-  badge?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      title={label}
-      aria-label={label}
-      className={cn(
-        "relative w-11 h-11 min-h-[44px] min-w-[44px] rounded-lg border flex items-center justify-center shrink-0 transition-all duration-[120ms] ease-out active:scale-[0.94] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-info",
-        isActive
-          ? "border-info bg-info-soft text-info"
-          : "border-hairline bg-paper text-ink-2 hover:text-ink hover:bg-canvas",
-        className,
-      )}
-      {...props}
-    >
-      {children}
-      {badge && !isActive && (
-        <span className="absolute top-1.5 end-1.5 w-2 h-2 rounded-full bg-info ring-2 ring-paper" />
-      )}
-    </button>
-  );
-}
+
 
 export default function FinanceClient() {
   const router = useRouter();
@@ -147,13 +115,6 @@ export default function FinanceClient() {
   // حالة البحث
   const currentQuery = searchParams.get("search") || "";
   const [searchInput, setSearchInput] = useState(currentQuery);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const searchRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  // حالات القوائم المنسدلة
-  const [filterOpen, setFilterOpen] = useState(false);
-  const filterRef = useRef<HTMLDivElement>(null);
 
   // حالة مودال الكتالوج
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
@@ -161,10 +122,6 @@ export default function FinanceClient() {
 
   // مزامنة البحث مع URL
   useEffect(() => { setSearchInput(currentQuery); }, [currentQuery]);
-
-  useEffect(() => {
-    if (searchOpen) inputRef.current?.focus();
-  }, [searchOpen]);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -176,10 +133,6 @@ export default function FinanceClient() {
     }, 400);
     return () => clearTimeout(t);
   }, [searchInput, currentQuery, pathname, router, searchParams]);
-
-  // إغلاق القوائم عند النقر خارجها
-  useClickOutside(searchRef, () => { if (!searchInput) setSearchOpen(false); }, searchOpen);
-  useClickOutside(filterRef, () => setFilterOpen(false), filterOpen);
 
   /* ─── تبديل التبويبات ─── */
   const handleTabChange = useCallback((tabId: string) => {
@@ -194,8 +147,6 @@ export default function FinanceClient() {
     params.delete("editExpense");
     params.delete("newSale");
     params.delete("editSale");
-    setSearchOpen(false);
-    setFilterOpen(false);
     startTransition(() => {
       router.push(`${pathname}?${params.toString()}`);
     });
@@ -246,8 +197,6 @@ export default function FinanceClient() {
     },
   }] : null;
 
-  const hasActiveFilter = filters?.some((g) => g.value !== g.options[0]?.value) ?? false;
-
   /* ─── الإجراء الأساسي (+) ─── */
   const handleAdd = useCallback(() => {
     const paramMap: Record<string, string> = {
@@ -266,175 +215,84 @@ export default function FinanceClient() {
     accounts: "حساب جديد", owner: "معاملة مالك جديدة",
   };
 
-  /* ─── بناء شريط الأدوات المُخصّص ─── */
-  const buildToolbar = () => {
-    // ── حالة البحث المتوسّع: يأخذ كامل العرض ──
-    if (searchOpen && hasSearch) {
-      return (
-        <div ref={searchRef} className="flex items-center gap-2 w-full">
-          <div className="relative flex-1 min-w-0">
-            <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-ink/40 pointer-events-none" />
-            <input
-              ref={inputRef}
-              type="search"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Escape") {
-                  if (searchInput) setSearchInput("");
-                  else setSearchOpen(false);
-                }
-              }}
-              placeholder={
-                activeTab === "purchases" ? "البحث في المشتريات..."
-                : activeTab === "expenses" ? "البحث في المصاريف..."
-                : "البحث في بيان المبيعات..."
-              }
-              className="w-full h-11 min-h-[44px] ps-10 pe-4 rounded-lg border border-hairline-2 bg-paper text-sm text-ink focus:outline-none focus:ring-2 focus:ring-info"
-            />
-          </div>
-          <ToolbarBtn
-            label="إغلاق البحث"
-            onClick={() => { setSearchInput(""); setSearchOpen(false); }}
-          >
-            <X className="w-5 h-5" />
-          </ToolbarBtn>
-          {/* حجز مكان زر الإضافة حتى في وضع البحث */}
-          <div className="w-11 h-11 shrink-0 flex items-center justify-center">
-            {isActionableTab ? (
-              <Button onClick={handleAdd} size="icon" aria-label={addLabel[activeTab] ?? ""} title={addLabel[activeTab] ?? ""}>
-                <Plus className="w-5 h-5" />
-              </Button>
-            ) : null}
-          </div>
-        </div>
-      );
-    }
-
-    // ── الحالة العادية: 3 أعمدة ثابتة ──
-    return (
-      <div className="flex items-center w-full gap-1">
-        {/* ─ العمود الأيمن (start في RTL): زر الإضافة ─ */}
-        <div className="w-11 lg:w-auto h-11 shrink-0 flex items-center justify-center">
-          {isActionableTab ? (
-            <Button
-              onClick={handleAdd}
-              size="icon"
-              className="lg:w-auto lg:min-w-0 lg:px-4 lg:py-2 lg:gap-2 flex items-center justify-center"
-              aria-label={addLabel[activeTab] ?? ""}
-              title={addLabel[activeTab] ?? ""}
-            >
-              <Plus className="w-5 h-5 shrink-0" />
-              <span className="hidden lg:inline text-sm font-bold whitespace-nowrap">
-                {addLabel[activeTab]}
-              </span>
-            </Button>
-          ) : null}
-        </div>
-
-        {/* ─ العمود الوسط: شريط التبويبات ─ */}
-        <div className="flex-1 flex items-center justify-center min-w-0 overflow-x-auto no-scrollbar">
-          <div className="grid grid-cols-4 lg:flex items-center rounded-lg border border-hairline bg-canvas p-1 gap-0.5 w-full lg:w-auto shrink-0">
-            {[
-              TABS.find((t) => t.id === "purchases")!,
-              TABS.find((t) => t.id === "expenses")!,
-              TABS.find((t) => t.id === "owner")!,
-              TABS.find((t) => t.id === "sales")!,
-            ].map((tab) => {
-              const isActive = tab.id === activeTab;
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => handleTabChange(tab.id)}
-                  title={tab.label}
-                  aria-label={tab.label}
-                  className={cn(
-                    "flex items-center justify-center min-h-[36px] h-9 w-full lg:w-auto lg:px-3 lg:gap-1.5 rounded-md transition-all duration-[120ms] ease-out active:scale-[0.94]",
-                    isActive
-                      ? "bg-info text-paper shadow-sm"
-                      : "text-ink-3 hover:text-ink hover:bg-paper/60"
-                  )}
-                >
-                  <Icon className="h-5 w-5 shrink-0" />
-                  <span className="hidden lg:inline text-xs font-bold whitespace-nowrap">{tab.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* ─ العمود الأيسر (end في RTL): بحث + فلتر ─ */}
-        <div className="flex items-center gap-1 shrink-0">
-          {/* زر البحث */}
-          {hasSearch ? (
-            <ToolbarBtn
-              label="بحث"
-              isActive={!!searchInput}
-              onClick={() => setSearchOpen(true)}
-            >
-              <Search className="w-5 h-5" />
-            </ToolbarBtn>
-          ) : (
-            <span className="hidden sm:inline-block w-11 h-11 shrink-0" aria-hidden="true" />
-          )}
-
-          {/* زر الفلتر */}
-          {filters && filters.length > 0 ? (
-            <div ref={filterRef} className="relative">
-              <ToolbarBtn
-                label="تصفية"
-                isActive={filterOpen}
-                badge={hasActiveFilter}
-                onClick={() => setFilterOpen((o) => !o)}
-              >
-                <Filter className="w-5 h-5" />
-              </ToolbarBtn>
-              {filterOpen && (
-                <div className="absolute end-0 top-full mt-2 z-dropdown w-60 max-w-[calc(100vw-1rem)] max-h-[70vh] overflow-y-auto bg-paper rounded-lg border border-hairline-2 shadow-lg p-3 space-y-4 animate-fade-in">
-                  {filters.map((group) => (
-                    <div key={group.key} className="space-y-1.5">
-                      <p className="text-[11px] font-bold text-ink/50 px-1">{group.label}</p>
-                      <div className="flex flex-col gap-0.5">
-                        {group.options.map((opt) => {
-                          const active = group.value === opt.value;
-                          return (
-                            <button
-                              key={opt.value}
-                              type="button"
-                              onClick={() => { group.onChange(opt.value); setFilterOpen(false); }}
-                              className={cn(
-                                "flex items-center justify-between gap-2 min-h-[40px] px-2.5 rounded-md text-sm text-start transition-colors",
-                                active ? "bg-info-soft text-info font-bold" : "text-ink-2 hover:bg-canvas",
-                              )}
-                            >
-                              <span>{opt.label}</span>
-                              {active && <Check className="w-4 h-4 shrink-0" />}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : (
-            <span className="hidden sm:inline-block w-11 h-11 shrink-0" aria-hidden="true" />
-          )}
-
-          {/* مساحة محجوزة للترس الملغى */}
-          <span className="hidden sm:inline-block w-11 h-11 shrink-0" aria-hidden="true" />
-        </div>
-      </div>
-    );
-  };
-
   /* ─── التقديم ─── */
   return (
     <>
-      <AppShellHeader title="" action={buildToolbar()} />
+      <AppShellHeader
+        title=""
+        action={
+          <PageToolbar
+            leading={
+              <div className="flex items-center gap-0.5">
+                {[
+                  TABS.find((t) => t.id === "purchases")!,
+                  TABS.find((t) => t.id === "expenses")!,
+                  TABS.find((t) => t.id === "owner")!,
+                  TABS.find((t) => t.id === "sales")!,
+                ].map((tab) => {
+                  const isActive = tab.id === activeTab;
+                  const Icon = tab.icon;
+                  return (
+                    <HeaderIconButton
+                      key={tab.id}
+                      label={tab.label}
+                      isActive={isActive}
+                      onClick={() => handleTabChange(tab.id)}
+                      className={cn(
+                        isActive
+                          ? "bg-info text-paper border-transparent shadow-sm font-bold"
+                          : "text-ink-3 hover:text-ink hover:bg-canvas",
+                        "lg:w-auto lg:px-3 lg:gap-1.5",
+                      )}
+                    >
+                      <Icon className="h-5 w-5 shrink-0" />
+                      <span className="hidden lg:inline text-xs font-bold whitespace-nowrap">
+                        {tab.label}
+                      </span>
+                    </HeaderIconButton>
+                  );
+                })}
+              </div>
+            }
+            search={
+              hasSearch
+                ? {
+                    value: searchInput,
+                    onChange: setSearchInput,
+                    placeholder:
+                      activeTab === "purchases"
+                        ? "البحث في المشتريات..."
+                        : activeTab === "expenses"
+                          ? "البحث في المصاريف..."
+                          : "البحث في بيان المبيعات...",
+                  }
+                : undefined
+            }
+            reserveSearchSpace={true}
+            filters={filters || undefined}
+            reserveFilterSpace={true}
+            reserveMenuSpace={false}
+            trailing={
+              isActionableTab ? (
+                <Button
+                  onClick={handleAdd}
+                  size="icon"
+                  className="lg:w-auto lg:min-w-0 lg:px-4 lg:py-2 lg:gap-2 flex items-center justify-center font-bold"
+                  aria-label={addLabel[activeTab] ?? ""}
+                  title={addLabel[activeTab] ?? ""}
+                >
+                  <Plus className="w-5 h-5 shrink-0" />
+                  <span className="hidden lg:inline text-sm font-bold whitespace-nowrap">
+                    {addLabel[activeTab]}
+                  </span>
+                </Button>
+              ) : (
+                <span className="w-11 h-11 shrink-0" aria-hidden="true" />
+              )
+            }
+          />
+        }
+      />
       <div className="flex-1 flex flex-col gap-6">
         <div className="flex-1 flex flex-col">
           {!isReady ? (
