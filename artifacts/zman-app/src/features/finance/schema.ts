@@ -21,7 +21,7 @@ export const purchaseInputSchema = z.object({
   unitCostCents: z.coerce
     .number()
     .int({ message: "التكلفة يجب أن تكون عدداً صحيحاً" })
-    .nonnegative({ message: "التكلفة لا يمكن أن تكون سالبة" }),
+    .positive({ message: "التكلفة يجب أن تكون أكبر من 0" }),
   notes: z
     .string()
     .max(1000, { message: "الملاحظات لا تتعدى 1000 حرف" })
@@ -41,7 +41,7 @@ export const expenseInputSchema = z.object({
   amountCents: z.coerce
     .number()
     .int({ message: "المبلغ يجب أن يكون عدداً صحيحاً" })
-    .nonnegative({ message: "المبلغ لا يمكن أن يكون سالباً" }),
+    .positive({ message: "المبلغ يجب أن يكون أكبر من 0" }),
   description: z
     .string()
     .max(1000, { message: "الوصف لا يتعدى 1000 حرف" })

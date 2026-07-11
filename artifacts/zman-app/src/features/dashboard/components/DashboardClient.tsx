@@ -718,6 +718,7 @@ export function DashboardClient() {
                 <ClipboardList className="h-4.5 w-4.5 text-info" />
                 حالة الطلبات التشغيلية
               </h3>
+              <span className="text-[10px] text-ink-3">ضمن الفترة المحددة</span>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
               {[

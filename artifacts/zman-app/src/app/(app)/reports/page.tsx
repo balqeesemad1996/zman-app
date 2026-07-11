@@ -49,14 +49,14 @@ function DownloadBtn({
   downloadingId,
   onDownload,
 }: {
-  type: string;
+  type: "pnl" | "expenses" | "sales" | "orders" | "products" | "balance_sheet";
   title: string;
   downloadingId: string | null;
-  onDownload: (type: "pnl" | "expenses" | "sales" | "orders" | "products", title: string) => void;
+  onDownload: (type: "pnl" | "expenses" | "sales" | "orders" | "products" | "balance_sheet", title: string) => void;
 }) {
   return (
     <Button
-      onClick={() => onDownload(type as "pnl" | "expenses" | "sales" | "orders" | "products", title)}
+      onClick={() => onDownload(type, title)}
       disabled={downloadingId !== null}
       isLoading={downloadingId === type}
       variant="secondary"
@@ -147,12 +147,15 @@ export default function ReportsPage() {
   const data = queryData || null;
 
   const handleDownload = async (
-    type: "pnl" | "expenses" | "sales" | "orders" | "products",
+    type: "pnl" | "expenses" | "sales" | "orders" | "products" | "balance_sheet",
     title: string,
   ) => {
     setDownloadingId(type);
     try {
-      const res = await downloadReport(type, dateRange);
+      const res = await downloadReport(
+        type,
+        type === "balance_sheet" ? asOfDate : dateRange,
+      );
       if (res.status === "ok" && res.data) {
         const BOM = "\uFEFF";
         const blob = new Blob([BOM + res.data], { type: "text/markdown;charset=utf-8" });
@@ -726,7 +729,7 @@ export default function ReportsPage() {
                         <h5 className="font-bold text-ink border-b border-hairline pb-2 flex items-center justify-between">
                           <span>1. تسوية توازن الأرباح المدورة (رصيد الميزانية)</span>
                           {positionData.pnlReconciliationCents === 0 ? (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-info/10 text-info border border-info/20">تطابق مالي ✓</span>
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-info/10 text-info border border-info/20" title="فحص بنيوي (يلتقط أخطاء الصيغة فقط)">تطابق بنيوي ✓</span>
                           ) : (
                             <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-alert/10 text-alert border border-alert/20">فرق محاسبي ⚠</span>
                           )}
@@ -737,7 +740,7 @@ export default function ReportsPage() {
                         </div>
                         <div className="flex justify-between text-ink/75">
                           <span>صافي الأرباح النقدي (النشط) بعد خصم الالتزام:</span>
-                          <span className="font-mono"><AmountText amount={positionData.pnlAllTimeNetCents - positionData.liabilities.depositsCents} /></span>
+                          <span className="font-mono"><AmountText amount={positionData.pnlAsOfDateNetCents - positionData.liabilities.depositsCents} /></span>
                         </div>
                         <div className="flex justify-between border-t border-dashed border-hairline pt-2 font-bold">
                           <span>فرق المطابقة الداخلي:</span>

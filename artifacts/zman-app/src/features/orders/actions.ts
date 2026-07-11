@@ -87,11 +87,12 @@ export async function createOrder(rawInput: unknown): Promise<ActionResponse> {
         .limit(1);
 
       if (existingKey.length > 0 && existingKey[0]) {
-        // إذا كان الطلب منشأ مسبقاً، نرجعه مباشرة
+        // إذا كان الطلب منشأ مسبقاً، نرجعه مباشرة — لكن فقط إن لم يُحذف ناعماً.
+        // (إلا فإن إعادة المحاولة بعد الحذف تُرجع صفّاً محذوفاً كأنه نجاح.)
         const [existingOrder] = await tx
           .select()
           .from(order)
-          .where(eq(order.id, existingKey[0].targetId))
+          .where(and(eq(order.id, existingKey[0].targetId), isNull(order.deletedAt)))
           .limit(1);
         if (existingOrder) {
           return { status: "ok", data: existingOrder };
@@ -269,6 +270,20 @@ export async function updateOrder(rawInput: unknown): Promise<ActionResponse> {
       const componentsCostCents = unitComponentsCostCents * quantity;
       const totalCostCents = componentsCostCents + (additionalCostsCents ?? 0);
 
+      // حرج: امنع تعديل العربون على طلب مُسلَّم قبل أي كتابة. العربون تحوّل إلى إيراد
+      // مبيعات عند التسليم؛ فصله يتطلب عكس التحويل. نُرجع الخطأ قبل الكتابة لأن
+      // db.transaction في Drizzle يلتزم عند العودة الطبيعية (لا يُلغى إلا بـ throw).
+      if (
+        existing.status === "delivered" &&
+        (depositCents ?? 0) !== existing.depositCents
+      ) {
+        return {
+          status: "error",
+          message:
+            "لا يمكن تعديل العربون على طلب مُسلَّم. العربون تحوّل إلى إيراد مبيعات عند التسليم. لعكس ذلك، احذف المبيعة المرتبطة أولاً ثم أعد التحويل.",
+        };
+      }
+
       // 6. تحديث الطلب مع شروط الأمان والتزامن المتفائل
       const [updatedOrder] = await tx
         .update(order)
@@ -353,16 +368,6 @@ export async function updateOrder(rawInput: unknown): Promise<ActionResponse> {
               updatedAt: new Date(),
             })
             .where(eq(cashMovement.id, existingDepositMov.id));
-        }
-      } else if (existing.status === "delivered") {
-        // منع تعديل العربون على طلب مُسلَّم — العربون تحوّل إلى sale ولا يمكن
-        // فصله دون عكس التحويل كاملاً.
-        if ((depositCents ?? 0) !== existing.depositCents) {
-          return {
-            status: "error",
-            message:
-              "لا يمكن تعديل العربون على طلب مُسلَّم. العربون تحوّل إلى إيراد مبيعات عند التسليم. لعكس ذلك، احذف المبيعة المرتبطة أولاً ثم أعد التحويل.",
-          };
         }
       }
 

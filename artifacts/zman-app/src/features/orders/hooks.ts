@@ -95,6 +95,7 @@ export function useCreateOrder() {
         queryClient.invalidateQueries({ queryKey: orderKeys.all });
         queryClient.invalidateQueries({ queryKey: ["reports"] });
         queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+        queryClient.invalidateQueries({ queryKey: ["finance"] });
       }
     },
   });
@@ -112,6 +113,7 @@ export function useUpdateOrder() {
         queryClient.invalidateQueries({ queryKey: orderKeys.all });
         queryClient.invalidateQueries({ queryKey: ["reports"] });
         queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+        queryClient.invalidateQueries({ queryKey: ["finance"] });
       }
     },
   });

@@ -130,7 +130,10 @@ export function OrderForm({
   const watchedTotalPrice = Number(watch("totalPriceCents")) || 0;
   const watchedDeposit = Number(watch("depositCents")) || 0;
   const watchedDeliveryPaid = Number(watch("deliveryPaidCents")) || 0;
-  const remainingCents = Math.max(0, watchedTotalPrice - watchedDeposit);
+  const remainingCents = Math.max(
+    0,
+    watchedTotalPrice + watchedAdditionalProfit - watchedDeposit,
+  );
 
   // المعادلات الصحيحة:
   // تكلفة الوحدة الواحدة = Σ(تكلفة المكوّن × تكراره في الوحدة)
@@ -159,7 +162,7 @@ export function OrderForm({
         ? (data as UpdateOrderInput)
         : {
             ...(data as CreateOrderInput),
-            requestId: typeof window !== "undefined" ? window.crypto.randomUUID() : "",
+            requestId,
           };
 
       const response = isEditMode
@@ -492,7 +495,7 @@ export function OrderForm({
                 <TrendingDown className="w-4 h-4 text-alert" />
               )}
               <span className={`text-sm font-bold ${isProfit ? "text-info" : "text-alert"}`}>
-                صافي الربح
+                صافي الربح (مرجعي/مُقدّر)
               </span>
             </div>
             <span className={`text-base font-bold ${isProfit ? "text-info" : "text-alert"}`}>

@@ -131,6 +131,12 @@ export function OrderDetail({ orderId, onEdit, onBack }: OrderDetailProps) {
   };
 
   const handleUpdateStatus = async (newStatus: string) => {
+    // التسليم يمرّ عبر التحويل لمبيعة، لا عبر updateOrderStatus (المسار المباشر
+    // إلى delivered ممنوع في الخادم). نُوجّه زر "توصيل ✓" إلى نفس مسار التحويل.
+    if (newStatus === "delivered") {
+      setShowConvertConfirm(true);
+      return;
+    }
     setIsUpdatingStatus(true);
     try {
       const response = await updateStatusMutation.mutateAsync({
@@ -340,7 +346,7 @@ export function OrderDetail({ orderId, onEdit, onBack }: OrderDetailProps) {
           )}
 
           <div className="flex justify-between items-center text-sm">
-            <span className="text-ink-2">إجمالي التكلفة الفعلية للمكونات:</span>
+            <span className="text-ink-2">إجمالي تكلفة المكوّنات (تقديرية):</span>
             <span className="font-semibold text-alert-deep">
               <AmountText amount={orderData.totalCostCents} />
             </span>
@@ -441,7 +447,7 @@ export function OrderDetail({ orderId, onEdit, onBack }: OrderDetailProps) {
             هل أنت متأكد من تحويل هذا الطلب إلى مبيعات (تسجيل إيراد)؟
           </p>
           <p className="text-xs text-ink-3">
-            سيتم ترحيل كامل المبلغ المتبقي (<AmountText amount={orderData.totalPriceCents - (orderData.depositCents || 0)} />) إلى الصندوق كإيراد مبيعات، وتحديث حالة الطلب إلى تم التسليم.
+            سيتم ترحيل كامل المبلغ المتبقي (<AmountText amount={orderData.totalPriceCents + (orderData.additionalProfitCents || 0) - (orderData.depositCents || 0)} />) إلى الصندوق كإيراد مبيعات (يشمل الأرباح الإضافية)، وتحويل العربون المحصَّل إلى إيراد، وتحديث حالة الطلب إلى تم التسليم.
           </p>
           <div className="flex gap-2">
             <button

@@ -141,7 +141,7 @@ export async function createPurchase(
             const [p] = await tx
               .select()
               .from(purchase)
-              .where(eq(purchase.id, existingKey.targetId));
+              .where(and(eq(purchase.id, existingKey.targetId), isNull(purchase.deletedAt)));
             return { status: "ok", data: p };
           }
           return { status: "error", message: "معرف الطلب مستخدم لعملية أخرى" };
@@ -162,17 +162,20 @@ export async function createPurchase(
 
       if (!newPurchase) throw new Error("فشل إدخال المشتريات");
 
-      // إدراج حركة الصندوق (التزاماً بـ §3)
+      // إدراج حركة الصندوق (التزاماً بـ §3) — فقط إن كان المبلغ موجباً (قيد DB:
+      // cash_movement_amount_positive يتطلب amountCents > 0).
       const defaultAccountId = await getOrCreateDefaultCashAccount(tx);
-      await tx.insert(cashMovement).values({
-        date: newPurchase.date,
-        accountId: defaultAccountId,
-        direction: "out",
-        amountCents: newPurchase.totalCents,
-        sourceType: "purchase",
-        sourceId: newPurchase.id,
-        description: newPurchase.notes || `شراء مواد: ${newPurchase.item} (الكمية: ${newPurchase.quantity})`,
-      });
+      if (newPurchase.totalCents > 0) {
+        await tx.insert(cashMovement).values({
+          date: newPurchase.date,
+          accountId: defaultAccountId,
+          direction: "out",
+          amountCents: newPurchase.totalCents,
+          sourceType: "purchase",
+          sourceId: newPurchase.id,
+          description: newPurchase.notes || `شراء مواد: ${newPurchase.item} (الكمية: ${newPurchase.quantity})`,
+        });
+      }
 
       if (requestId) {
         await tx.insert(idempotencyKey).values({
@@ -413,7 +416,7 @@ export async function createExpense(
             const [e] = await tx
               .select()
               .from(expense)
-              .where(eq(expense.id, existingKey.targetId));
+              .where(and(eq(expense.id, existingKey.targetId), isNull(expense.deletedAt)));
             return { status: "ok", data: e };
           }
           return { status: "error", message: "معرف الطلب مستخدم لعملية أخرى" };
@@ -432,17 +435,20 @@ export async function createExpense(
 
       if (!newExpense) throw new Error("فشل إدخال المصاريف");
 
-      // إدراج حركة الصندوق (التزاماً بـ §3)
+      // إدراج حركة الصندوق (التزاماً بـ §3) — فقط إن كان المبلغ موجباً (قيد DB:
+      // cash_movement_amount_positive يتطلب amountCents > 0).
       const defaultAccountId = await getOrCreateDefaultCashAccount(tx);
-      await tx.insert(cashMovement).values({
-        date: newExpense.date,
-        accountId: defaultAccountId,
-        direction: "out",
-        amountCents: newExpense.amountCents,
-        sourceType: "expense",
-        sourceId: newExpense.id,
-        description: newExpense.description || `مصروف: ${newExpense.category}`,
-      });
+      if (newExpense.amountCents > 0) {
+        await tx.insert(cashMovement).values({
+          date: newExpense.date,
+          accountId: defaultAccountId,
+          direction: "out",
+          amountCents: newExpense.amountCents,
+          sourceType: "expense",
+          sourceId: newExpense.id,
+          description: newExpense.description || `مصروف: ${newExpense.category}`,
+        });
+      }
 
       if (requestId) {
         await tx.insert(idempotencyKey).values({
@@ -681,7 +687,7 @@ export async function createSale(
             const [s] = await tx
               .select()
               .from(sale)
-              .where(eq(sale.id, existingKey.targetId));
+              .where(and(eq(sale.id, existingKey.targetId), isNull(sale.deletedAt)));
             return { status: "ok", data: s };
           }
           return { status: "error", message: "معرف الطلب مستخدم لعملية أخرى" };
@@ -814,16 +820,20 @@ export async function updateSale(
         }
       }
 
-      const [existingMov] = await tx
-        .select()
-        .from(cashMovement)
-        .where(
-          and(
-            eq(cashMovement.sourceType, "sale"),
-            eq(cashMovement.sourceId, id),
-            isNull(cashMovement.deletedAt)
-          )
-        );
+      const movWhere =
+        updatedSale.source === "order" && updatedSale.orderId
+          ? and(
+              eq(cashMovement.sourceType, "sale"),
+              eq(cashMovement.sourceId, id),
+              isNull(cashMovement.deletedAt),
+              sql`${cashMovement.description} NOT LIKE ${"%محوَّل من عربون%"}`,
+            )
+          : and(
+              eq(cashMovement.sourceType, "sale"),
+              eq(cashMovement.sourceId, id),
+              isNull(cashMovement.deletedAt),
+            );
+      const [existingMov] = await tx.select().from(cashMovement).where(movWhere);
 
       if (amountToPost > 0) {
         if (existingMov) {
@@ -972,7 +982,7 @@ export async function convertOrderToSale(
             const [s] = await tx
               .select()
               .from(sale)
-              .where(eq(sale.orderId, orderId));
+              .where(and(eq(sale.orderId, orderId), isNull(sale.deletedAt)));
             return { status: "ok", data: s };
           }
           return { status: "error", message: "معرف الطلب مستخدم لعملية أخرى" };
@@ -998,9 +1008,8 @@ export async function convertOrderToSale(
       if (orderRow.status === "cancelled") {
         return { status: "error", message: "لا يمكن تحويل طلب ملغى. أنشئ طلباً جديداً بدلاً من ذلك." };
       }
-      if (orderRow.status === "delivered") {
-        return { status: "error", message: "هذا الطلب مُسلَّم مسبقاً." };
-      }
+      // F-32: نسمح بإعادة التحويل لطلب مُسلَّم لا يملك مبيعة نشطة (مثلاً بعد
+      // deleteSale). التحقيق الفعلي يحدث في فحص existingSale أدناه.
       // Defensive re-validation: deposit must not exceed total realized revenue.
       // (Schema + action enforce this at create/update, but we re-check here as a backstop.)
       const realizedSaleCents =
@@ -1021,7 +1030,7 @@ export async function convertOrderToSale(
       if (existingSale) {
         return {
           status: "error",
-          message: "هذا الطلب تم تحويله إلى مبيعات مسبقاً",
+          message: "هذا الطلب تم تحويله إلى مبيعات مسبقاً ولا تزال المبيعة نشطة. احذف المبيعة أولاً إن أردت إعادة التحويل.",
         };
       }
 
@@ -1477,6 +1486,26 @@ export async function deleteAccount(id: string): Promise<ActionResponse> {
         };
       }
 
+      // تحقق إضافي: لا يمكن حذف حساب يحمل رصيداً افتتاحياً نشطاً — حذفه يُسكِت
+      // IC-11 (openingBalance row ≠ sum(active opening movements)).
+      const [openingCount] = await tx
+        .select({ count: sql<number>`count(*)::int` })
+        .from(cashMovement)
+        .where(
+          and(
+            eq(cashMovement.accountId, id),
+            eq(cashMovement.sourceType, "opening"),
+            isNull(cashMovement.deletedAt),
+          ),
+        );
+      if ((openingCount?.count ?? 0) > 0) {
+        return {
+          status: "error",
+          message:
+            "لا يمكن حذف حساب يحمل رصيداً افتتاحياً. عدّل الرصيد الافتتاحي أولاً أو انقله لحساب آخر.",
+        };
+      }
+
       // حذف حركات الرصيد الافتتاحي المرتبطة بالحساب soft delete
       await tx
         .update(cashMovement)
@@ -1672,6 +1701,54 @@ export async function transferBetweenAccounts(
   }
 }
 
+/**
+ * F-23: حذف تحويل مالي — يلغي كلا الحركتين (الخارجة والداخلة) المرتبطتين
+ * بنفس transferId. يعكس التحويل تماماً (صافي الصفر على الميزانية محفوظ).
+ */
+export async function deleteTransfer(transferId: string): Promise<ActionResponse> {
+  const { success } = await checkRateLimit();
+  if (!success) {
+    return { status: "error", message: "تجاوزت الحد المسموح للعمليات — حاول بعد دقيقة" };
+  }
+
+  try {
+    return await db.transaction(async (tx) => {
+      // تحقق من وجود زوج التحويل النشط
+      const movs = await tx
+        .select()
+        .from(cashMovement)
+        .where(
+          and(
+            eq(cashMovement.sourceType, "transfer"),
+            eq(cashMovement.sourceId, transferId),
+            isNull(cashMovement.deletedAt),
+          ),
+        );
+
+      if (movs.length === 0) {
+        return { status: "error", message: "التحويل غير موجود أو محذوف مسبقاً" };
+      }
+
+      // حذف ناعم لكلا الحركتين
+      await tx
+        .update(cashMovement)
+        .set({ deletedAt: new Date(), updatedAt: new Date() })
+        .where(
+          and(
+            eq(cashMovement.sourceType, "transfer"),
+            eq(cashMovement.sourceId, transferId),
+            isNull(cashMovement.deletedAt),
+          ),
+        );
+
+      revalidatePath("/finance");
+      return { status: "ok", data: { transferId, reversed: movs.length } };
+    });
+  } catch (error) {
+    return { status: "error", message: mapDbError(error) };
+  }
+}
+
 // -------------------------------------------------------------
 // 7. إجراءات سحوبات المالك (Owner Drawings Actions)
 // -------------------------------------------------------------
@@ -1707,7 +1784,7 @@ export async function createOwnerTransaction(
             const [ot] = await tx
               .select()
               .from(ownerTransaction)
-              .where(eq(ownerTransaction.id, existingKey.targetId));
+              .where(and(eq(ownerTransaction.id, existingKey.targetId), isNull(ownerTransaction.deletedAt)));
             return { status: "ok", data: ot };
           }
           return { status: "error", message: "معرف الطلب مستخدم لعملية أخرى" };
@@ -1788,7 +1865,10 @@ export async function getOwnerTransactions(filters?: { q?: string; type?: string
   }
 }
 
-export async function deleteOwnerTransaction(id: string): Promise<ActionResponse> {
+export async function deleteOwnerTransaction(
+  id: string,
+  updatedAt?: string,
+): Promise<ActionResponse> {
   const { success } = await checkRateLimit();
   if (!success) {
     return { status: "error", message: "تجاوزت الحد المسموح للعمليات — حاول بعد دقيقة" };
@@ -1796,6 +1876,28 @@ export async function deleteOwnerTransaction(id: string): Promise<ActionResponse
 
   try {
     return await db.transaction(async (tx) => {
+      // F-22: فحص التزامن المتفائل — اقرأ الصف أولاً وقارن updatedAt إن وُجد.
+      const [existing] = await tx
+        .select()
+        .from(ownerTransaction)
+        .where(and(eq(ownerTransaction.id, id), isNull(ownerTransaction.deletedAt)))
+        .for("update");
+
+      if (!existing) {
+        return { status: "error", message: "المعاملة غير موجودة" };
+      }
+
+      if (updatedAt) {
+        const clientTime = new Date(updatedAt).getTime();
+        const dbTime = new Date(existing.updatedAt).getTime();
+        if (clientTime !== dbTime) {
+          return {
+            status: "error",
+            message: "تم تحديث البيانات من جهة أخرى",
+          };
+        }
+      }
+
       const [deleted] = await tx
         .update(ownerTransaction)
         .set({ deletedAt: new Date(), updatedAt: new Date() })
@@ -1871,52 +1973,51 @@ export async function saveOpeningBalance(rawInput: unknown): Promise<ActionRespo
         return { status: "error", message: "الإعداد الافتتاحي مقفل ولا يمكن تعديله" };
       }
 
-      // البحث عن حساب الصندوق وحساب البنك الافتراضيين أو إنشاؤهما
-      let [cashAcc] = await tx
+      // F-30: تحقق من أرشفة الحسابات الافتراضية BEFORE أي كتابة. لو أُرشفت،
+      // نُرجع الخطأ مباشرةً حتى لا يلتزم db.transaction بإنشاء حساب جديد.
+      const [existingCashAcc] = await tx
         .select()
         .from(account)
         .where(and(eq(account.type, "cash"), eq(account.name, "الصندوق الرئيسي"), isNull(account.deletedAt)))
         .limit(1);
-      if (!cashAcc) {
-        [cashAcc] = await tx
-          .insert(account)
-          .values({
-            name: "الصندوق الرئيسي",
-            type: "cash",
-          })
-          .returning();
-      } else {
+      const [existingBankAcc] = await tx
+        .select()
+        .from(account)
+        .where(and(eq(account.type, "bank"), eq(account.name, "حساب البنك الرئيسي"), isNull(account.deletedAt)))
+        .limit(1);
+
+      if (existingCashAcc?.isArchived || existingBankAcc?.isArchived) {
+        return {
+          status: "error",
+          message: "لا يمكن تعديل الأرصدة الافتتاحية لأن حساب الصندوق أو البنك الرئيسي مؤرشف حالياً.",
+        };
+      }
+
+      // البحث عن حساب الصندوق وحساب البنك الافتراضيين أو إنشاؤهما
+      let [cashAcc] = existingCashAcc
+        ? [existingCashAcc]
+        : await tx
+            .insert(account)
+            .values({ name: "الصندوق الرئيسي", type: "cash" })
+            .returning();
+      if (existingCashAcc) {
         await tx
           .update(account)
           .set({ updatedAt: new Date() })
           .where(eq(account.id, cashAcc.id));
       }
 
-      let [bankAcc] = await tx
-        .select()
-        .from(account)
-        .where(and(eq(account.type, "bank"), eq(account.name, "حساب البنك الرئيسي"), isNull(account.deletedAt)))
-        .limit(1);
-      if (!bankAcc) {
-        [bankAcc] = await tx
-          .insert(account)
-          .values({
-            name: "حساب البنك الرئيسي",
-            type: "bank",
-          })
-          .returning();
-      } else {
+      let [bankAcc] = existingBankAcc
+        ? [existingBankAcc]
+        : await tx
+            .insert(account)
+            .values({ name: "حساب البنك الرئيسي", type: "bank" })
+            .returning();
+      if (existingBankAcc) {
         await tx
           .update(account)
           .set({ updatedAt: new Date() })
           .where(eq(account.id, bankAcc.id));
-      }
-
-      if (cashAcc?.isArchived || bankAcc?.isArchived) {
-        return {
-          status: "error",
-          message: "لا يمكن تعديل الأرصدة الافتتاحية لأن حساب الصندوق أو البنك الرئيسي مؤرشف حالياً.",
-        };
       }
 
       // حفظ/تحديث سجل opening_balance

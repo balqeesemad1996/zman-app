@@ -34,9 +34,11 @@ export async function getFinancialSummary(
   const actualSalesPromise = db
     .select({ total: sql<any>`coalesce(sum(${cashMovement.amountCents}), 0)::bigint` })
     .from(cashMovement)
+    .innerJoin(account, eq(cashMovement.accountId, account.id))
     .where(
       and(
         isNull(cashMovement.deletedAt),
+        isNull(account.deletedAt),
         eq(cashMovement.direction, "in"),
         eq(cashMovement.sourceType, "sale"),
         sql`${cashMovement.date} >= ${startDate}`,
@@ -47,9 +49,11 @@ export async function getFinancialSummary(
   const depositsPromise = db
     .select({ total: sql<any>`coalesce(sum(${cashMovement.amountCents}), 0)::bigint` })
     .from(cashMovement)
+    .innerJoin(account, eq(cashMovement.accountId, account.id))
     .where(
       and(
         isNull(cashMovement.deletedAt),
+        isNull(account.deletedAt),
         eq(cashMovement.direction, "in"),
         eq(cashMovement.sourceType, "deposit"),
         sql`${cashMovement.date} >= ${startDate}`,
@@ -60,9 +64,11 @@ export async function getFinancialSummary(
   const expensesPromise = db
     .select({ total: sql<any>`coalesce(sum(${cashMovement.amountCents}), 0)::bigint` })
     .from(cashMovement)
+    .innerJoin(account, eq(cashMovement.accountId, account.id))
     .where(
       and(
         isNull(cashMovement.deletedAt),
+        isNull(account.deletedAt),
         eq(cashMovement.direction, "out"),
         eq(cashMovement.sourceType, "expense"),
         sql`${cashMovement.date} >= ${startDate}`,
@@ -73,9 +79,11 @@ export async function getFinancialSummary(
   const purchasesPromise = db
     .select({ total: sql<any>`coalesce(sum(${cashMovement.amountCents}), 0)::bigint` })
     .from(cashMovement)
+    .innerJoin(account, eq(cashMovement.accountId, account.id))
     .where(
       and(
         isNull(cashMovement.deletedAt),
+        isNull(account.deletedAt),
         eq(cashMovement.direction, "out"),
         eq(cashMovement.sourceType, "purchase"),
         sql`${cashMovement.date} >= ${startDate}`,
@@ -86,9 +94,11 @@ export async function getFinancialSummary(
   const ownerInjectPromise = db
     .select({ total: sql<any>`coalesce(sum(${cashMovement.amountCents}), 0)::bigint` })
     .from(cashMovement)
+    .innerJoin(account, eq(cashMovement.accountId, account.id))
     .where(
       and(
         isNull(cashMovement.deletedAt),
+        isNull(account.deletedAt),
         eq(cashMovement.direction, "in"),
         eq(cashMovement.sourceType, "owner_inject"),
         sql`${cashMovement.date} >= ${startDate}`,
@@ -99,9 +109,11 @@ export async function getFinancialSummary(
   const ownerDrawPromise = db
     .select({ total: sql<any>`coalesce(sum(${cashMovement.amountCents}), 0)::bigint` })
     .from(cashMovement)
+    .innerJoin(account, eq(cashMovement.accountId, account.id))
     .where(
       and(
         isNull(cashMovement.deletedAt),
+        isNull(account.deletedAt),
         eq(cashMovement.direction, "out"),
         eq(cashMovement.sourceType, "owner_draw"),
         sql`${cashMovement.date} >= ${startDate}`,
@@ -145,22 +157,24 @@ export async function getRecentActivities(
   startDate?: string,
   endDate?: string,
 ): Promise<ActivityItem[]> {
+  // F-26: استخدم تاريخ العمل (.date / receivedDate) لا createdAt ليتسق مع باقي
+  // لوحة القيادة (التي تُصفّي حسب cashMovement.date).
   const orderCond = [isNull(order.deletedAt)];
   const saleCond = [isNull(sale.deletedAt)];
   const expenseCond = [isNull(expense.deletedAt)];
   const purchaseCond = [isNull(purchase.deletedAt)];
 
   if (startDate) {
-    orderCond.push(sql`${order.createdAt} >= ${startDate}::timestamptz`);
-    saleCond.push(sql`${sale.createdAt} >= ${startDate}::timestamptz`);
-    expenseCond.push(sql`${expense.createdAt} >= ${startDate}::timestamptz`);
-    purchaseCond.push(sql`${purchase.createdAt} >= ${startDate}::timestamptz`);
+    orderCond.push(sql`${order.receivedDate} >= ${startDate}::date`);
+    saleCond.push(sql`${sale.date} >= ${startDate}::date`);
+    expenseCond.push(sql`${expense.date} >= ${startDate}::date`);
+    purchaseCond.push(sql`${purchase.date} >= ${startDate}::date`);
   }
   if (endDate) {
-    orderCond.push(sql`${order.createdAt} <= (${endDate}::date + INTERVAL '1 day')`);
-    saleCond.push(sql`${sale.createdAt} <= (${endDate}::date + INTERVAL '1 day')`);
-    expenseCond.push(sql`${expense.createdAt} <= (${endDate}::date + INTERVAL '1 day')`);
-    purchaseCond.push(sql`${purchase.createdAt} <= (${endDate}::date + INTERVAL '1 day')`);
+    orderCond.push(sql`${order.receivedDate} <= ${endDate}::date`);
+    saleCond.push(sql`${sale.date} <= ${endDate}::date`);
+    expenseCond.push(sql`${expense.date} <= ${endDate}::date`);
+    purchaseCond.push(sql`${purchase.date} <= ${endDate}::date`);
   }
 
   const [recentOrders, recentSales, recentExpenses, recentPurchases] =
@@ -171,63 +185,71 @@ export async function getRecentActivities(
           customerName: order.customerName,
           totalPriceCents: order.totalPriceCents,
           depositCents: order.depositCents,
-          createdAt: order.createdAt,
+          receivedDate: order.receivedDate,
+          status: order.status,
         })
         .from(order)
         .where(and(...orderCond))
-        .orderBy(desc(order.createdAt))
+        .orderBy(desc(order.receivedDate))
         .limit(5),
       db
         .select({
           id: sale.id,
           description: sale.description,
           amountCents: sale.amountCents,
-          createdAt: sale.createdAt,
+          date: sale.date,
         })
         .from(sale)
         .where(and(...saleCond))
-        .orderBy(desc(sale.createdAt))
+        .orderBy(desc(sale.date))
         .limit(5),
       db
         .select({
           id: expense.id,
           category: expense.category,
           amountCents: expense.amountCents,
-          createdAt: expense.createdAt,
+          date: expense.date,
         })
         .from(expense)
         .where(and(...expenseCond))
-        .orderBy(desc(expense.createdAt))
+        .orderBy(desc(expense.date))
         .limit(5),
       db
         .select({
           id: purchase.id,
           item: purchase.item,
           totalCents: purchase.totalCents,
-          createdAt: purchase.createdAt,
+          date: purchase.date,
         })
         .from(purchase)
         .where(and(...purchaseCond))
-        .orderBy(desc(purchase.createdAt))
+        .orderBy(desc(purchase.date))
         .limit(5),
     ]);
 
-  // تحويل ودمج البيانات
+  // تحويل ودمج البيانات — F-26: استخدم تاريخ العمل (date/receivedDate).
+  // F-28: للطلبات المُسلَّمة، لا نُظهر العربون كصف مستقل (أصبح داخل المبيعة).
   const activities: ActivityItem[] = [
-    ...recentOrders.map((o) => ({
-      id: o.id,
-      type: "order" as const,
-      title: `طلب جديد بقيمة ${(o.totalPriceCents / 1000).toFixed(3)} د.أ`,
-      amount: o.depositCents || 0,
-      hasCashImpact: (o.depositCents || 0) > 0,
-      date: new Date(o.createdAt),
-    })),
+    ...recentOrders
+      .filter((o) => {
+        // F-28: تخطَّى الطلبات المُسلَّمة — العربون تحوّل إلى sale ولا يجب أن
+        // يظهر مرتين (مرة كعربون ومرة داخل المبيعة).
+        return o.status !== "delivered";
+      })
+      .map((o) => ({
+        id: o.id,
+        type: "order" as const,
+        title: `طلب جديد بقيمة ${(o.totalPriceCents / 1000).toFixed(3)} د.أ`,
+        amount: o.depositCents || 0,
+        hasCashImpact: (o.depositCents || 0) > 0,
+        date: new Date(o.receivedDate),
+      })),
     ...recentSales.map((s) => ({
       id: s.id,
       type: "sale" as const,
       title: s.description || "عملية مبيعات",
       amount: s.amountCents,
-      date: new Date(s.createdAt),
+      date: new Date(s.date),
       hasCashImpact: true,
     })),
     ...recentExpenses.map((e) => ({
@@ -235,7 +257,7 @@ export async function getRecentActivities(
       type: "expense" as const,
       title: `مصروف: ${e.category}`,
       amount: e.amountCents,
-      date: new Date(e.createdAt),
+      date: new Date(e.date),
       hasCashImpact: true,
     })),
     ...recentPurchases.map((p) => ({
@@ -243,7 +265,7 @@ export async function getRecentActivities(
       type: "purchase" as const,
       title: `شراء مواد: ${p.item}`,
       amount: p.totalCents,
-      date: new Date(p.createdAt),
+      date: new Date(p.date),
       hasCashImpact: true,
     })),
   ];
@@ -266,9 +288,11 @@ export async function getFinancialTrendData(
         total: sql<any>`sum(${cashMovement.amountCents})::bigint`,
       })
       .from(cashMovement)
+      .innerJoin(account, eq(cashMovement.accountId, account.id))
       .where(
         and(
           isNull(cashMovement.deletedAt),
+          isNull(account.deletedAt),
           eq(cashMovement.direction, "in"),
           eq(cashMovement.sourceType, "sale"),
           sql`${cashMovement.date} >= ${startDate}`,
@@ -282,9 +306,11 @@ export async function getFinancialTrendData(
         total: sql<any>`sum(${cashMovement.amountCents})::bigint`,
       })
       .from(cashMovement)
+      .innerJoin(account, eq(cashMovement.accountId, account.id))
       .where(
         and(
           isNull(cashMovement.deletedAt),
+          isNull(account.deletedAt),
           eq(cashMovement.direction, "out"),
           eq(cashMovement.sourceType, "expense"),
           sql`${cashMovement.date} >= ${startDate}`,
@@ -298,9 +324,11 @@ export async function getFinancialTrendData(
         total: sql<any>`sum(${cashMovement.amountCents})::bigint`,
       })
       .from(cashMovement)
+      .innerJoin(account, eq(cashMovement.accountId, account.id))
       .where(
         and(
           isNull(cashMovement.deletedAt),
+          isNull(account.deletedAt),
           eq(cashMovement.direction, "out"),
           eq(cashMovement.sourceType, "purchase"),
           sql`${cashMovement.date} >= ${startDate}`,
@@ -335,7 +363,6 @@ export interface UpcomingOrder {
 export interface DashboardStats {
   ordersByStatus: Record<string, number>;
   upcomingOrders: UpcomingOrder[];
-  totalDepositsCents: number;
   topExpenses: TopExpenseCategory[];
 }
 
@@ -343,7 +370,7 @@ export async function getDashboardStats(
   startDate: string,
   endDate: string,
 ): Promise<DashboardStats> {
-  const [statusPromise, upcomingPromise, depositsPromise, expensesPromise] = await Promise.all([
+  const [statusPromise, upcomingPromise, expensesPromise] = await Promise.all([
     db
       .select({
         status: order.status,
@@ -372,25 +399,12 @@ export async function getDashboardStats(
         and(
           isNull(order.deletedAt),
           sql`${order.status} not in ('delivered', 'cancelled')`,
-          sql`${order.deliveryDate} >= CURRENT_DATE`,
-          sql`${order.deliveryDate} <= CURRENT_DATE + INTERVAL '7 days'`,
+          sql`${order.deliveryDate} >= (now() AT TIME ZONE 'Asia/Amman')::date`,
+          sql`${order.deliveryDate} <= ((now() AT TIME ZONE 'Asia/Amman')::date + INTERVAL '7 days')`,
         ),
       )
       .orderBy(order.deliveryDate)
       .limit(10),
-    db
-      .select({
-        total: sql<any>`coalesce(sum(${order.depositCents}), 0)::bigint`,
-      })
-      .from(order)
-      .where(
-        and(
-          isNull(order.deletedAt),
-          sql`${order.status} not in ('delivered', 'cancelled')`,  // F-P1-2: match tooltip
-          sql`coalesce(${order.depositDate}, ${order.receivedDate})::date >= ${startDate}::date`,  // F-P1-3: match balance sheet
-          sql`coalesce(${order.depositDate}, ${order.receivedDate})::date <= ${endDate}::date`,
-        ),
-      ),
     // أبرز فئات المصاريف (للفترة المختارة) — من دفتر الصندوق (cash_movement) لا من جدول expense
     // مربوط بـ expense لاستعادة الفئة، وبـ account لاستبعاد الحسابات المحذوفة. أساس نقدي متّسق مع باقي الأرقام.
     db
@@ -439,15 +453,13 @@ export async function getDashboardStats(
     depositCents: o.depositCents || 0,
   }));
 
-  const totalDepositsCents = Number(depositsPromise[0]?.total) || 0;
-
   const topExpenses = expensesPromise.map((e) => ({
     category: e.category,
     totalCents: Number(e.totalCents) || 0,
     count: e.count,
   }));
 
-  return { ordersByStatus, upcomingOrders, totalDepositsCents, topExpenses };
+  return { ordersByStatus, upcomingOrders, topExpenses };
 }
 
 export interface CashSummary {
@@ -479,8 +491,8 @@ export async function getCurrentMonthNet(): Promise<number> {
   const baseConds = [
     isNull(cashMovement.deletedAt),
     isNull(account.deletedAt),
-    sql`${cashMovement.date} >= date_trunc('month', CURRENT_DATE)::date`,
-    sql`${cashMovement.date} <= (date_trunc('month', CURRENT_DATE) + INTERVAL '1 month' - INTERVAL '1 day')::date`
+    sql`${cashMovement.date} >= date_trunc('month', (now() AT TIME ZONE 'Asia/Amman')::date)::date`,
+    sql`${cashMovement.date} <= (date_trunc('month', (now() AT TIME ZONE 'Asia/Amman')::date) + INTERVAL '1 month' - INTERVAL '1 day')::date`
   ];
 
   const [[salesRes], [purchasesRes], [expensesRes]] = await Promise.all([

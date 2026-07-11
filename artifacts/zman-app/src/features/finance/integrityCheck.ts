@@ -234,7 +234,10 @@ async function checkIC2OrphanMovements(): Promise<IntegrityCheckResult> {
   const orphanSales = await db
     .select({ id: cashMovement.id })
     .from(cashMovement)
-    .leftJoin(sale, eq(cashMovement.sourceId, sale.id))
+    .leftJoin(
+      sale,
+      and(eq(cashMovement.sourceId, sale.id), isNull(sale.deletedAt)),
+    )
     .where(
       and(
         eq(cashMovement.sourceType, "sale"),
@@ -246,7 +249,10 @@ async function checkIC2OrphanMovements(): Promise<IntegrityCheckResult> {
   const orphanPurchases = await db
     .select({ id: cashMovement.id })
     .from(cashMovement)
-    .leftJoin(purchase, eq(cashMovement.sourceId, purchase.id))
+    .leftJoin(
+      purchase,
+      and(eq(cashMovement.sourceId, purchase.id), isNull(purchase.deletedAt)),
+    )
     .where(
       and(
         eq(cashMovement.sourceType, "purchase"),
@@ -258,7 +264,10 @@ async function checkIC2OrphanMovements(): Promise<IntegrityCheckResult> {
   const orphanExpenses = await db
     .select({ id: cashMovement.id })
     .from(cashMovement)
-    .leftJoin(expense, eq(cashMovement.sourceId, expense.id))
+    .leftJoin(
+      expense,
+      and(eq(cashMovement.sourceId, expense.id), isNull(expense.deletedAt)),
+    )
     .where(
       and(
         eq(cashMovement.sourceType, "expense"),
@@ -270,7 +279,10 @@ async function checkIC2OrphanMovements(): Promise<IntegrityCheckResult> {
   const orphanDeposits = await db
     .select({ id: cashMovement.id })
     .from(cashMovement)
-    .leftJoin(order, eq(cashMovement.sourceId, order.id))
+    .leftJoin(
+      order,
+      and(eq(cashMovement.sourceId, order.id), isNull(order.deletedAt)),
+    )
     .where(
       and(
         eq(cashMovement.sourceType, "deposit"),
@@ -282,7 +294,13 @@ async function checkIC2OrphanMovements(): Promise<IntegrityCheckResult> {
   const orphanOwner = await db
     .select({ id: cashMovement.id })
     .from(cashMovement)
-    .leftJoin(ownerTransaction, eq(cashMovement.sourceId, ownerTransaction.id))
+    .leftJoin(
+      ownerTransaction,
+      and(
+        eq(cashMovement.sourceId, ownerTransaction.id),
+        isNull(ownerTransaction.deletedAt),
+      ),
+    )
     .where(
       and(
         sql`${cashMovement.sourceType} in ('owner_draw', 'owner_inject')`,
@@ -291,6 +309,7 @@ async function checkIC2OrphanMovements(): Promise<IntegrityCheckResult> {
       ),
     );
 
+  // F-19: تحقق إضافي — تطابق المبالغ (وليس فقط العدد) لكل زوج تحويل.
   const transferImbalance = await db
     .select({ sourceId: cashMovement.sourceId })
     .from(cashMovement)
@@ -302,7 +321,9 @@ async function checkIC2OrphanMovements(): Promise<IntegrityCheckResult> {
     )
     .groupBy(cashMovement.sourceId)
     .having(
-      sql`count(*) filter (where ${cashMovement.direction} = 'in') <> count(*) filter (where ${cashMovement.direction} = 'out')`,
+      sql`count(*) filter (where ${cashMovement.direction} = 'in') <> count(*) filter (where ${cashMovement.direction} = 'out')
+           OR coalesce(sum(${cashMovement.amountCents}) filter (where ${cashMovement.direction} = 'in'), 0)
+              <> coalesce(sum(${cashMovement.amountCents}) filter (where ${cashMovement.direction} = 'out'), 0)`,
     );
 
   const allBadIds = [
@@ -771,12 +792,25 @@ async function checkIC10OwnerTxAmountMatchesCashMovement(): Promise<IntegrityChe
     )
     .where(isNull(ownerTransaction.deletedAt));
 
-  const offenders: string[] = [];
+  // F-21: تحقق إضافي — يوجد حركة صندوق نشطة واحدة فقط لكل معاملة مالك.
+  // نجمع الحركات لكل txId، ثم نتحقق من العدد والمبلغ.
+  const byTx = new Map<string, { txAmountCents: number; movs: { movId: string | null; movAmountCents: number | null }[] }>();
   for (const row of ownerTxWithMovs) {
-    if (!row.movId) {
-      offenders.push(`معاملة-مالك-بلا-حركة:${row.txId}`);
-    } else if (row.txAmountCents !== row.movAmountCents) {
-      offenders.push(`معاملة-مالك-مبلغ-مختلف:${row.txId}`);
+    if (!byTx.has(row.txId)) {
+      byTx.set(row.txId, { txAmountCents: row.txAmountCents, movs: [] });
+    }
+    byTx.get(row.txId)!.movs.push({ movId: row.movId, movAmountCents: row.movAmountCents });
+  }
+
+  const offenders: string[] = [];
+  for (const [txId, info] of byTx) {
+    const activeMovs = info.movs.filter((m) => m.movId !== null);
+    if (activeMovs.length === 0) {
+      offenders.push(`معاملة-مالك-بلا-حركة:${txId}`);
+    } else if (activeMovs.length > 1) {
+      offenders.push(`معاملة-مالك-مكررة:${txId}(${activeMovs.length})`);
+    } else if (info.txAmountCents !== activeMovs[0]!.movAmountCents) {
+      offenders.push(`معاملة-مالك-مبلغ-مختلف:${txId}`);
     }
   }
 
@@ -786,12 +820,12 @@ async function checkIC10OwnerTxAmountMatchesCashMovement(): Promise<IntegrityChe
     status: offenders.length === 0 ? "PASS" : "FAIL",
     titleAr: "مطابقة مبلغ معاملة المالك لحركة الصندوق",
     descriptionAr:
-      "لكل معاملة مالك (سحب/حقن): يجب أن يكون لها حركة صندوق نشطة واحدة بنفس المبلغ. يكشف الحذف الناعم غير المتزامن أو خطأ في المبلغ.",
+      "لكل معاملة مالك (سحب/حقن): يجب أن يكون لها حركة صندوق نشطة واحدة بالضبط بنفس المبلغ. يكشف الحذف الناعم غير المتزامن، خطأ في المبلغ، أو تكرار الحركات.",
     offendingIds: offenders.slice(0, 50),
     count: offenders.length,
     suggestedFixAr:
       offenders.length !== 0
-        ? `يوجد ${offenders.length} معاملة مالك بدون حركة صندوق مطابقة. تحقّق من الحذف الناعم المتزامن بين owner_transaction و cash_movement.`
+        ? `يوجد ${offenders.length} معاملة مالك بحركة صندوق غير مطابقة. تحقّق من الحذف الناعم المتزامن ومنع التكرار بين owner_transaction و cash_movement.`
         : undefined,
   };
 }

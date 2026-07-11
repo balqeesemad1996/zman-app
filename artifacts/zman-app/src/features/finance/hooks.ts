@@ -597,7 +597,8 @@ export function useCreateOwnerTransaction() {
 export function useDeleteOwnerTransaction() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id }: { id: string }) => deleteOwnerTransaction(id),
+    mutationFn: ({ id, updatedAt }: { id: string; updatedAt?: string }) =>
+      deleteOwnerTransaction(id, updatedAt),
     onSuccess: (res) => {
       if (res.status === "ok") {
         queryClient.invalidateQueries({ queryKey: ["finance", "owner-transactions"] });

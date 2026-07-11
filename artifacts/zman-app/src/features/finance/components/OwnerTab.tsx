@@ -75,11 +75,11 @@ export function OwnerTab() {
     });
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = (id: string, updatedAt?: string) => {
     if (!confirm("هل أنت متأكد من حذف هذه المعاملة؟ سيتم التراجع عن حركة الصندوق المرفقة.")) {
       return;
     }
-    deleteTxMutation.mutate({ id }, {
+    deleteTxMutation.mutate({ id, updatedAt }, {
       onSuccess: (res) => {
         if (res.status === "ok") {
           toast.success("تم حذف المعاملة بنجاح");
@@ -153,7 +153,7 @@ export function OwnerTab() {
                     <td className="p-4 text-center">
                       <button
                         type="button"
-                        onClick={() => handleDelete(tx.id)}
+                        onClick={() => handleDelete(tx.id, tx.updatedAt.toISOString())}
                         disabled={deleteTxMutation.isPending}
                         className="text-alert hover:bg-alert/10 p-1.5 rounded transition"
                         title="حذف السجل والتراجع عنه"

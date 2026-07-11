@@ -488,7 +488,7 @@ export function OrderCard({
             هل أنت متأكد من تحويل هذا الطلب إلى مبيعات (تسجيل إيراد)؟
           </p>
           <p className="text-xs text-ink-3">
-            سيتم ترحيل كامل المبلغ المتبقي (<AmountText amount={order.totalPriceCents - (order.depositCents || 0)} />) إلى الصندوق كإيراد مبيعات، وتحديث حالة الطلب إلى تم التسليم.
+            سيتم ترحيل كامل المبلغ المتبقي (<AmountText amount={order.totalPriceCents + (order.additionalProfitCents || 0) - (order.depositCents || 0)} />) إلى الصندوق كإيراد مبيعات (يشمل الأرباح الإضافية)، وتحويل العربون المحصَّل إلى إيراد، وتحديث حالة الطلب إلى تم التسليم.
           </p>
           <div className="flex gap-2">
             <button

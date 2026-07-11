@@ -64,8 +64,8 @@ export const createOrderSchema = z.object({
     .int()
     .nonnegative("الأرباح الإضافية يجب أن تكون صفر أو أكثر")
     .default(0),
-}).refine((data) => data.depositCents <= data.totalPriceCents, {
-  message: "العربون لا يمكن أن يتجاوز السعر الإجمالي المتفق عليه",
+}).refine((data) => data.depositCents <= data.totalPriceCents + (data.additionalProfitCents ?? 0), {
+  message: "العربون لا يمكن أن يتجاوز السعر الإجمالي + الأرباح الإضافية",
   path: ["depositCents"],
 });
 
@@ -124,8 +124,8 @@ export const updateOrderSchema = z.object({
     .int()
     .nonnegative("الأرباح الإضافية يجب أن تكون صفر أو أكثر")
     .default(0),
-}).refine((data) => data.depositCents <= data.totalPriceCents, {
-  message: "العربون لا يمكن أن يتجاوز السعر الإجمالي المتفق عليه",
+}).refine((data) => data.depositCents <= data.totalPriceCents + (data.additionalProfitCents ?? 0), {
+  message: "العربون لا يمكن أن يتجاوز السعر الإجمالي + الأرباح الإضافية",
   path: ["depositCents"],
 });
 

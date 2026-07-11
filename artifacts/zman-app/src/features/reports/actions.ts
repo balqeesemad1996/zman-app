@@ -50,7 +50,7 @@ export async function computeCashBasisPnl(
   range: "all" | "month" | "30d" = "all",
   tx: any = db,
 ) {
-  const baseConds = [isNull(cashMovement.deletedAt)];
+  const baseConds = [isNull(cashMovement.deletedAt), isNull(account.deletedAt)];
   const sStart = rangeStartDate(range);
   const sEnd = rangeEndDate(range);
   if (sStart) baseConds.push(sql`${cashMovement.date} >= ${sStart}`);
@@ -60,6 +60,7 @@ export async function computeCashBasisPnl(
     tx
       .select({ total: sum(cashMovement.amountCents) })
       .from(cashMovement)
+      .innerJoin(account, eq(cashMovement.accountId, account.id))
       .where(
         and(
           ...baseConds,
@@ -70,6 +71,7 @@ export async function computeCashBasisPnl(
     tx
       .select({ total: sum(cashMovement.amountCents) })
       .from(cashMovement)
+      .innerJoin(account, eq(cashMovement.accountId, account.id))
       .where(
         and(
           ...baseConds,
@@ -80,6 +82,7 @@ export async function computeCashBasisPnl(
     tx
       .select({ total: sum(cashMovement.amountCents) })
       .from(cashMovement)
+      .innerJoin(account, eq(cashMovement.accountId, account.id))
       .where(
         and(
           ...baseConds,
@@ -200,17 +203,34 @@ export async function downloadReport(
 *تم إنشاء هذا التقرير تلقائياً بواسطة نظام Zman الداخلي لإدارة الورش والمخازن.*
 `;
     } else if (type === "expenses") {
-      // 2. Expense categories
+      // 2. Expense categories — أساس نقدي: من cash_movement مربوط بـ expense وaccount
+      const expConds = [
+        isNull(cashMovement.deletedAt),
+        isNull(account.deletedAt),
+        eq(cashMovement.direction, "out"),
+        eq(cashMovement.sourceType, "expense"),
+        isNull(expense.deletedAt),
+      ];
+      const eStart = rangeStartDate(range);
+      const eEnd = rangeEndDate(range);
+      if (eStart) expConds.push(sql`${cashMovement.date} >= ${eStart}`);
+      if (eEnd) expConds.push(sql`${cashMovement.date} <= ${eEnd}`);
+
       const categories = await db
         .select({
           category: expense.category,
-          total: sum(expense.amountCents),
-          count: count(expense.id),
+          total: sum(cashMovement.amountCents),
+          count: count(cashMovement.id),
         })
-        .from(expense)
-        .where(buildDateCondition(expense, range))
+        .from(cashMovement)
+        .innerJoin(account, eq(cashMovement.accountId, account.id))
+        .innerJoin(
+          expense,
+          and(eq(cashMovement.sourceType, "expense"), eq(cashMovement.sourceId, expense.id)),
+        )
+        .where(and(...expConds))
         .groupBy(expense.category)
-        .orderBy(desc(sql`sum(${expense.amountCents})`));
+        .orderBy(desc(sql`sum(${cashMovement.amountCents})`));
 
       const totalCents = categories.reduce(
         (sum, c) => sum + (Number(c.total) || 0),
@@ -244,6 +264,7 @@ ${categories
       // 3. Sales sources
       const salesDateConds = [
         isNull(cashMovement.deletedAt),
+        isNull(account.deletedAt),
         eq(cashMovement.direction, "in"),
         sql`${cashMovement.sourceType} in ('sale', 'deposit')`
       ];
@@ -259,6 +280,7 @@ ${categories
           count: count(cashMovement.id),
         })
         .from(cashMovement)
+        .innerJoin(account, eq(cashMovement.accountId, account.id))
         .where(and(...salesDateConds))
         .groupBy(cashMovement.sourceType)
         .orderBy(desc(sql`sum(${cashMovement.amountCents})`));
@@ -598,7 +620,7 @@ export type FinancialPositionData = {
   balanced: boolean;
   differenceCents: number;
   equityDriftCents: number;
-  pnlAllTimeNetCents: number;
+  pnlAsOfDateNetCents: number;
   pnlReconciliationCents: number;
   ledgerPnlNetCents: number;
   sourceTablePnlNetCents: number;
@@ -777,8 +799,8 @@ export async function getFinancialPosition(
       const equityDriftCents = equityFromLedger - equityFromComponents;
 
       // Check 2: retained profit (cash-basis, all time) vs cash-basis P&L (all time).
-      const pnlAllTimeNetCents = salesCashInCents - expensesPurchasesCashOutCents;
-      const pnlReconciliationCents = pnlAllTimeNetCents - (retainedProfitCents + depositsCents);
+      const pnlAsOfDateNetCents = salesCashInCents - expensesPurchasesCashOutCents;
+      const pnlReconciliationCents = pnlAsOfDateNetCents - (retainedProfitCents + depositsCents);
 
       // F-05: real reconciliation between ledger (cash_movement) and source tables (sale, purchase, expense, order deposits).
       // Both sides are archived-inclusive to avoid false alarms from archived accounts in normal operation (Option b).
@@ -871,7 +893,7 @@ export async function getFinancialPosition(
           balanced: Math.abs(equityDriftCents) === 0,
           differenceCents: equityDriftCents,
           equityDriftCents,
-          pnlAllTimeNetCents,
+          pnlAsOfDateNetCents,
           pnlReconciliationCents,
           ledgerPnlNetCents,
           sourceTablePnlNetCents,
