@@ -36,7 +36,6 @@ import {
   useDashboardStats,
   useCashSummary,
   useAccountBalances,
-  useCurrentMonthNet,
 } from "../hooks";
 import { useOpeningBalance } from "@/features/finance/hooks";
 import { FloatingActionButton } from "@/components/shared/FloatingActionButton";
@@ -124,41 +123,6 @@ function FinanceComparePanel({
       </p>
     </div>
   );
-}
-
-/**
- * اتجاه سلسلة قيم عبر الفترة: نقارن مجموع النصف الأول بالنصف الثاني.
- * لا يحتاج بيانات فترة سابقة — يعكس الاتجاه داخل الفترة نفسها بصدق.
- */
-function seriesDirection(data: number[]): "up" | "down" | "flat" {
-  if (!data || data.length < 2) return "flat";
-  const mid = Math.floor(data.length / 2);
-  const firstHalf = data.slice(0, mid).reduce((a, b) => a + b, 0);
-  const secondHalf = data.slice(mid).reduce((a, b) => a + b, 0);
-  if (secondHalf > firstHalf) return "up";
-  if (secondHalf < firstHalf) return "down";
-  return "flat";
-}
-
-/**
- * سهم اتجاه بسيط: ▲ أخضر (صاعد) / ▼ أحمر (هابط) / — رمادي (ثابت).
- * `goodWhenUp=false` يعكس المعنى (للمصاريف: الصعود سيّئ فيُلوَّن أحمر).
- */
-function TrendArrow({
-  data,
-  goodWhenUp = true,
-}: {
-  data: number[];
-  goodWhenUp?: boolean;
-}) {
-  const dir = seriesDirection(data);
-  if (dir === "flat") {
-    return <span className="text-[10px] text-ink-3 font-bold shrink-0">—</span>;
-  }
-  const isGood = dir === "up" ? goodWhenUp : !goodWhenUp;
-  const color = isGood ? "text-emerald-deep" : "text-alert";
-  const Icon = dir === "up" ? TrendingUp : TrendingDown;
-  return <Icon className={`h-4 w-4 shrink-0 ${color}`} />;
 }
 
 export function DashboardClient() {
@@ -254,10 +218,6 @@ export function DashboardClient() {
     data: accountBalances,
     refetch: refetchBalances,
   } = useAccountBalances();
-  const {
-    data: currentMonthNet,
-    refetch: refetchCurrentMonthNet,
-  } = useCurrentMonthNet();
   const { data: openingBal } = useOpeningBalance();
 
   const [isDeliveriesExpanded, setIsDeliveriesExpanded] = useState(false);
@@ -273,7 +233,6 @@ export function DashboardClient() {
     refetchStats();
     refetchCash();
     refetchBalances();
-    refetchCurrentMonthNet();
   };
 
   const handlePresetSelect = (idx: number) => {
@@ -319,40 +278,8 @@ export function DashboardClient() {
     ? accountBalances.filter((a) => a.type === "bank").reduce((acc, accAccount) => acc + accAccount.balanceCents, 0)
     : 0;
 
-  // معالجة صافي الأرباح لتحديد اللون والإشارة للتسهيل على فاقدي التمييز اللوني (§14.3)
-  const net = summary?.netProfit ?? 0;
+  // معالجة صافي حركة المالك لتحديد اللون والإشارة.
   const ownerNet = summary?.ownerNet ?? 0;
-  const isProfit = net >= 0;
-  const netSign = isProfit ? "+" : "−";
-  const netColorClass = isProfit ? "text-info" : "text-alert";
-  const NetIcon = isProfit ? TrendingUp : TrendingDown;
-
-  const netThisMonth = currentMonthNet ?? 0;
-  const isNetThisMonthProfit = netThisMonth >= 0;
-  const netThisMonthSign = isNetThisMonthProfit ? "+" : "−";
-  const netThisMonthColorClass = isNetThisMonthProfit ? "text-info" : "text-alert";
-  const NetIconThisMonth = isNetThisMonthProfit ? TrendingUp : TrendingDown;
-
-  const netTrendData = (() => {
-    if (!trendData) return [];
-    const datesMap: Record<string, { sales: number; outgoings: number }> = {};
-    const start = new Date(startDateStr);
-    const end = new Date(endDateStr);
-    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-      const key = d.toLocaleDateString("en-CA");
-      if (key) datesMap[key] = { sales: 0, outgoings: 0 };
-    }
-    for (const item of trendData.salesTrend) {
-      if (item.day && datesMap[item.day]) datesMap[item.day].sales += item.total;
-    }
-    for (const item of trendData.expensesTrend) {
-      if (item.day && datesMap[item.day]) datesMap[item.day].outgoings += item.total;
-    }
-    for (const item of trendData.purchasesTrend) {
-      if (item.day && datesMap[item.day]) datesMap[item.day].outgoings += item.total;
-    }
-    return Object.keys(datesMap).sort().map(k => datesMap[k].sales - datesMap[k].outgoings);
-  })();
 
   return (
     <>
@@ -550,34 +477,11 @@ export function DashboardClient() {
                   </div>
                 </div>
               )}
-
-              {/* صافي هذا الشهر (غير متأثر بالفلتر) — معروض في الأعلى بجانب النقد المتاح */}
-              <div className="p-6 bg-paper rounded-xl border border-hairline shadow-sm flex flex-col justify-between gap-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-ink/65 flex items-center gap-1.5">
-                    <NetIconThisMonth className={`h-4.5 w-4.5 ${netThisMonthColorClass}`} />
-                    صافي هذا الشهر
-                  </span>
-                  <span className="px-2 py-0.5 bg-ink/10 text-ink-2 text-[9px] font-extrabold rounded">
-                    الشهر الحالي
-                  </span>
-                </div>
-                <div className="flex flex-col min-w-0">
-                  <span
-                    className={`text-2xl lg:text-3xl font-black flex items-baseline gap-1 ${netThisMonthColorClass} whitespace-nowrap min-w-0`}
-                  >
-                    <span className="font-mono text-base shrink-0">{netThisMonthSign}</span>
-                    <AmountText amount={Math.abs(netThisMonth)} />
-                  </span>
-                  <p className="text-[10px] text-ink/50 mt-1">
-                    ربح/خسارة الشهر الحالي (لا يتأثر بالفلتر أعلاه)
-                  </p>
-                </div>
-              </div>
             </div>
 
             {/* 2. لوحة المقارنة المالية الموحّدة — مبيعات · مشتريات · مصاريف · صافي ربح
-                 مجمّعة في مكان واحد ليقرأ المالك الوضع بلمحة (محسّنة للموبايل). */}
+                 مجمّعة في مكان واحد ليقرأ المالك الوضع بلمحة (محسّنة للموبايل).
+                 كل الأرقام تتبع الفترة المختارة (افتراضي: الكل). */}
             {summary && (
               <FinanceComparePanel
                 actualSales={summary.actualSales ?? 0}
@@ -587,49 +491,38 @@ export function DashboardClient() {
               />
             )}
 
-            {/* 3. ملخص الفترة (Period Summary 4-card Grid) — تفاصيل مكمّلة أسفل المقارنة */}
+            {/* 3. ملخص الفترة (Period Summary Cards) — تفاصيل مكمّلة أسفل المقارنة.
+                 صافي الربح معروض فوقه في FinanceComparePanel، فلا نكرّره هنا.
+                 نعرض: حركة المالك + الإيرادات النقدية + المشتريات + المصاريف. */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* صافي التدفق النقدي */}
+              {/* صافي حركة المالك (سحب/حقن) للفترة المختارة */}
               <div className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col justify-between">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-ink/65 flex items-center gap-1">
-                    <NetIcon className={`h-4 w-4 ${netColorClass}`} />
-                    صافي التدفق النقدي
+                    <User className={`h-4 w-4 ${ownerNet >= 0 ? "text-info" : "text-alert"}`} />
+                    حركة المالك (سحب/حقن)
                   </span>
-                  <div className="flex items-center gap-1.5">
-                    <span className="px-2 py-0.5 bg-ink/10 text-ink-2 text-[9px] font-extrabold rounded">
-                      للفترة المختارة
-                    </span>
-                    <TrendArrow data={netTrendData} goodWhenUp={true} />
-                  </div>
+                  <span className="px-2 py-0.5 bg-ink/10 text-ink-2 text-[9px] font-extrabold rounded">
+                    للفترة المختارة
+                  </span>
                 </div>
                 <div className="mt-2 flex flex-col min-w-0">
                   <span
-                    className={`text-lg lg:text-xl font-bold flex items-baseline gap-1 ${netColorClass} whitespace-nowrap min-w-0`}
+                    className={`text-lg lg:text-xl font-bold flex items-baseline gap-1 ${ownerNet >= 0 ? "text-info" : "text-alert"} whitespace-nowrap min-w-0`}
                   >
-                    <span className="font-mono text-base shrink-0">{netSign}</span>
-                    <AmountText amount={Math.abs(net)} />
+                    <span className="font-mono text-base shrink-0">{ownerNet >= 0 ? "+" : "−"}</span>
+                    <AmountText amount={Math.abs(ownerNet)} />
                   </span>
-                  <span className="text-[10px] text-ink/40 mt-1 truncate" title="مبيعات − مشتريات − مصاريف">
-                    صافي السيولة النقدية للفترة
-                  </span>
-                </div>
-                {/* صافي حركة المالك (سحب/حقن) */}
-                <div className="mt-3 pt-2.5 border-t border-hairline flex flex-col gap-1">
-                  <div className="flex items-center justify-between text-[11px] font-semibold text-ink-2">
-                    <span>صافي حركة المالك (سحب/حقن):</span>
-                    <span className={`font-mono font-bold ${ownerNet >= 0 ? "text-info" : "text-alert"}`}>
-                      {ownerNet >= 0 ? "+" : "−"}
-                      <AmountText amount={Math.abs(ownerNet)} />
-                    </span>
-                  </div>
-                  <span className="text-[9px] text-ink/50 leading-snug">
-                    سحوبات المالك تُخصم من النقد لكنها ليست مصروف تشغيل
+                  <span className="text-[10px] text-ink/40 mt-1 truncate">
+                    صافي حقن − صافي سحب (ليست ربحاً/خسارة)
                   </span>
                 </div>
+                <p className="text-[9px] text-ink/50 leading-snug mt-2 pt-2 border-t border-hairline">
+                  سحوبات المالك تُخصم من النقد لكنها ليست مصروف تشغيل
+                </p>
               </div>
 
-              {/* السيولة المتاحة (بيع + عربون) — نقد داخل خلال الفترة */}
+              {/* الإيرادات النقدية (بيع + عربون) — نقد داخل من الزبائن خلال الفترة */}
               <Link
                 href="/finance?tab=sales"
                 className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col justify-between hover:border-info/40 hover:shadow-md transition-all group"
@@ -637,7 +530,7 @@ export function DashboardClient() {
                 <div className="flex items-center justify-between w-full">
                   <span className="text-xs font-bold text-ink/65 flex items-center gap-1 truncate">
                     <ShoppingBag className="h-4 w-4 text-info" />
-                    السيولة المتاحة (بيع + عربون)
+                    إيرادات نقدية (بيع + عربون)
                   </span>
                   <div className="flex items-center gap-1.5 shrink-0">
                     <span className="px-2 py-0.5 bg-ink/10 text-ink-2 text-[9px] font-extrabold rounded">
@@ -662,7 +555,7 @@ export function DashboardClient() {
                     </span>
                   </div>
                   <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-0.5 border-t border-hairline pt-1.5 font-bold">
-                    <span className="text-[10px] text-ink">إجمالي السيولة:</span>
+                    <span className="text-[10px] text-ink">الإجمالي:</span>
                     <span className="text-sm font-black text-info flex items-baseline gap-0.5 font-mono whitespace-nowrap">
                       <span>+</span>
                       <AmountText amount={summary?.sales ?? 0} />

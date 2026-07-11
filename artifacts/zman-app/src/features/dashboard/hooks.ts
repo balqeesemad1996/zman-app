@@ -7,7 +7,6 @@ import {
   getRecentActivities,
   getDashboardStats,
   getCashSummary,
-  getCurrentMonthNet,
 } from "./queries";
 
 import { getAccountBalances } from "@/features/finance/actions";
@@ -23,7 +22,6 @@ export const dashboardKeys = {
     [...dashboardKeys.all, "stats", startDate, endDate] as const,
   cash: () => [...dashboardKeys.all, "cash"] as const,
   balances: () => [...dashboardKeys.all, "balances"] as const,
-  currentMonthNet: () => [...dashboardKeys.all, "currentMonthNet"] as const,
 };
 
 export function useFinancialSummary(startDate: string, endDate: string) {
@@ -72,12 +70,5 @@ export function useAccountBalances() {
       if (res.status === "error") throw new Error(res.message);
       return res.data || [];
     },
-  });
-}
-
-export function useCurrentMonthNet() {
-  return useQuery({
-    queryKey: dashboardKeys.currentMonthNet(),
-    queryFn: () => getCurrentMonthNet(),
   });
 }
