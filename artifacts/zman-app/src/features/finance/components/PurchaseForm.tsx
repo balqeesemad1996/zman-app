@@ -52,6 +52,9 @@ export function PurchaseForm({
     item: initialData?.item || "",
     supplier: initialData?.supplier || "",
     quantity: initialData?.quantity || 1,
+    // المصدر الأساسي المُرسَل: سعر الوحدة عالي الدقّة (ميلي-fils).
+    unitCostMicroCents: initialData?.unitCostMicroCents || 0,
+    // حقلا عرض فقط (fils صحيح) — لا يُرسَلان للخادم.
     unitCostCents: initialData?.unitCostCents || 0,
     totalCents: initialData?.totalCents || 0,
     notes: initialData?.notes || "",
@@ -73,6 +76,10 @@ export function PurchaseForm({
   const watchUnitCost = watch("unitCostCents") || 0;
   const watchTotal = watch("totalCents") || 0;
 
+  // يحسب سعر الوحدة عالي الدقّة (ميلي-fils) من الإجمالي والكمية بلا فقدان كسر.
+  const microFromTotal = (totalFils: number, qty: number) =>
+    qty > 0 ? Math.round((totalFils * 1000) / qty) : 0;
+
   // مزامنة ثنائية الاتجاه بين سعر الوحدة والإجمالي:
   // - تعديل سعر الوحدة  → إجمالي = كمية × سعر الوحدة
   // - تعديل الإجمالي     → سعر الوحدة = إجمالي ÷ كمية
@@ -84,6 +91,8 @@ export function PurchaseForm({
     lastEdited.current = "unit";
     setValue("unitCostCents", value);
     const qty = watch("quantity") || 0;
+    // الفردي (fils صحيح) هو المصدر هنا → micro = fils×1000، والإجمالي دقيق.
+    setValue("unitCostMicroCents", value * 1000);
     setValue("totalCents", Math.round(value * qty));
   };
 
@@ -91,17 +100,23 @@ export function PurchaseForm({
     lastEdited.current = "total";
     setValue("totalCents", value);
     const qty = watch("quantity") || 0;
+    // الإجمالي هو المصدر → micro يحمل الكسر بحيث micro×qty/1000 = الإجمالي.
+    setValue("unitCostMicroCents", microFromTotal(value, qty));
     setValue("unitCostCents", qty > 0 ? Math.round(value / qty) : 0);
   };
 
   // عند تغيّر الكمية: نعيد الحساب حسب آخر حقل عدّله المستخدم
   useEffect(() => {
     if (lastEdited.current === "total") {
+      // الإجمالي ثابت (هو الحقيقة) → أعد اشتقاق الفردي عالي الدقّة والمعروض.
+      setValue("unitCostMicroCents", microFromTotal(watchTotal, watchQty));
       setValue(
         "unitCostCents",
         watchQty > 0 ? Math.round(watchTotal / watchQty) : 0,
       );
     } else {
+      // الفردي ثابت → أعد حساب الإجمالي وحدّث micro.
+      setValue("unitCostMicroCents", watchUnitCost * 1000);
       setValue("totalCents", Math.round(watchQty * watchUnitCost));
     }
     // نراقب الكمية فقط عمداً (إعادة الحساب عند تغيّرها)
@@ -117,6 +132,7 @@ export function PurchaseForm({
       setValue("item", initialData.item);
       setValue("supplier", initialData.supplier || "");
       setValue("quantity", initialData.quantity);
+      setValue("unitCostMicroCents", initialData.unitCostMicroCents ?? initialData.unitCostCents * 1000);
       setValue("unitCostCents", initialData.unitCostCents);
       setValue("totalCents", initialData.totalCents);
       setValue("notes", initialData.notes || "");
@@ -326,12 +342,19 @@ export function PurchaseForm({
           />
         </div>
 
-        {/* سعر القطعة الواحدة — محسوب للعرض فقط */}
+        {/* سعر القطعة الواحدة — محسوب للعرض فقط، بدقّة عالية (حتى 6 منازل) */}
         <div className="p-3.5 bg-canvas/30 rounded-lg border border-hairline flex items-center justify-between">
           <span className="text-sm font-bold text-ink-2">سعر القطعة الواحدة:</span>
-          <span className="text-lg font-extrabold text-info">
+          <span className="text-lg font-extrabold text-info" dir="ltr">
             {watchQty > 0 ? (
-              <AmountText amount={Math.round(watchTotal / watchQty)} />
+              <>
+                {(watchTotal / watchQty / 1000)
+                  .toLocaleString("en-US", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 6,
+                  })}{" "}
+                د.أ
+              </>
             ) : (
               <span className="text-ink-3">—</span>
             )}

@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  bigint,
   check,
   date,
   index,
@@ -22,9 +23,18 @@ export const purchase = pgTable(
     item: text("item").notNull(),
     supplier: text("supplier").notNull().default(""),
     quantity: integer("quantity").notNull().default(1),
+    // سعر الوحدة (fils صحيح) — للعرض والتوافق فقط. مشتقّ من الدقّة العالية.
     unitCostCents: integer("unit_cost_cents").notNull(),
+    // سعر الوحدة عالي الدقّة بالميلي-fils (fils×1000 = 6 منازل عشرية للدينار).
+    // هو المصدر الأساسي: يضمن أن (فردي × كمية = إجمالي) دائماً دون فقدان الكسر.
+    unitCostMicroCents: bigint("unit_cost_micro_cents", { mode: "number" })
+      .notNull()
+      .default(0),
+    // الإجمالي (fils صحيح) محسوب من الدقّة العالية ومقرّب لأقرب fils.
     totalCents: integer("total_cents")
-      .generatedAlwaysAs(() => sql`quantity * unit_cost_cents`)
+      .generatedAlwaysAs(
+        () => sql`round(unit_cost_micro_cents::numeric * quantity / 1000)::integer`,
+      )
       .notNull(),
     notes: text("notes").notNull().default(""),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),

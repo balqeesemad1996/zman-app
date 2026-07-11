@@ -18,7 +18,9 @@ export const purchaseInputSchema = z.object({
     .number()
     .int({ message: "الكمية يجب أن تكون عدداً صحيحاً" })
     .positive({ message: "الكمية يجب أن تكون أكبر من 0" }),
-  unitCostCents: z.coerce
+  // سعر الوحدة عالي الدقّة بالميلي-fils (fils×1000). هو المصدر الأساسي المُرسَل
+  // من الواجهة. يضمن أن (فردي × كمية = إجمالي) دون فقدان الكسر.
+  unitCostMicroCents: z.coerce
     .number()
     .int({ message: "التكلفة يجب أن تكون عدداً صحيحاً" })
     .positive({ message: "التكلفة يجب أن تكون أكبر من 0" }),

@@ -1,6 +1,6 @@
 "use client";
 
-import { endOfMonth, format, startOfMonth, subDays } from "date-fns";
+import { endOfMonth, format, startOfMonth, subMonths } from "date-fns";
 import {
   ArrowDownRight,
   ArrowLeft,
@@ -20,7 +20,6 @@ import {
   User,
   BarChart3,
 } from "lucide-react";
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import { AppShellHeader } from "@/providers/app-shell-context";
@@ -41,6 +40,91 @@ import {
 } from "../hooks";
 import { useOpeningBalance } from "@/features/finance/hooks";
 import { FloatingActionButton } from "@/components/shared/FloatingActionButton";
+
+// أسماء الأشهر الميلادية بالعربي (ترتيب getMonth: 0=يناير).
+const AR_MONTHS = [
+  "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
+  "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر",
+] as const;
+
+/**
+ * لوحة المقارنة المالية الموحّدة (مبيعات · مشتريات · مصاريف · صافي الربح).
+ * محسّنة للموبايل: أشرطة أفقية نسبية بطول متناسب مع أكبر قيمة، ليقرأ المالك
+ * الأكبر من الأصغر بلمحة، وسطر صافي ربح مميّز أسفلها.
+ */
+function FinanceComparePanel({
+  actualSales,
+  purchases,
+  expenses,
+  netProfit,
+}: {
+  actualSales: number;
+  purchases: number;
+  expenses: number;
+  netProfit: number;
+}) {
+  const rows = [
+    { label: "المبيعات الفعلية", value: actualSales, barClass: "bg-info", textClass: "text-info", sign: "+" },
+    { label: "المشتريات المدفوعة", value: purchases, barClass: "bg-alert", textClass: "text-alert", sign: "−" },
+    { label: "المصاريف المدفوعة", value: expenses, barClass: "bg-warn-deep", textClass: "text-warn-deep", sign: "−" },
+  ];
+  // أطول شريط يُحسب نسبةً لأكبر قيمة موجبة (نتجنب القسمة على صفر).
+  const maxValue = Math.max(actualSales, purchases, expenses, 1);
+  const isProfit = netProfit >= 0;
+
+  return (
+    <div className="bg-paper rounded-lg border border-hairline shadow-sm p-4 sm:p-5 space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-bold text-ink flex items-center gap-1.5">
+          <BarChart3 className="h-4.5 w-4.5 text-info" />
+          مقارنة الأداء المالي
+        </h3>
+        <span className="px-2 py-0.5 bg-ink/10 text-ink-2 text-[9px] font-extrabold rounded shrink-0">
+          للفترة المختارة
+        </span>
+      </div>
+
+      {/* الأشرطة النسبية */}
+      <div className="space-y-3.5">
+        {rows.map((row) => {
+          const pct = Math.round((row.value / maxValue) * 100);
+          return (
+            <div key={row.label} className="space-y-1">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="text-xs font-semibold text-ink-2 truncate">{row.label}</span>
+                <span className={`text-sm font-black font-mono whitespace-nowrap flex items-baseline gap-0.5 ${row.textClass}`}>
+                  <span>{row.sign}</span>
+                  <AmountText amount={row.value} />
+                </span>
+              </div>
+              <div className="h-2.5 w-full bg-canvas rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${row.barClass}`}
+                  style={{ width: `${Math.max(pct, row.value > 0 ? 4 : 0)}%` }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* سطر صافي الربح المميّز */}
+      <div className={`flex items-center justify-between gap-2 pt-3 border-t-2 ${isProfit ? "border-info/30" : "border-alert/30"}`}>
+        <span className="text-sm font-bold text-ink flex items-center gap-1.5">
+          {isProfit ? <TrendingUp className="h-4.5 w-4.5 text-info" /> : <TrendingDown className="h-4.5 w-4.5 text-alert" />}
+          صافي الربح
+        </span>
+        <span className={`text-lg font-black font-mono whitespace-nowrap flex items-baseline gap-1 ${isProfit ? "text-info" : "text-alert"}`}>
+          <span className="text-base">{isProfit ? "+" : "−"}</span>
+          <AmountText amount={Math.abs(netProfit)} />
+        </span>
+      </div>
+      <p className="text-[10px] text-ink/45 leading-snug -mt-2">
+        صافي الربح = المبيعات الفعلية − المشتريات − المصاريف (العربون لا يُحسب ربحاً قبل التسليم).
+      </p>
+    </div>
+  );
+}
 
 /**
  * اتجاه سلسلة قيم عبر الفترة: نقارن مجموع النصف الأول بالنصف الثاني.
@@ -103,26 +187,27 @@ export function DashboardClient() {
   }, []);
   const glowClass = glowClasses[glowIndex];
 
-  // فترات التاريخ المتاحة
+  // فترات التاريخ المتاحة.
+  // "الكل" هو الافتراضي (يغطي كامل تاريخ المشروع). نستخدم بداية ثابتة بعيدة
+  // (2020-01-01) لضمان شمول كل العمليات المسجّلة. تليه اختصارات أشهر أخيرة
+  // ليكبس المالك شهراً معيناً بضغطة واحدة بدل التخصيص اليدوي.
   const presets = [
     {
-      label: "آخر 7 أيام",
-      getValue: () => ({ start: subDays(new Date(), 6), end: new Date() }),
+      label: "الكل",
+      getValue: () => ({ start: new Date("2020-01-01"), end: new Date() }),
     },
-    {
-      label: "آخر 30 يوم",
-      getValue: () => ({ start: subDays(new Date(), 29), end: new Date() }),
-    },
-    {
-      label: "الشهر الحالي",
-      getValue: () => ({
-        start: startOfMonth(new Date()),
-        end: endOfMonth(new Date()),
-      }),
-    },
+    ...[0, 1, 2].map((monthsAgo) => {
+      const d = subMonths(new Date(), monthsAgo);
+      return {
+        // اسم الشهر الميلادي بالعربي (مثلاً "يوليو") — أوضح من "الشهر الحالي"
+        // ومقروء على الموبايل. نستخدم مصفوفة يدوية لضمان أسماء الأشهر الميلادية.
+        label: AR_MONTHS[d.getMonth()]!,
+        getValue: () => ({ start: startOfMonth(d), end: endOfMonth(d) }),
+      };
+    }),
   ];
 
-  const [selectedPresetIdx, setSelectedPresetIdx] = useState(1); // التقصير: آخر 30 يوم
+  const [selectedPresetIdx, setSelectedPresetIdx] = useState(0); // الافتراضي: الكل (الفترة الكاملة)
   const [customRange, setCustomRange] = useState<{
     start: Date;
     end: Date;
@@ -491,7 +576,18 @@ export function DashboardClient() {
               </div>
             </div>
 
-            {/* 2. ملخص الفترة (Period Summary 4-card Grid) */}
+            {/* 2. لوحة المقارنة المالية الموحّدة — مبيعات · مشتريات · مصاريف · صافي ربح
+                 مجمّعة في مكان واحد ليقرأ المالك الوضع بلمحة (محسّنة للموبايل). */}
+            {summary && (
+              <FinanceComparePanel
+                actualSales={summary.actualSales ?? 0}
+                purchases={summary.purchases ?? 0}
+                expenses={summary.expenses ?? 0}
+                netProfit={summary.netProfit ?? 0}
+              />
+            )}
+
+            {/* 3. ملخص الفترة (Period Summary 4-card Grid) — تفاصيل مكمّلة أسفل المقارنة */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {/* صافي التدفق النقدي */}
               <div className="p-4 bg-paper rounded-lg border border-hairline shadow-sm flex flex-col justify-between">
@@ -870,7 +966,7 @@ export function DashboardClient() {
           {/* الاختيارات المجهزة سلفاً */}
           <div className="space-y-2">
             <span className="text-xs font-bold text-ink/55">فترات سريعة:</span>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {presets.map((preset, i) => (
                 <FilterChip
                   key={preset.label}

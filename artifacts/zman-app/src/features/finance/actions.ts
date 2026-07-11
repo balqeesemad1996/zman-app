@@ -148,6 +148,10 @@ export async function createPurchase(
         }
       }
 
+      // سعر الوحدة عالي الدقّة هو المصدر؛ نشتقّ الفردي الصحيح (fils) للعرض/التوافق.
+      const derivedUnitCostCents = Math.round(
+        parsed.data.unitCostMicroCents / 1000,
+      );
       const [newPurchase] = await tx
         .insert(purchase)
         .values({
@@ -155,7 +159,8 @@ export async function createPurchase(
           item: parsed.data.item,
           supplier: parsed.data.supplier,
           quantity: parsed.data.quantity,
-          unitCostCents: parsed.data.unitCostCents,
+          unitCostMicroCents: parsed.data.unitCostMicroCents,
+          unitCostCents: derivedUnitCostCents,
           notes: parsed.data.notes,
         })
         .returning();
@@ -240,6 +245,9 @@ export async function updatePurchase(
         };
       }
 
+      const derivedUnitCostCents = Math.round(
+        parsed.data.unitCostMicroCents / 1000,
+      );
       const [updatedPurchase] = await tx
         .update(purchase)
         .set({
@@ -247,7 +255,8 @@ export async function updatePurchase(
           item: parsed.data.item,
           supplier: parsed.data.supplier,
           quantity: parsed.data.quantity,
-          unitCostCents: parsed.data.unitCostCents,
+          unitCostMicroCents: parsed.data.unitCostMicroCents,
+          unitCostCents: derivedUnitCostCents,
           notes: parsed.data.notes,
           updatedAt: new Date(),
         })

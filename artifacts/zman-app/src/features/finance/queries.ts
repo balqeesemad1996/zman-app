@@ -75,6 +75,7 @@ export async function getPurchases(filters: GetPurchasesFilters) {
       supplier: purchase.supplier,
       quantity: purchase.quantity,
       unitCostCents: purchase.unitCostCents,
+      unitCostMicroCents: purchase.unitCostMicroCents,
       totalCents: purchase.totalCents,
       notes: purchase.notes,
       deletedAt: purchase.deletedAt,
