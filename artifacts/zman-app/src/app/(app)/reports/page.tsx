@@ -564,9 +564,9 @@ export default function ReportsPage() {
               <div>
                 <h3 className="text-base font-bold text-ink flex items-center gap-2">
                   <BarChart2 className="h-5 w-5 text-info" />
-                  ميزان الوضع المالي (الميزانية العمومية)
+                  وضع المشروع المالي
                 </h3>
-                <p className="text-xs text-ink/50 mt-1">عرض الأصول والالتزامات وحقوق الملكية للورشة في تاريخ محدد (أساس نقدي مبسط)</p>
+                <p className="text-xs text-ink/50 mt-1">كم تملك وكم عليك في تاريخ محدد</p>
               </div>
               <DownloadBtn
                 type="balance_sheet"
@@ -599,7 +599,7 @@ export default function ReportsPage() {
                   <div className="bg-canvas/40 p-4 rounded-lg border border-hairline space-y-4">
                     <h4 className="text-sm font-bold text-info border-b border-hairline pb-2 flex items-center gap-1.5">
                       <TrendingUp className="h-4.5 w-4.5 text-info" />
-                      الأصول (الموجودات)
+                      ما تملك (الأصول)
                     </h4>
                     <div className="space-y-3">
                       <div className="flex items-center justify-between text-sm">
@@ -627,7 +627,7 @@ export default function ReportsPage() {
                   <div className="bg-canvas/40 p-4 rounded-lg border border-hairline space-y-4">
                     <h4 className="text-sm font-bold text-alert border-b border-hairline pb-2 flex items-center gap-1.5">
                       <ArrowDownRight className="h-4.5 w-4.5 text-alert" />
-                      الالتزامات (المطالبات)
+                      ما عليك (الالتزامات)
                     </h4>
                     <div className="space-y-3">
                       <div className="flex items-center justify-between text-sm">
@@ -649,7 +649,7 @@ export default function ReportsPage() {
                   <div className="bg-canvas/40 p-4 rounded-lg border border-hairline space-y-4">
                     <h4 className="text-sm font-bold text-ink border-b border-hairline pb-2 flex items-center gap-1.5">
                       <Wallet className="h-4.5 w-4.5 text-ink-3" />
-                      حقوق الملكية (رأس المال والأرباح)
+                      صافي ما يملكه المشروع
                     </h4>
                     <div className="space-y-3">
                       <div className="flex items-center justify-between text-sm">
@@ -659,7 +659,7 @@ export default function ReportsPage() {
                         </span>
                       </div>
                       <div className="flex items-center justify-between text-xs text-ink/45 pb-1 border-b border-dashed border-hairline">
-                        <span>رأس المال المصرح به (مرجعي)</span>
+                        <span>رأس المال المسجّل (مرجعي)</span>
                         <span className="font-mono">
                           <AmountText amount={positionData.equity.openingCapitalCents} />
                         </span>
@@ -677,13 +677,13 @@ export default function ReportsPage() {
                         </span>
                       </div>
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-ink/65 font-medium">أرباح مدورة محتجزة</span>
+                        <span className="text-ink/65 font-medium">أرباح متراكمة في المشروع</span>
                         <span className="font-mono font-bold text-ink">
                           <AmountText amount={positionData.equity.retainedProfitCents} />
                         </span>
                       </div>
                       <div className="flex items-center justify-between text-sm pt-2 border-t border-hairline font-bold text-ink">
-                        <span>إجمالي حقوق الملكية</span>
+                        <span>إجمالي ما يملكه المشروع</span>
                         <span className="font-mono">
                           <AmountText amount={positionData.equity.totalCents} />
                         </span>
@@ -697,11 +697,11 @@ export default function ReportsPage() {
                   <div className="p-4 bg-info/10 border border-info/20 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs font-semibold text-info-dark">
                     <span className="flex items-center gap-2">
                       <span className="w-2.5 h-2.5 rounded-full bg-info animate-pulse" />
-                      المعادلة متوازنة محاسبياً: الأصول = الالتزامات + حقوق الملكية
+                      المعادلة متوازنة: ما تملك = ما عليك + صافي ملكيتك
                     </span>
                     <div className="flex flex-wrap gap-x-6 gap-y-1 font-mono">
                       <span>الأصول: <AmountText amount={positionData.assets.totalCents} /></span>
-                      <span>المطلوبات وحقوق الملكية: <AmountText amount={positionData.liabilities.totalCents + positionData.equity.totalCents} /></span>
+                      <span>المطلوبات وملكية المشروع: <AmountText amount={positionData.liabilities.totalCents + positionData.equity.totalCents} /></span>
                     </div>
                   </div>
                 ) : (

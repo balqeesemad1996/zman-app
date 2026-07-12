@@ -65,8 +65,8 @@ function FinanceComparePanel({
 }) {
   const rows = [
     { label: "المبيعات الفعلية", value: actualSales, barClass: "bg-info", textClass: "text-info", sign: "+" },
-    { label: "المشتريات المدفوعة", value: purchases, barClass: "bg-alert", textClass: "text-alert", sign: "−" },
-    { label: "المصاريف المدفوعة", value: expenses, barClass: "bg-warn-deep", textClass: "text-warn-deep", sign: "−" },
+    { label: "المشتريات المدفوعة", value: purchases, barClass: "bg-amber-500", textClass: "text-amber-600", sign: "−" },
+    { label: "المصاريف المدفوعة", value: expenses, barClass: "bg-orange-400", textClass: "text-amber-600", sign: "−" },
   ];
   // أطول شريط يُحسب نسبةً لأكبر قيمة موجبة (نتجنب القسمة على صفر).
   const maxValue = Math.max(actualSales, purchases, expenses, 1);
@@ -79,9 +79,6 @@ function FinanceComparePanel({
           <BarChart3 className="h-4.5 w-4.5 text-info" />
           مقارنة الأداء المالي
         </h3>
-        <span className="px-2 py-0.5 bg-ink/10 text-ink-2 text-[9px] font-extrabold rounded shrink-0">
-          للفترة المختارة
-        </span>
       </div>
 
       {/* الأشرطة النسبية */}
@@ -293,7 +290,7 @@ export function DashboardClient() {
           </button>
         }
       />
-      <div className="space-y-5">
+      <div className="space-y-5 pb-28">
         {/* شريط فلتر التاريخ للديسكتوب — موحّد داخل المحتوى */}
         <div className="hidden lg:block self-start">
           <SegmentedControl
@@ -378,8 +375,8 @@ export function DashboardClient() {
                 >
                   <div className="flex items-center gap-2 min-w-0">
                     <Calendar className={`h-5 w-5 shrink-0 ${stats.upcomingOrders.length > 0 ? "text-white" : "text-info"}`} />
-                    <span className="text-sm md:text-base truncate">
-                      طلبات يستحق تسليمها (خلال 7 أيام) — {stats.upcomingOrders.length} طلبات
+                    <span className="text-sm md:text-base">
+                      طلبات قرب تسليمها ({stats.upcomingOrders.length})
                     </span>
                   </div>
                   <span className={`text-xs transition-transform ${isDeliveriesExpanded ? "rotate-180" : ""}`}>
@@ -493,11 +490,11 @@ export function DashboardClient() {
               )}
             </div>
 
-            {/* ═══ القسم 1.5: تفصيل تدفق السيولة (للفترة المختارة) ═══ */}
+            {/* ═══ القسم 1.5: تدفق السيولة ═══ */}
             <div className="flex items-center gap-2 px-1 pt-2">
               <Wallet className="h-5 w-5 text-info" />
-              <h2 className="text-sm font-black text-ink">تدفق السيولة النقدية</h2>
-              <span className="text-[10px] text-ink/40">(كاش داخل/خارج — ليس ربحاً/خسارة)</span>
+              <h2 className="text-sm font-black text-ink">تدفق السيولة</h2>
+              <span className="text-[10px] text-ink/40">نقد داخل/خارج — ليس ربحاً</span>
               <div className="flex-1 border-t border-info/20 ml-2" />
             </div>
 
@@ -513,11 +510,11 @@ export function DashboardClient() {
               />
             )}
 
-            {/* ═══ القسم 2: أداء عملك للفترة المختارة (الربح) ═══ */}
+            {/* ═══ القسم 2: أداء عملك (الربح) ═══ */}
             <div className="flex items-center gap-2 px-1 pt-4">
               <TrendingUp className="h-5 w-5 text-info" />
-              <h2 className="text-sm font-black text-ink">أداء عملك للفترة المختارة</h2>
-              <span className="text-[10px] text-ink/40">(ربح/خسارة — ليس نقداً في جيبك)</span>
+              <h2 className="text-sm font-black text-ink">أداء عملك</h2>
+              <span className="text-[10px] text-ink/40">ربح — ليس نقداً في جيبك</span>
               <div className="flex-1 border-t border-info/20 ml-2" />
             </div>
 
@@ -531,17 +528,12 @@ export function DashboardClient() {
               />
             )}
 
-            {/* أبرز فئات المصاريف للفترة المختارة */}
+            {/* أبرز المصاريف */}
             {stats && stats.topExpenses && stats.topExpenses.length > 0 && (
               <div className="bg-paper p-5 rounded-lg border border-hairline shadow-sm space-y-3">
-                <h3 className="text-xs font-bold text-ink/65 flex items-center justify-between gap-1.5 w-full">
-                  <span className="flex items-center gap-1.5 truncate">
-                    <ArrowDownRight className="h-4.5 w-4.5 text-alert" />
-                    أبرز فئات مصاريف التشغيل (للفترة المختارة)
-                  </span>
-                  <span className="px-2 py-0.5 bg-ink/10 text-ink-2 text-[9px] font-extrabold rounded shrink-0">
-                    للفترة المختارة
-                  </span>
+                <h3 className="text-xs font-bold text-ink/65 flex items-center gap-1.5">
+                  <ArrowDownRight className="h-4.5 w-4.5 text-amber-600" />
+                  أبرز المصاريف
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   {stats.topExpenses.map((exp) => (

@@ -115,7 +115,7 @@ export function PurchasesTab() {
   };
 
   return (
-    <div className="space-y-4 flex-1 flex flex-col">
+    <div className="space-y-4 flex-1 flex flex-col pb-24">
 
       {isLoading ? (
         <SkeletonList />

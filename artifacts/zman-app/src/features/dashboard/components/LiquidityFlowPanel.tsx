@@ -1,20 +1,21 @@
 "use client";
 
-import { TrendingUp, TrendingDown, Wallet, ArrowDownRight } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet } from "lucide-react";
 import { AmountText } from "@/components/shared/AmountText";
+import { InfoTooltip } from "@/components/shared/InfoTooltip";
 
 /**
- * لوحة تدفق السيولة — مرآة لـ FinanceComparePanel لكن للسيولة (كاش داخل/خارج)
- * بدل الربح. تعرض: الافتتاحي + الوارد + المنصرف + الصافي + التسوية.
+ * لوحة تدفق السيولة — تقرأ كدفتر واحد من الأعلى للأسفل:
+ * رأس المال → وارد → منصرف → صافي الحركة → النقد المتاح الآن.
+ * مرآة لـ FinanceComparePanel لكن للسيولة (كاش داخل/خارج).
  */
-function LiquidityRow({
+function FlowRow({
   label,
   value,
   barClass,
   textClass,
   sign,
   maxValue,
-  isDashed = false,
 }: {
   label: string;
   value: number;
@@ -22,7 +23,6 @@ function LiquidityRow({
   textClass: string;
   sign: "+" | "−" | "";
   maxValue: number;
-  isDashed?: boolean;
 }) {
   const pct = maxValue > 0 ? Math.round((value / maxValue) * 100) : 0;
   return (
@@ -34,7 +34,7 @@ function LiquidityRow({
           <AmountText amount={value} />
         </span>
       </div>
-      <div className={`h-2 w-full bg-canvas rounded-full overflow-hidden ${isDashed ? "border border-dashed border-hairline" : ""}`}>
+      <div className="h-2 w-full bg-canvas rounded-full overflow-hidden">
         <div
           className={`h-full rounded-full transition-all duration-500 ${barClass}`}
           style={{ width: `${Math.max(pct, value > 0 ? 4 : 0)}%` }}
@@ -64,135 +64,125 @@ export function LiquidityFlowPanel({
   const totalInflows = actualSales + deposits + ownerInject;
   const totalOutflows = purchases + expenses + ownerDraw;
   const netCashFlow = totalInflows - totalOutflows;
-  const maxValue = Math.max(actualSales, deposits, ownerInject, purchases, expenses, ownerDraw, 1);
+  const maxValue = Math.max(actualSales, deposits, ownerInject, purchases, expenses, ownerDraw, openingBalanceCents, 1);
   const isPositive = netCashFlow >= 0;
-  const expectedBalance = openingBalanceCents + netCashFlow;
+  const availableNow = openingBalanceCents + netCashFlow;
 
   return (
-    <div className="bg-paper rounded-lg border border-hairline shadow-sm p-4 sm:p-5 space-y-4">
+    <div className="bg-paper rounded-lg border border-hairline shadow-sm p-4 sm:p-5 space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-bold text-ink flex items-center gap-1.5">
           <Wallet className="h-4.5 w-4.5 text-info" />
-          تدفق السيولة النقدية
+          تدفق السيولة
+          <InfoTooltip text="كل ما دخل وخرج من الصندوق خلال الفترة المختارة. يشمل المبيعات والعربونات والمشتريات والمصاريف وحركة المالك. هذا ليس ربحاً — العربون نقد لكنه التزام حتى التسليم، وسحب المالك ليس مصروفاً." />
         </h3>
-        <span className="px-2 py-0.5 bg-ink/10 text-ink-2 text-[9px] font-extrabold rounded shrink-0">
-          للفترة المختارة
-        </span>
       </div>
 
-      {/* الرصيد الافتتاحي — سياق فقط، ليس جزءاً من التدفق */}
+      {/* رأس المال / رصيد البداية — أول سطر في التسلسل */}
       {openingBalanceCents > 0 && (
-        <>
-          <div className="flex items-baseline justify-between gap-2 pb-1">
-            <span className="text-xs font-semibold text-ink-3 truncate">
-              الرصيد الافتتاحي للمشروع
-            </span>
-            <span className="text-sm font-bold text-ink-3 font-mono whitespace-nowrap">
-              <AmountText amount={openingBalanceCents} />
-            </span>
-          </div>
-          <div className="border-t border-dashed border-hairline" />
-        </>
+        <FlowRow
+          label="رأس المال / رصيد البداية"
+          value={openingBalanceCents}
+          barClass="bg-ink/20"
+          textClass="text-ink-3"
+          sign="+"
+          maxValue={maxValue}
+        />
       )}
 
-      {/* الوارد النقدي */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] font-bold text-info uppercase tracking-wide">
-            وارد نقد خلال الفترة
-          </span>
-          <span className="text-[10px] font-bold text-info font-mono">
-            +<AmountText amount={totalInflows} />
-          </span>
-        </div>
-        <LiquidityRow
-          label="مبيعات محصّلة"
-          value={actualSales}
-          barClass="bg-info"
-          textClass="text-info"
-          sign="+"
-          maxValue={maxValue}
-        />
-        <LiquidityRow
-          label="عربونات محصّلة"
-          value={deposits}
-          barClass="bg-info/70"
-          textClass="text-info"
-          sign="+"
-          maxValue={maxValue}
-        />
-        <LiquidityRow
-          label="حقن المالك (رأس مال إضافي)"
-          value={ownerInject}
-          barClass="bg-info/50"
-          textClass="text-info"
-          sign="+"
-          maxValue={maxValue}
-        />
+      {/* ── مال داخل ── */}
+      <div className="pt-1">
+        <span className="text-[10px] font-bold text-info uppercase tracking-wide">
+          مال داخل
+        </span>
+        <span className="text-[10px] font-bold text-info font-mono mr-2">
+          +<AmountText amount={totalInflows} />
+        </span>
       </div>
+      <FlowRow
+        label="مبيعات مكتملة"
+        value={actualSales}
+        barClass="bg-info"
+        textClass="text-info"
+        sign="+"
+        maxValue={maxValue}
+      />
+      <FlowRow
+        label="عربونات محصّلة"
+        value={deposits}
+        barClass="bg-info/70"
+        textClass="text-info"
+        sign="+"
+        maxValue={maxValue}
+      />
+      <FlowRow
+        label="إضافات المالك"
+        value={ownerInject}
+        barClass="bg-info/50"
+        textClass="text-info"
+        sign="+"
+        maxValue={maxValue}
+      />
 
-      {/* المنصرف النقدي */}
-      <div className="space-y-2 pt-1">
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] font-bold text-alert uppercase tracking-wide">
-            منصرف نقد خلال الفترة
-          </span>
-          <span className="text-[10px] font-bold text-alert font-mono">
-            −<AmountText amount={totalOutflows} />
-          </span>
-        </div>
-        <LiquidityRow
-          label="مشتريات مدفوعة"
-          value={purchases}
-          barClass="bg-alert"
-          textClass="text-alert"
-          sign="−"
-          maxValue={maxValue}
-        />
-        <LiquidityRow
-          label="مصاريف مدفوعة"
-          value={expenses}
-          barClass="bg-warn-deep"
-          textClass="text-warn-deep"
-          sign="−"
-          maxValue={maxValue}
-        />
-        <LiquidityRow
-          label="سحوبات المالك"
-          value={ownerDraw}
-          barClass="bg-alert/60"
-          textClass="text-alert"
-          sign="−"
-          maxValue={maxValue}
-        />
+      {/* ── مال خارج ── */}
+      <div className="pt-1">
+        <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wide">
+          مال خارج
+        </span>
+        <span className="text-[10px] font-bold text-amber-600 font-mono mr-2">
+          −<AmountText amount={totalOutflows} />
+        </span>
       </div>
+      <FlowRow
+        label="مشتريات"
+        value={purchases}
+        barClass="bg-amber-500"
+        textClass="text-amber-600"
+        sign="−"
+        maxValue={maxValue}
+      />
+      <FlowRow
+        label="مصاريف"
+        value={expenses}
+        barClass="bg-orange-400"
+        textClass="text-amber-600"
+        sign="−"
+        maxValue={maxValue}
+      />
+      <FlowRow
+        label="سحوبات المالك"
+        value={ownerDraw}
+        barClass="bg-amber-300"
+        textClass="text-amber-600"
+        sign="−"
+        maxValue={maxValue}
+      />
 
-      {/* صافي التدفق النقدي */}
+      {/* صافي الحركة النقدية للفترة */}
       <div className={`flex items-center justify-between gap-2 pt-3 border-t-2 ${isPositive ? "border-info/30" : "border-alert/30"}`}>
         <span className="text-sm font-bold text-ink flex items-center gap-1.5">
           {isPositive ? <TrendingUp className="h-4.5 w-4.5 text-info" /> : <TrendingDown className="h-4.5 w-4.5 text-alert" />}
-          صافي التدفق النقدي للفترة
+          صافي الحركة النقدية للفترة
         </span>
-        <span className={`text-lg font-black font-mono whitespace-nowrap flex items-baseline gap-1 ${isPositive ? "text-info" : "text-alert"}`}>
+        <span className={`text-lg font-black font-mono whitespace-nowrap flex items-baseline gap-0.5 ${isPositive ? "text-info" : "text-alert"}`}>
           <span className="text-base">{isPositive ? "+" : "−"}</span>
           <AmountText amount={Math.abs(netCashFlow)} />
         </span>
       </div>
 
-      {/* تسوية: الرصيد المتوقع */}
-      {openingBalanceCents > 0 && (
-        <div className="flex items-baseline justify-between gap-2 pt-1">
-          <span className="text-[10px] text-ink/50">
-            الرصيد المتوقع الآن = الافتتاحي + صافي التدفق
-          </span>
-          <span className="text-xs font-bold text-ink-2 font-mono whitespace-nowrap">
-            <AmountText amount={expectedBalance} />
-          </span>
-        </div>
-      )}
+      {/* = النقد المتاح الآن — الرصيد المرجعي */}
+      <div className="flex items-center justify-between gap-2 pt-2 border-t border-hairline">
+        <span className="text-sm font-black text-ink flex items-center gap-1.5">
+          <Wallet className="h-4 w-4 text-info" />
+          النقد المتاح الآن
+        </span>
+        <span className="text-xl font-black text-info font-mono whitespace-nowrap flex items-baseline gap-0.5">
+          <AmountText amount={availableNow} />
+        </span>
+      </div>
 
-      <p className="text-[10px] text-ink/45 leading-snug -mt-2">
-        تدفقات نقدية — ليس ربحاً/خسارة. يشمل العربونات المحصّلة وحركة المالك.
+      <p className="text-[10px] text-ink/40 leading-snug">
+        نقد داخل/خارج — ليس ربحاً. = رأس المال + (مال داخل − مال خارج).
       </p>
     </div>
   );
