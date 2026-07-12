@@ -8,6 +8,7 @@ import {
 } from "@tanstack/react-query";
 import {
   convertOrderToSale,
+  reverseSale,
   createExpense,
   createPurchase,
   createSale,
@@ -346,6 +347,26 @@ export function useConvertOrderToSale() {
           queryClient.invalidateQueries({ queryKey: ["orders"] }),
           queryClient.invalidateQueries({ queryKey: ["reports"] }),
           queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
+          queryClient.invalidateQueries({ queryKey: ["finance"] }),
+        ]);
+        await queryClient.refetchQueries({ queryKey: ["orders"] });
+      }
+    },
+  });
+}
+
+export function useReverseSale() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ orderId }: { orderId: string }) => reverseSale(orderId),
+    onSuccess: async (res) => {
+      if (res.status === "ok") {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: financeKeys.sales() }),
+          queryClient.invalidateQueries({ queryKey: ["orders"] }),
+          queryClient.invalidateQueries({ queryKey: ["reports"] }),
+          queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
+          queryClient.invalidateQueries({ queryKey: ["finance"] }),
         ]);
         await queryClient.refetchQueries({ queryKey: ["orders"] });
       }

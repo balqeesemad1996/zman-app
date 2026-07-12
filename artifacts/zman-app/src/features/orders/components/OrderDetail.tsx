@@ -2,6 +2,7 @@
 
 import {
   AlertCircle,
+  ArrowLeft,
   ArrowRight,
   CheckCircle2,
   Edit,
@@ -20,7 +21,7 @@ import { ResponsiveModal } from "@/components/shared/ResponsiveModal";
 import { Button } from "@/components/shared/Button";
 import { cn } from "@/lib/utils";
 import { buildOrderWhatsAppLink } from "@/lib/whatsapp";
-import { useConvertOrderToSale } from "../../finance/hooks";
+import { useConvertOrderToSale, useReverseSale } from "../../finance/hooks";
 import { useDeleteOrder, useOrder, useUpdateOrderStatus, useMessageTemplate } from "../hooks";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
@@ -43,10 +44,13 @@ export function OrderDetail({ orderId, onEdit, onBack }: OrderDetailProps) {
   const deleteOrderMutation = useDeleteOrder();
   const updateStatusMutation = useUpdateOrderStatus();
   const convertOrderToSaleMutation = useConvertOrderToSale();
+  const reverseSaleMutation = useReverseSale();
   const [isConverting, setIsConverting] = useState(false);
+  const [isReversing, setIsReversing] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const [showConvertConfirm, setShowConvertConfirm] = useState(false);
+  const [showReverseConfirm, setShowReverseConfirm] = useState(false);
 
   const handleConvertToSale = async () => {
     setIsConverting(true);
@@ -67,6 +71,26 @@ export function OrderDetail({ orderId, onEdit, onBack }: OrderDetailProps) {
       toast.error(err instanceof Error ? err.message : String(err));
     } finally {
       setIsConverting(false);
+    }
+  };
+
+  const handleReverseSale = async () => {
+    setIsReversing(true);
+    setShowReverseConfirm(false);
+    try {
+      const response = await reverseSaleMutation.mutateAsync({
+        orderId: orderData?.id ?? "",
+      });
+      if (response.status === "ok") {
+        toast.success("تم عكس البيع وإعادة الطلب إلى حالة «تحت التنفيذ»");
+        onBack();
+      } else {
+        toast.error(response.message || "فشل عكس البيع");
+      }
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsReversing(false);
     }
   };
 
@@ -339,7 +363,7 @@ export function OrderDetail({ orderId, onEdit, onBack }: OrderDetailProps) {
               <div className="flex justify-between items-center text-sm">
                 <span className="text-ink-2">المبلغ المتبقي للاستيفاء:</span>
                 <span className="font-bold text-ink">
-                  <AmountText amount={orderData.totalPriceCents - orderData.depositCents} />
+                  <AmountText amount={orderData.totalPriceCents + (orderData.additionalProfitCents || 0) - orderData.depositCents} />
                 </span>
               </div>
             </>
@@ -434,6 +458,19 @@ export function OrderDetail({ orderId, onEdit, onBack }: OrderDetailProps) {
               <span>تحويل إلى مبيعات (تسجيل إيراد)</span>
             </Button>
           )}
+
+        {/* زر عكس البيع — يظهر فقط للطلبات المُسلَّمة */}
+        {orderData.status === "delivered" && (
+          <Button
+            onClick={() => setShowReverseConfirm(true)}
+            disabled={isReversing}
+            variant="secondary"
+            className="w-full py-3"
+            icon={<ArrowLeft className="w-5 h-5" />}
+          >
+            <span>عكس البيع (إعادة الطلب للتنفيذ)</span>
+          </Button>
+        )}
       </div>
 
       {/* تأكيد تحويل الطلب إلى مبيعات (إيراد) */}
@@ -464,6 +501,45 @@ export function OrderDetail({ orderId, onEdit, onBack }: OrderDetailProps) {
               className="flex-1 min-h-[44px] rounded-lg text-paper font-bold bg-emerald hover:bg-emerald/90 transition-colors disabled:opacity-50 flex items-center justify-center"
             >
               {isConverting ? "جارٍ التحويل..." : "تأكيد التحويل"}
+            </button>
+          </div>
+        </div>
+      </ResponsiveModal>
+
+      {/* تأكيد عكس البيع — إعادة الطلب من "delivered" إلى "confirmed" */}
+      <ResponsiveModal
+        isOpen={showReverseConfirm}
+        onClose={() => setShowReverseConfirm(false)}
+        title="تأكيد عكس البيع"
+      >
+        <div className="space-y-4 p-4 font-medium text-ink">
+          <p className="text-sm text-ink-2 leading-relaxed">
+            هل أنت متأكد من عكس هذا البيع؟ سيتم:
+          </p>
+          <ul className="text-xs text-ink-3 space-y-1 list-disc list-inside">
+            <li>إعادة العربون المحوَّل إلى حركة عربون (deposit) نشطة.</li>
+            <li>حذف حركة المتبقي من الصندوق.</li>
+            <li>حذف سجل المبيعة.</li>
+            <li>إعادة حالة الطلب إلى «تحت التنفيذ» لتعديله ثم إعادة تحويله.</li>
+          </ul>
+          <p className="text-xs text-warn-deep bg-warn-soft p-2 rounded">
+            ملاحظة: النقد الفعلي في الصندوق لا يتأثر — العربون كان محفوظاً كنقد منذ بدايته.
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setShowReverseConfirm(false)}
+              className="flex-1 min-h-[44px] rounded-lg border border-hairline-2 bg-paper text-ink-2 font-bold hover:bg-canvas transition-colors"
+            >
+              إلغاء
+            </button>
+            <button
+              type="button"
+              disabled={isReversing}
+              onClick={handleReverseSale}
+              className="flex-1 min-h-[44px] rounded-lg text-paper font-bold bg-warn-deep hover:bg-warn-deep/90 transition-colors disabled:opacity-50 flex items-center justify-center"
+            >
+              {isReversing ? "جارٍ العكس..." : "تأكيد عكس البيع"}
             </button>
           </div>
         </div>

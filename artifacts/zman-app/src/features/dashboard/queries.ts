@@ -471,7 +471,7 @@ export async function getCashSummary(): Promise<CashSummary> {
   const [result] = await db
     .select({
       depositsHeldCents: sql<any>`coalesce(sum(${order.depositCents}), 0)::bigint`,
-      expectedRemainingCents: sql<any>`coalesce(sum(${order.totalPriceCents} - ${order.depositCents}), 0)::bigint`,
+      expectedRemainingCents: sql<any>`coalesce(sum(${order.totalPriceCents} + ${order.additionalProfitCents} - ${order.depositCents}), 0)::bigint`,
     })
     .from(order)
     .where(

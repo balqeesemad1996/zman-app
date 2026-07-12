@@ -270,35 +270,51 @@ export async function updatePurchase(
       }
 
       // تحديث حركة الصندوق المرتبطة (التزاماً بـ §3) (P1-1)
+      // V10: إن كان totalCents = 0 (بسبب تقريب micro-cents)، احذف الحركة ناعماً
+      // بدل محاولة UPDATE بقيمة 0 (مرفوضة بقيد DB cash_movement_amount_positive).
       const defaultAccountId = await getOrCreateDefaultCashAccount(tx);
-      const [updatedMovement] = await tx
-        .update(cashMovement)
-        .set({
-          amountCents: updatedPurchase.totalCents,
-          date: updatedPurchase.date,
-          accountId: defaultAccountId,
-          description: updatedPurchase.notes || `شراء مواد: ${updatedPurchase.item} (الكمية: ${updatedPurchase.quantity})`,
-          updatedAt: new Date(),
-        })
-        .where(
-          and(
-            eq(cashMovement.sourceType, "purchase"),
-            eq(cashMovement.sourceId, id),
-            isNull(cashMovement.deletedAt)
+      if (updatedPurchase.totalCents > 0) {
+        const [updatedMovement] = await tx
+          .update(cashMovement)
+          .set({
+            amountCents: updatedPurchase.totalCents,
+            date: updatedPurchase.date,
+            accountId: defaultAccountId,
+            description: updatedPurchase.notes || `شراء مواد: ${updatedPurchase.item} (الكمية: ${updatedPurchase.quantity})`,
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(cashMovement.sourceType, "purchase"),
+              eq(cashMovement.sourceId, id),
+              isNull(cashMovement.deletedAt)
+            )
           )
-        )
-        .returning();
+          .returning();
 
-      if (!updatedMovement && updatedPurchase.totalCents > 0) {
-        await tx.insert(cashMovement).values({
-          date: updatedPurchase.date,
-          accountId: defaultAccountId,
-          direction: "out",
-          amountCents: updatedPurchase.totalCents,
-          sourceType: "purchase",
-          sourceId: id,
-          description: updatedPurchase.notes || `شراء مواد: ${updatedPurchase.item} (الكمية: ${updatedPurchase.quantity})`,
-        });
+        if (!updatedMovement) {
+          await tx.insert(cashMovement).values({
+            date: updatedPurchase.date,
+            accountId: defaultAccountId,
+            direction: "out",
+            amountCents: updatedPurchase.totalCents,
+            sourceType: "purchase",
+            sourceId: id,
+            description: updatedPurchase.notes || `شراء مواد: ${updatedPurchase.item} (الكمية: ${updatedPurchase.quantity})`,
+          });
+        }
+      } else {
+        // totalCents = 0 → احذف الحركة النشطة إن وُجدت
+        await tx
+          .update(cashMovement)
+          .set({ deletedAt: new Date(), updatedAt: new Date() })
+          .where(
+            and(
+              eq(cashMovement.sourceType, "purchase"),
+              eq(cashMovement.sourceId, id),
+              isNull(cashMovement.deletedAt)
+            )
+          );
       }
 
       revalidatePath("/finance");
@@ -1130,6 +1146,118 @@ export async function convertOrderToSale(
       revalidatePath("/finance");
       revalidatePath("/orders");
       return { status: "ok", data: newSale };
+    });
+  } catch (error) {
+    return {
+      status: "error",
+      message: mapDbError(error),
+    };
+  }
+}
+
+/**
+ * عكس تحويل الطلب إلى مبيعة — يُعيد الطلب من حالة "delivered" إلى "confirmed"
+ * ويعكس كل الأثر المالي بطريقة نظيفة:
+ *   1. يجد حركة العربون المحوَّلة (sourceType='sale', description LIKE '%محوَّل من عربون%')
+ *      ويعيد تصنيفها إلى sourceType='deposit', sourceId=order.id (عكس التحويل).
+ *   2. يحذف ناعماً حركة المتبقي (sourceType='sale', description NOT LIKE '%محوَّل من عربون%').
+ *   3. يحذف ناعماً صف المبيعة.
+ *   4. يُحدّث حالة الطلب إلى "confirmed".
+ * هذا يسمح للمالك بالرجوع عن تسليم طلب لتعديل السعر/العربون/المنتج ثم إعادة التحويل.
+ */
+export async function reverseSale(
+  orderId: string,
+): Promise<ActionResponse> {
+  const { success } = await checkRateLimit();
+  if (!success) {
+    return {
+      status: "error",
+      message: "تجاوزت الحد المسموح للعمليات — حاول بعد دقيقة",
+    };
+  }
+
+  try {
+    return await db.transaction(async (tx) => {
+      // 1. قفل صف الطلب
+      const [orderRow] = await tx
+        .select()
+        .from(order)
+        .where(eq(order.id, orderId))
+        .for("update");
+
+      if (!orderRow) {
+        return { status: "error", message: "الطلب غير موجود" };
+      }
+      if (orderRow.deletedAt) {
+        return { status: "error", message: "لا يمكن عكس طلب محذوف" };
+      }
+      if (orderRow.status !== "delivered") {
+        return { status: "error", message: "لا يمكن عكس طلب غير مُسلَّم" };
+      }
+
+      // 2. ابحث عن المبيعة المرتبطة النشطة
+      const [linkedSale] = await tx
+        .select()
+        .from(sale)
+        .where(and(eq(sale.orderId, orderId), isNull(sale.deletedAt)));
+
+      if (!linkedSale) {
+        return { status: "error", message: "لا توجد مبيعة نشطة لهذا الطلب لعكسها" };
+      }
+
+      // 3. ابحث عن كل حركات sale النشطة المرتبطة بهذه المبيعة
+      const saleMovs = await tx
+        .select()
+        .from(cashMovement)
+        .where(
+          and(
+            eq(cashMovement.sourceType, "sale"),
+            eq(cashMovement.sourceId, linkedSale.id),
+            eq(cashMovement.direction, "in"),
+            isNull(cashMovement.deletedAt),
+          ),
+        );
+
+      // 4. عكس كل حركة:
+      //    - حركة "محوَّل من عربون" → أعِد تصنيفها إلى deposit, sourceId=order.id
+      //    - حركة "المتبقي" → احذف ناعماً
+      for (const mov of saleMovs) {
+        const isTransformedDeposit = (mov.description ?? "").includes("محوَّل من عربون");
+        if (isTransformedDeposit) {
+          // أعِد تصنيف الحركة إلى deposit
+          await tx
+            .update(cashMovement)
+            .set({
+              sourceType: "deposit",
+              sourceId: orderId,
+              description: `عربون طلب - منتج: ${orderRow.productName}`,
+              updatedAt: new Date(),
+            })
+            .where(eq(cashMovement.id, mov.id));
+        } else {
+          // احذف ناعماً حركة المتبقي
+          await tx
+            .update(cashMovement)
+            .set({ deletedAt: new Date(), updatedAt: new Date() })
+            .where(eq(cashMovement.id, mov.id));
+        }
+      }
+
+      // 5. احذف ناعماً صف المبيعة
+      await tx
+        .update(sale)
+        .set({ deletedAt: new Date(), updatedAt: new Date() })
+        .where(eq(sale.id, linkedSale.id));
+
+      // 6. أعِد حالة الطلب إلى "confirmed"
+      await tx
+        .update(order)
+        .set({ status: "confirmed", updatedAt: new Date() })
+        .where(eq(order.id, orderId));
+
+      revalidatePath("/finance");
+      revalidatePath("/orders");
+      return { status: "ok", data: { orderId, reversed: true } };
     });
   } catch (error) {
     return {

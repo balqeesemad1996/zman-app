@@ -31,7 +31,6 @@ import { FilterChip } from "@/components/shared/FilterChip";
 import { SegmentedControl } from "@/components/shared/SegmentedControl";
 import {
   useFinancialSummary,
-  useFinancialTrendData,
   useRecentActivities,
   useDashboardStats,
   useCashSummary,
@@ -39,6 +38,7 @@ import {
 } from "../hooks";
 import { useOpeningBalance } from "@/features/finance/hooks";
 import { FloatingActionButton } from "@/components/shared/FloatingActionButton";
+import { STATUS_LABELS, STATUS_COLORS } from "@/lib/status-colors";
 
 // أسماء الأشهر الميلادية بالعربي (ترتيب getMonth: 0=يناير).
 const AR_MONTHS = [
@@ -199,12 +199,6 @@ export function DashboardClient() {
     refetch: refetchActivities,
   } = useRecentActivities(startDateStr, endDateStr);
   const {
-    data: trendData,
-    isLoading: isLoadingTrend,
-    isError: isErrorTrend,
-    refetch: refetchTrend,
-  } = useFinancialTrendData(startDateStr, endDateStr);
-  const {
     data: stats,
     refetch: refetchStats,
   } = useDashboardStats(startDateStr, endDateStr);
@@ -229,7 +223,6 @@ export function DashboardClient() {
   const handleRetryAll = () => {
     refetchSummary();
     refetchActivities();
-    refetchTrend();
     refetchStats();
     refetchCash();
     refetchBalances();
@@ -255,7 +248,7 @@ export function DashboardClient() {
     }
   };
 
-  if (isErrorSummary || isErrorActivities || isErrorTrend || isErrorCash) {
+  if (isErrorSummary || isErrorActivities || isErrorCash) {
     return (
       <>
         <AppShellHeader title="لوحة القيادة" />
@@ -710,16 +703,10 @@ export function DashboardClient() {
               <span className="text-[10px] text-ink-3">ضمن الفترة المحددة</span>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-              {[
-                { status: "draft", label: "مقترح", color: "text-warn-deep bg-warn-soft border-warn/10" },
-                { status: "sent", label: "تم التأكيد", color: "text-info bg-info-soft border-info/10" },
-                { status: "confirmed", label: "تحت التنفيذ", color: "text-info bg-info-soft border-info/10" },
-                { status: "delivered", label: "تم التسليم", color: "text-info bg-info-soft border-info/10" },
-                { status: "cancelled", label: "ملغى", color: "text-alert bg-alert-soft border-alert/10" },
-              ].map((s) => (
-                <div key={s.status} className={`p-3 rounded-lg border flex flex-col items-center justify-center ${s.color}`}>
-                  <p className="text-2xl font-black">{stats.ordersByStatus[s.status] ?? 0}</p>
-                  <p className="text-xs font-bold mt-1">{s.label}</p>
+              {(["draft", "sent", "confirmed", "delivered", "cancelled"] as const).map((status) => (
+                <div key={status} className={`p-3 rounded-lg border flex flex-col items-center justify-center ${STATUS_COLORS[status] ?? ""}`}>
+                  <p className="text-2xl font-black">{stats.ordersByStatus[status] ?? 0}</p>
+                  <p className="text-xs font-bold mt-1">{STATUS_LABELS[status] ?? status}</p>
                 </div>
               ))}
             </div>

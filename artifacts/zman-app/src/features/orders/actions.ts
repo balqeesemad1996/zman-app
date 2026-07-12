@@ -70,10 +70,10 @@ export async function createOrder(rawInput: unknown): Promise<ActionResponse> {
     additionalProfitCents,
   } = parsed.data;
 
-  if (depositCents > totalPriceCents) {
+  if (depositCents > totalPriceCents + (additionalProfitCents ?? 0)) {
     return {
       status: "error",
-      message: "العربون لا يمكن أن يتجاوز السعر الإجمالي المتفق عليه",
+      message: "العربون لا يمكن أن يتجاوز السعر الإجمالي + الأرباح الإضافية",
     };
   }
 
@@ -231,10 +231,10 @@ export async function updateOrder(rawInput: unknown): Promise<ActionResponse> {
     additionalProfitCents,
   } = parsed.data;
 
-  if (depositCents > totalPriceCents) {
+  if (depositCents > totalPriceCents + (additionalProfitCents ?? 0)) {
     return {
       status: "error",
-      message: "العربون لا يمكن أن يتجاوز السعر الإجمالي المتفق عليه",
+      message: "العربون لا يمكن أن يتجاوز السعر الإجمالي + الأرباح الإضافية",
     };
   }
 
@@ -447,11 +447,9 @@ export async function updateOrder(rawInput: unknown): Promise<ActionResponse> {
             .where(eq(cashMovement.id, remainderMov.id));
         }
         // transformedMov (العربون المحوَّل) لا يُمَس — قيمته = depositCents
-        // الثابتة عند التحويل، ولا تتغير إلا بعكس التحويل (حذف المبيعة).
-        // ملاحظة: لو حُذفت المبيعة عبر deleteSale، تُحذف حركة المتبقي معها،
-        // لكن حركة العربون المحوَّلة تبقى معلَّقة على sale_id قديم محذوف ناعماً.
-        // IC-2 لا يعتبرها يتيمة (sale row لا يزال موجوداً). مقبول مؤقتاً حتى
-        // يُضاف تدفق الإشعارات الائتمانية.
+        // الثابتة عند التحويل، ولا تتغير إلا بعكس التحويل (reverseSale).
+        // لعكس البيع بطريقة نظيفة: استخدم reverseSale (finance/actions.ts)
+        // التي تُعيد تصنيف حركة العربون إلى deposit وتحذف المتبقي والمبيعة.
         void transformedMov;
       }
 

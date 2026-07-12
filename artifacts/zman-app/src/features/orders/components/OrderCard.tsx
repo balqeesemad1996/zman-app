@@ -288,7 +288,7 @@ export function OrderCard({
                 <span className="text-ink-3">·</span>
                 <span>متبقٍّ: </span>
                 <span className="font-semibold text-info">
-                  <AmountText amount={order.totalPriceCents - order.depositCents} />
+                  <AmountText amount={order.totalPriceCents + (order.additionalProfitCents || 0) - order.depositCents} />
                 </span>
               </div>
             )}

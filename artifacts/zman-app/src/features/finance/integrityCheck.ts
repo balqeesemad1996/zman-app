@@ -852,6 +852,8 @@ async function checkIC11OpeningBalanceMatchesCashMovements(): Promise<IntegrityC
   }
 
   const expectedTotal = opBal.cashCents + opBal.bankCents;
+  // V5: قيّد الجمع للحسابات الافتراضية فقط (الصندوق الرئيسي + البنك الرئيسي)
+  // لأن createAccount يُدرج حركات opening على حسابات مخصصة لا تُعكس في openingBalance row.
   const [actualRow] = await db
     .select({
       total: sql<number>`coalesce(sum(${cashMovement.amountCents}), 0)::bigint`,
@@ -864,6 +866,7 @@ async function checkIC11OpeningBalanceMatchesCashMovements(): Promise<IntegrityC
         eq(cashMovement.direction, "in"),
         isNull(cashMovement.deletedAt),
         isNull(account.deletedAt),
+        sql`${account.name} IN ('الصندوق الرئيسي', 'حساب البنك الرئيسي')`,
       ),
     );
   const actualTotal = Number(actualRow?.total) || 0;
