@@ -64,9 +64,9 @@ function FinanceComparePanel({
   netProfit: number;
 }) {
   const rows = [
-    { label: "المبيعات الفعلية", value: actualSales, barClass: "bg-info", textClass: "text-info", sign: "+" },
-    { label: "المشتريات المدفوعة", value: purchases, barClass: "bg-amber-500", textClass: "text-amber-600", sign: "−" },
-    { label: "المصاريف المدفوعة", value: expenses, barClass: "bg-orange-400", textClass: "text-amber-600", sign: "−" },
+    { label: "مبيعات", value: actualSales, barClass: "bg-info", textClass: "text-info", sign: "+" },
+    { label: "مشتريات", value: purchases, barClass: "bg-amber-500", textClass: "text-amber-600", sign: "−" },
+    { label: "مصاريف", value: expenses, barClass: "bg-orange-400", textClass: "text-amber-600", sign: "−" },
   ];
   // أطول شريط يُحسب نسبةً لأكبر قيمة موجبة (نتجنب القسمة على صفر).
   const maxValue = Math.max(actualSales, purchases, expenses, 1);
@@ -77,7 +77,7 @@ function FinanceComparePanel({
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-bold text-ink flex items-center gap-1.5">
           <BarChart3 className="h-4.5 w-4.5 text-info" />
-          مقارنة الأداء المالي
+          هل أربح؟
         </h3>
       </div>
 
@@ -117,7 +117,7 @@ function FinanceComparePanel({
         </span>
       </div>
       <p className="text-[10px] text-ink/45 leading-snug -mt-2">
-        صافي الربح = المبيعات الفعلية − المشتريات − المصاريف (العربون لا يُحسب ربحاً قبل التسليم).
+        الربح = المبيعات − المشتريات − المصاريف. العربون ليس ربحاً قبل التسليم.
       </p>
     </div>
   );
@@ -430,74 +430,39 @@ export function DashboardClient() {
               </div>
             )}
 
-            {/* ═══ القسم 1: نظرة سريعة — ما تملكه نقداً الآن ═══ */}
-            <div className="flex items-center gap-2 px-1">
-              <Wallet className="h-5 w-5 text-info" />
-              <h2 className="text-sm font-black text-ink">نظرة سريعة على وضعك النقدي</h2>
-              <span className="text-[10px] text-ink/40">(رصيد لحظي — لا يتأثر بالفترة)</span>
-              <div className="flex-1 border-t border-info/20 ml-2" />
-            </div>
-
-            {/* بطاقات علوية مدمجة — نظرة سريعة */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {cashSummary && (
+            {/* ═══ نظرة سريعة — بطاقتان نظيفتان فقط ═══ */}
+            <div className="grid grid-cols-2 gap-3">
+              {/* إجمالي النقدية — مدموجة (صندوق + بنك) */}
+              {accountBalances && (
                 <div className="bg-gradient-to-r from-info-soft to-info/5 p-3 rounded-lg border border-info/20 shadow-sm">
-                  <span className="text-[10px] font-bold text-ink/60 flex items-center gap-1">
-                    <Wallet className="h-3.5 w-3.5 text-info" />
-                    إجمالي النقد
+                  <span className="text-[10px] font-bold text-ink/60 flex items-center gap-1 whitespace-nowrap">
+                    <Wallet className="h-3.5 w-3.5 text-info shrink-0" />
+                    النقد المتاح الآن
                   </span>
-                  <p className="text-lg font-black text-info mt-0.5">
+                  <p className="text-lg font-black text-info mt-0.5 leading-tight whitespace-nowrap">
                     <AmountText amount={totalCashCents + totalBankCents} />
                   </p>
-                  <p className="text-[9px] text-ink/40">صندوق + بنك</p>
+                  <p className="text-[9px] text-ink/40 leading-tight whitespace-nowrap">
+                    صندوق: <AmountText amount={totalCashCents} /> · بنك: <AmountText amount={totalBankCents} />
+                  </p>
                 </div>
               )}
+              {/* عربونات في ذمتك — التزام تراكمي */}
               {cashSummary && (
                 <div className="bg-warn-soft/30 p-3 rounded-lg border border-warn/15 shadow-sm">
-                  <span className="text-[10px] font-bold text-ink/60 flex items-center gap-1">
-                    <AlertCircle className="h-3.5 w-3.5 text-warn-deep" />
-                    عربونات بحوزتك
+                  <span className="text-[10px] font-bold text-ink/60 flex items-center gap-1 whitespace-nowrap">
+                    <AlertCircle className="h-3.5 w-3.5 text-warn-deep shrink-0" />
+                    عربونات في ذمتك
                   </span>
-                  <p className="text-lg font-black text-warn-deep mt-0.5">
+                  <p className="text-lg font-black text-warn-deep mt-0.5 leading-tight whitespace-nowrap">
                     <AmountText amount={cashSummary.depositsHeldCents} />
                   </p>
-                  <p className="text-[9px] text-ink/40">التزام مالي</p>
-                </div>
-              )}
-              {cashSummary && (
-                <div className="bg-paper p-3 rounded-lg border border-hairline shadow-sm">
-                  <span className="text-[10px] font-bold text-ink/60 flex items-center gap-1">
-                    <ShoppingBag className="h-3.5 w-3.5 text-info" />
-                    متبقٍّ متوقع تحصيله
-                  </span>
-                  <p className="text-lg font-black text-info mt-0.5">
-                    <AmountText amount={cashSummary.expectedRemainingCents} />
-                  </p>
-                  <p className="text-[9px] text-ink/40">عند تسليم الطلبات</p>
-                </div>
-              )}
-              {accountBalances && (
-                <div className="bg-paper p-3 rounded-lg border border-hairline shadow-sm">
-                  <span className="text-[10px] font-bold text-ink/60 flex items-center gap-1">
-                    <Landmark className="h-3.5 w-3.5 text-ink-3" />
-                    نقد الصندوق
-                  </span>
-                  <p className="text-lg font-black text-ink-3 mt-0.5">
-                    <AmountText amount={totalCashCents} />
-                  </p>
-                  <p className="text-[9px] text-ink/40">+ بنك: <AmountText amount={totalBankCents} /></p>
+                  <p className="text-[9px] text-ink/40 leading-tight whitespace-nowrap">دين عليك — يجب تسليمه</p>
                 </div>
               )}
             </div>
 
-            {/* ═══ القسم 1.5: تدفق السيولة ═══ */}
-            <div className="flex items-center gap-2 px-1 pt-2">
-              <Wallet className="h-5 w-5 text-info" />
-              <h2 className="text-sm font-black text-ink">تدفق السيولة</h2>
-              <span className="text-[10px] text-ink/40">نقد داخل/خارج — ليس ربحاً</span>
-              <div className="flex-1 border-t border-info/20 ml-2" />
-            </div>
-
+            {/* ═══ حركة الكاش — من أين جاء وأين ذهب ═══ */}
             {summary && (
               <LiquidityFlowPanel
                 actualSales={summary.actualSales ?? 0}
@@ -507,18 +472,11 @@ export function DashboardClient() {
                 expenses={summary.expenses ?? 0}
                 ownerDraw={summary.ownerDraw ?? 0}
                 openingBalanceCents={(openingBal?.cashCents ?? 0) + (openingBal?.bankCents ?? 0)}
+                actualBalanceCents={totalCashCents + totalBankCents}
               />
             )}
 
-            {/* ═══ القسم 2: أداء عملك (الربح) ═══ */}
-            <div className="flex items-center gap-2 px-1 pt-4">
-              <TrendingUp className="h-5 w-5 text-info" />
-              <h2 className="text-sm font-black text-ink">أداء عملك</h2>
-              <span className="text-[10px] text-ink/40">ربح — ليس نقداً في جيبك</span>
-              <div className="flex-1 border-t border-info/20 ml-2" />
-            </div>
-
-            {/* لوحة المقارنة المالية الموحّدة — مبيعات · مشتريات · مصاريف · صافي ربح */}
+            {/* ═══ هل أربح؟ — مقارنة الربح ═══ */}
             {summary && (
               <FinanceComparePanel
                 actualSales={summary.actualSales ?? 0}

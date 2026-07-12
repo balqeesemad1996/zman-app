@@ -52,6 +52,7 @@ export function LiquidityFlowPanel({
   expenses,
   ownerDraw,
   openingBalanceCents,
+  actualBalanceCents,
 }: {
   actualSales: number;
   deposits: number;
@@ -60,22 +61,25 @@ export function LiquidityFlowPanel({
   expenses: number;
   ownerDraw: number;
   openingBalanceCents: number;
+  actualBalanceCents: number;
 }) {
   const totalInflows = actualSales + deposits + ownerInject;
   const totalOutflows = purchases + expenses + ownerDraw;
   const netCashFlow = totalInflows - totalOutflows;
   const maxValue = Math.max(actualSales, deposits, ownerInject, purchases, expenses, ownerDraw, openingBalanceCents, 1);
   const isPositive = netCashFlow >= 0;
-  const availableNow = openingBalanceCents + netCashFlow;
+  // النقد المتاح الآن = الرصيد الفعلي من getAccountBalances (لا يتأثر بالفترة)
+  const availableNow = actualBalanceCents;
 
   return (
     <div className="bg-paper rounded-lg border border-hairline shadow-sm p-4 sm:p-5 space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-bold text-ink flex items-center gap-1.5">
           <Wallet className="h-4.5 w-4.5 text-info" />
-          تدفق السيولة
+          حركة الكاش
           <InfoTooltip text="كل ما دخل وخرج من الصندوق خلال الفترة المختارة. يشمل المبيعات والعربونات والمشتريات والمصاريف وحركة المالك. هذا ليس ربحاً — العربون نقد لكنه التزام حتى التسليم، وسحب المالك ليس مصروفاً." />
         </h3>
+        <span className="text-[10px] text-ink/40 whitespace-nowrap">كاش — ليس ربحاً</span>
       </div>
 
       {/* رأس المال / رصيد البداية — أول سطر في التسلسل */}
@@ -162,7 +166,7 @@ export function LiquidityFlowPanel({
       <div className={`flex items-center justify-between gap-2 pt-3 border-t-2 ${isPositive ? "border-info/30" : "border-alert/30"}`}>
         <span className="text-sm font-bold text-ink flex items-center gap-1.5">
           {isPositive ? <TrendingUp className="h-4.5 w-4.5 text-info" /> : <TrendingDown className="h-4.5 w-4.5 text-alert" />}
-          صافي الحركة النقدية للفترة
+          الفرق بين الداخل والخارج
         </span>
         <span className={`text-lg font-black font-mono whitespace-nowrap flex items-baseline gap-0.5 ${isPositive ? "text-info" : "text-alert"}`}>
           <span className="text-base">{isPositive ? "+" : "−"}</span>
@@ -170,19 +174,19 @@ export function LiquidityFlowPanel({
         </span>
       </div>
 
-      {/* = النقد المتاح الآن — الرصيد المرجعي */}
+      {/* = النقد المتاح الآن — الرصيد الفعلي */}
       <div className="flex items-center justify-between gap-2 pt-2 border-t border-hairline">
         <span className="text-sm font-black text-ink flex items-center gap-1.5">
           <Wallet className="h-4 w-4 text-info" />
           النقد المتاح الآن
         </span>
-        <span className="text-xl font-black text-info font-mono whitespace-nowrap flex items-baseline gap-0.5">
+        <span className="text-xl font-black text-info font-mono whitespace-nowrap">
           <AmountText amount={availableNow} />
         </span>
       </div>
 
       <p className="text-[10px] text-ink/40 leading-snug">
-        نقد داخل/خارج — ليس ربحاً. = رأس المال + (مال داخل − مال خارج).
+        هذا رصيدك الفعلي الآن. الكاش داخل/خارج — ليس ربحاً.
       </p>
     </div>
   );
