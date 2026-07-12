@@ -68,9 +68,9 @@ function FinanceComparePanel({
   ownerDraw: number;
 }) {
   const rows = [
-    { label: "مبيعات", value: actualSales, barClass: "bg-info", textClass: "text-info", sign: "+" },
-    { label: "مشتريات", value: purchases, barClass: "bg-amber-500", textClass: "text-amber-600", sign: "−" },
-    { label: "مصاريف", value: expenses, barClass: "bg-orange-400", textClass: "text-amber-600", sign: "−" },
+    { label: "مبيعات", value: actualSales, barClass: "bg-info", textClass: "text-info" },
+    { label: "مشتريات", value: purchases, barClass: "bg-amber-500", textClass: "text-amber-600" },
+    { label: "مصاريف", value: expenses, barClass: "bg-orange-400", textClass: "text-amber-600" },
   ];
   const maxValue = Math.max(actualSales, purchases, expenses, 1);
   const isProfit = netProfit >= 0;
@@ -78,16 +78,16 @@ function FinanceComparePanel({
   const isAfterDrawPositive = afterDraw >= 0;
 
   return (
-    <div className="bg-paper rounded-lg border border-hairline shadow-sm p-4 sm:p-5 space-y-4">
+    <div className="bg-paper rounded-lg border border-hairline shadow-sm p-4 sm:p-5 space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-bold text-ink flex items-center gap-1.5">
           <BarChart3 className="h-4.5 w-4.5 text-info" />
-          هل أربح؟
+          صافي الربح
         </h3>
       </div>
 
-      {/* الأشرطة النسبية */}
-      <div className="space-y-3.5">
+      {/* الأشرطة النسبية — تباعد موحّد */}
+      <div className="space-y-2.5">
         {rows.map((row) => {
           const pct = Math.round((row.value / maxValue) * 100);
           return (
@@ -95,8 +95,7 @@ function FinanceComparePanel({
               <div className="flex items-baseline justify-between gap-2">
                 <span className="text-xs font-semibold text-ink-2 whitespace-nowrap">{row.label}</span>
                 <span className={`text-sm font-black font-mono whitespace-nowrap flex items-baseline gap-0.5 ${row.textClass}`}>
-                  <span>{row.sign}</span>
-                  <AmountText amount={row.value} />
+                  <AmountText amount={row.value} hideCurrency parenNegative />
                 </span>
               </div>
               <div className="h-2.5 w-full bg-canvas rounded-full overflow-hidden">
@@ -117,28 +116,22 @@ function FinanceComparePanel({
           صافي الربح
         </span>
         <span className={`text-lg font-black font-mono whitespace-nowrap flex items-baseline gap-1 ${isProfit ? "text-info" : "text-alert"}`}>
-          <span className="text-base">{isProfit ? "+" : "−"}</span>
-          <AmountText amount={Math.abs(netProfit)} />
+          <AmountText amount={netProfit} hideCurrency parenNegative />
         </span>
       </div>
 
-      {/* المتبقّي بعد سحوباتك — مؤشر ثانوي */}
+      {/* صافي الربح بعد سحوبات المالك — مؤشر ثانوي */}
       {ownerDraw > 0 && (
         <div className="flex items-center justify-between gap-2 pt-2 border-t border-dashed border-hairline">
           <span className="text-xs font-semibold text-ink/60 flex items-center gap-1">
             <User className="h-3.5 w-3.5 text-ink/40" />
-            ربحك بعد ما تأخذ سحوباتك
+            صافي الربح بعد سحوبات المالك
           </span>
           <span className={`text-sm font-bold font-mono whitespace-nowrap ${isAfterDrawPositive ? "text-info" : "text-alert"}`}>
-            {isAfterDrawPositive ? "+" : "−"}
-            <AmountText amount={Math.abs(afterDraw)} />
+            <AmountText amount={afterDraw} hideCurrency parenNegative />
           </span>
         </div>
       )}
-
-      <p className="text-[10px] text-ink/45 leading-snug -mt-2">
-        الربح = المبيعات − المشتريات − المصاريف. سحوباتك لا تقلل الربح — تقلل ما تبقّى في جيبك.
-      </p>
     </div>
   );
 }
@@ -360,10 +353,10 @@ export function DashboardClient() {
                     النقد المتاح الآن
                   </span>
                   <p className="text-lg font-black text-info mt-0.5 leading-tight whitespace-nowrap">
-                    <AmountText amount={totalCashCents + totalBankCents} />
+                    <AmountText amount={totalCashCents + totalBankCents} hideCurrency />
                   </p>
                   <p className="text-[9px] text-ink/40 leading-tight whitespace-nowrap">
-                    صندوق: <AmountText amount={totalCashCents} /> · بنك: <AmountText amount={totalBankCents} />
+                    صندوق: <AmountText amount={totalCashCents} hideCurrency /> · بنك: <AmountText amount={totalBankCents} hideCurrency />
                   </p>
                 </div>
               )}
@@ -372,70 +365,14 @@ export function DashboardClient() {
                 <div className="bg-warn-soft/30 p-3 rounded-lg border border-warn/15 shadow-sm">
                   <span className="text-[10px] font-bold text-ink/60 flex items-center gap-1 whitespace-nowrap">
                     <AlertCircle className="h-3.5 w-3.5 text-warn-deep shrink-0" />
-                    عربونات عند الناس (إجمالي)
+                    مجموع العربون لكل الطلبات
                   </span>
                   <p className="text-lg font-black text-warn-deep mt-0.5 leading-tight whitespace-nowrap">
-                    <AmountText amount={cashSummary.depositsHeldCents} />
+                    <AmountText amount={cashSummary.depositsHeldCents} hideCurrency />
                   </p>
-                  <p className="text-[9px] text-ink/40 leading-tight whitespace-nowrap">دين عليك — يجب تسليمه</p>
                 </div>
               )}
             </div>
-
-            {/* ═══ لماذا نقدي أكبر من ربحي؟ — تركيبة النقد ═══ */}
-            {summary && cashSummary && accountBalances && (() => {
-              const realCash = totalCashCents + totalBankCents;
-              const opening = (openingBal?.cashCents ?? 0) + (openingBal?.bankCents ?? 0);
-              const ownerNet = (summary.ownerInject ?? 0) - (summary.ownerDraw ?? 0);
-              const depositsHeld = cashSummary.depositsHeldCents;
-              const profit = summary.netProfit ?? 0;
-              const composed = opening + ownerNet + depositsHeld + profit;
-              const residual = realCash - composed;
-              return (
-                <div className="bg-paper rounded-lg border border-hairline shadow-sm p-4 space-y-2">
-                  <div className="flex items-center gap-1.5">
-                    <Wallet className="h-4 w-4 text-info" />
-                    <h3 className="text-xs font-bold text-ink">لماذا نقدي أكبر من ربحي؟</h3>
-                    <InfoTooltip text="نقدك في الصندوق لا يساوي ربحك. النقد يشمل: رأس مالك الأول + سحوبات/إيداعات المالك + عربونات لسه ما سلّمتها (نقد حر لكنها ليست ربحاً) + ربحك الفعلي. العربونات تقدر تصرفها لكنها التزام حتى تسلّم الطلب." />
-                  </div>
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-ink/60 whitespace-nowrap">رأس مالك الأول</span>
-                      <span className="font-mono font-bold text-ink-3 whitespace-nowrap"><AmountText amount={opening} /></span>
-                    </div>
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-ink/60 whitespace-nowrap">صافي حركة المالك (إيداع − سحب)</span>
-                      <span className={`font-mono font-bold whitespace-nowrap ${ownerNet >= 0 ? "text-info" : "text-amber-600"}`}>
-                        {ownerNet >= 0 ? "+" : "−"}<AmountText amount={Math.abs(ownerNet)} />
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-ink/60 whitespace-nowrap">عربونات لسه ما سلّمت (نقد حرّ)</span>
-                      <span className="font-mono font-bold text-warn-deep whitespace-nowrap"><AmountText amount={depositsHeld} /></span>
-                    </div>
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-ink/60 whitespace-nowrap">ربحك الفعلي</span>
-                      <span className={`font-mono font-bold whitespace-nowrap ${profit >= 0 ? "text-info" : "text-alert"}`}>
-                        {profit >= 0 ? "+" : "−"}<AmountText amount={Math.abs(profit)} />
-                      </span>
-                    </div>
-                    {Math.abs(residual) > 0 && (
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-ink/40 whitespace-nowrap">تسويات / أخرى</span>
-                        <span className="font-mono font-bold text-ink/40 whitespace-nowrap"><AmountText amount={residual} /></span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between pt-2 border-t border-hairline">
-                    <span className="text-sm font-black text-info whitespace-nowrap">= النقد المتاح الآن</span>
-                    <span className="text-lg font-black text-info font-mono whitespace-nowrap"><AmountText amount={realCash} /></span>
-                  </div>
-                  <p className="text-[10px] text-ink/40 leading-snug">
-                    العربونات نقد تقدر تصرفها — لكنها ليست ربحاً حتى تسلّم الطلب.
-                  </p>
-                </div>
-              );
-            })()}
 
             {/* ═══ حركة الكاش — من أين جاء وأين ذهب ═══ */}
             {summary && (
@@ -462,6 +399,58 @@ export function DashboardClient() {
               />
             )}
 
+            {/* ═══ الربح مقابل السيولة — تركيبة النقد (بعد بطاقة «هل أربح؟») ═══ */}
+            {summary && cashSummary && accountBalances && (() => {
+              const realCash = totalCashCents + totalBankCents;
+              const opening = (openingBal?.cashCents ?? 0) + (openingBal?.bankCents ?? 0);
+              const ownerNet = (summary.ownerInject ?? 0) - (summary.ownerDraw ?? 0);
+              const depositsHeld = cashSummary.depositsHeldCents;
+              const profit = summary.netProfit ?? 0;
+              const composed = opening + ownerNet + depositsHeld + profit;
+              const residual = realCash - composed;
+              return (
+                <div className="bg-paper rounded-lg border border-hairline shadow-sm p-4 space-y-2">
+                  <div className="flex items-center gap-1.5">
+                    <Wallet className="h-4 w-4 text-info" />
+                    <h3 className="text-xs font-bold text-ink">الربح مقابل السيولة</h3>
+                    <InfoTooltip text="النقد الموجود في صندوقك ليس كله ربحاً. إنه مزيج من: رأس المال الذي بدأت به، وصافي ما أضفته أو سحبته كمالك، وعربونات لزبائن لم تُسلَّم طلباتهم بعد (نقد تتصرّف به بحرّية لكنه التزام حتى التسليم)، وأخيراً ربحك الفعلي من العمل. لهذا يكون النقد عادةً أكبر من الربح — وهذا وضع طبيعي." />
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-ink/60 whitespace-nowrap">رأس المال الذي بدأت به</span>
+                      <span className="font-mono font-bold text-ink-3 whitespace-nowrap"><AmountText amount={opening} hideCurrency parenNegative /></span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-ink/60 whitespace-nowrap">السحوبات الشخصية</span>
+                      <span className={`font-mono font-bold whitespace-nowrap ${ownerNet >= 0 ? "text-info" : "text-amber-600"}`}>
+                        <AmountText amount={ownerNet} hideCurrency parenNegative />
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-ink/60 whitespace-nowrap">عربون مسلّم مقدّماً</span>
+                      <span className="font-mono font-bold text-warn-deep whitespace-nowrap"><AmountText amount={depositsHeld} hideCurrency parenNegative /></span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-ink/60 whitespace-nowrap">ربحك الفعلي من العمل</span>
+                      <span className={`font-mono font-bold whitespace-nowrap ${profit >= 0 ? "text-info" : "text-alert"}`}>
+                        <AmountText amount={profit} hideCurrency parenNegative />
+                      </span>
+                    </div>
+                    {Math.abs(residual) > 0 && (
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-ink/40 whitespace-nowrap">تسويات أخرى</span>
+                        <span className="font-mono font-bold text-ink/40 whitespace-nowrap"><AmountText amount={residual} hideCurrency parenNegative /></span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between pt-2 border-t border-hairline">
+                    <span className="text-sm font-black text-info whitespace-nowrap">النقد المتاح الآن</span>
+                    <span className="text-lg font-black text-info font-mono whitespace-nowrap"><AmountText amount={realCash} hideCurrency parenNegative /></span>
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* أبرز المصاريف */}
             {stats && stats.topExpenses && stats.topExpenses.length > 0 && (
               <div className="bg-paper p-5 rounded-lg border border-hairline shadow-sm space-y-3">
@@ -477,7 +466,7 @@ export function DashboardClient() {
                         <p className="text-[10px] text-ink/45 mt-0.5">{exp.count} حركات مالية</p>
                       </div>
                       <span className="font-bold text-alert shrink-0">
-                        <AmountText amount={exp.totalCents} />
+                        <AmountText amount={exp.totalCents} hideCurrency />
                       </span>
                     </div>
                   ))}
@@ -510,38 +499,28 @@ export function DashboardClient() {
 
 
 
-        {/* رابط لصفحة كل الحركات المالية */}
-        <Link
-          href="/activities"
-          className="bg-paper p-4 rounded-lg border border-hairline shadow-sm flex items-center justify-between gap-3 hover:border-info/40 hover:shadow-md transition-all group"
-        >
-          <div className="flex items-center gap-2">
-            <Clock className="h-5 w-5 text-info" />
-            <span className="text-sm font-bold text-ink">عرض كل الحركات المالية</span>
-          </div>
-          <ArrowLeft className="h-4 w-4 text-info/0 group-hover:text-info transition-all transform group-hover:-translate-x-1" />
-        </Link>
-
       </div>
 
-      {/* ═══ المستشار المالي ═══ */}
+      {/* ═══ المستشار المالي — بمسافة سفلية تكفي كي لا يحجبه الزر العائم ═══ */}
       {summary && cashSummary && accountBalances && (
-        <FinancialAdvisor
-          data={{
-            realCash: totalCashCents + totalBankCents,
-            opening: (openingBal?.cashCents ?? 0) + (openingBal?.bankCents ?? 0),
-            ownerNet: (summary.ownerInject ?? 0) - (summary.ownerDraw ?? 0),
-            ownerInject: summary.ownerInject ?? 0,
-            ownerDraw: summary.ownerDraw ?? 0,
-            depositsHeld: cashSummary.depositsHeldCents,
-            expectedRemaining: cashSummary.expectedRemainingCents,
-            netProfit: summary.netProfit ?? 0,
-            actualSales: summary.actualSales ?? 0,
-            purchases: summary.purchases ?? 0,
-            expenses: summary.expenses ?? 0,
-            avgMonthlySpend: avgMonthlySpend ?? 0,
-          }}
-        />
+        <div className="px-0 pb-28">
+          <FinancialAdvisor
+            data={{
+              realCash: totalCashCents + totalBankCents,
+              opening: (openingBal?.cashCents ?? 0) + (openingBal?.bankCents ?? 0),
+              ownerNet: (summary.ownerInject ?? 0) - (summary.ownerDraw ?? 0),
+              ownerInject: summary.ownerInject ?? 0,
+              ownerDraw: summary.ownerDraw ?? 0,
+              depositsHeld: cashSummary.depositsHeldCents,
+              expectedRemaining: cashSummary.expectedRemainingCents,
+              netProfit: summary.netProfit ?? 0,
+              actualSales: summary.actualSales ?? 0,
+              purchases: summary.purchases ?? 0,
+              expenses: summary.expenses ?? 0,
+              avgMonthlySpend: avgMonthlySpend ?? 0,
+            }}
+          />
+        </div>
       )}
 
       {/* منتقي التواريخ المتجاوب (Mobile Bottom Sheet / Desktop Dialog) */}

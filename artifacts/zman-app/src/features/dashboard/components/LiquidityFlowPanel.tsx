@@ -14,14 +14,12 @@ function FlowRow({
   value,
   barClass,
   textClass,
-  sign,
   maxValue,
 }: {
   label: string;
   value: number;
   barClass: string;
   textClass: string;
-  sign: "+" | "−" | "";
   maxValue: number;
 }) {
   const pct = maxValue > 0 ? Math.round((value / maxValue) * 100) : 0;
@@ -30,8 +28,7 @@ function FlowRow({
       <div className="flex items-baseline justify-between gap-2">
         <span className="text-xs font-semibold text-ink-2 whitespace-nowrap">{label}</span>
         <span className={`text-sm font-black font-mono whitespace-nowrap flex items-baseline gap-0.5 ${textClass}`}>
-          {sign && <span>{sign}</span>}
-          <AmountText amount={value} />
+          <AmountText amount={value} hideCurrency parenNegative />
         </span>
       </div>
       <div className="h-2 w-full bg-canvas rounded-full overflow-hidden">
@@ -76,79 +73,60 @@ export function LiquidityFlowPanel({
         <span className="text-[10px] text-ink/40 whitespace-nowrap">كاش — ليس ربحاً</span>
       </div>
 
-      {/* رأس المال / رصيد البداية — أول سطر في التسلسل */}
-      {openingBalanceCents > 0 && (
+      {/* تسلسل الحركة — تباعد موحّد بين كل الصفوف */}
+      <div className="space-y-2.5">
+        {openingBalanceCents > 0 && (
+          <FlowRow
+            label="رأس المال / رصيد البداية"
+            value={openingBalanceCents}
+            barClass="bg-ink/20"
+            textClass="text-ink-3"
+            maxValue={maxValue}
+          />
+        )}
         <FlowRow
-          label="رأس المال / رصيد البداية"
-          value={openingBalanceCents}
-          barClass="bg-ink/20"
-          textClass="text-ink-3"
-          sign="+"
+          label="مبيعات مكتملة"
+          value={actualSales}
+          barClass="bg-info"
+          textClass="text-info"
           maxValue={maxValue}
         />
-      )}
-
-      {/* ── مال داخل ── */}
-      <div className="pt-1">
-        <span className="text-[10px] font-bold text-info uppercase tracking-wide whitespace-nowrap">
-          مال داخل
-        </span>
+        <FlowRow
+          label="عربونات مستلمة (الفترة)"
+          value={deposits}
+          barClass="bg-info/70"
+          textClass="text-info"
+          maxValue={maxValue}
+        />
+        <FlowRow
+          label="إضافات المالك"
+          value={ownerInject}
+          barClass="bg-info/50"
+          textClass="text-info"
+          maxValue={maxValue}
+        />
+        <FlowRow
+          label="مشتريات"
+          value={purchases}
+          barClass="bg-amber-500"
+          textClass="text-amber-600"
+          maxValue={maxValue}
+        />
+        <FlowRow
+          label="مصاريف"
+          value={expenses}
+          barClass="bg-orange-400"
+          textClass="text-amber-600"
+          maxValue={maxValue}
+        />
+        <FlowRow
+          label="سحوبات المالك"
+          value={ownerDraw}
+          barClass="bg-amber-300"
+          textClass="text-amber-600"
+          maxValue={maxValue}
+        />
       </div>
-      <FlowRow
-        label="مبيعات مكتملة"
-        value={actualSales}
-        barClass="bg-info"
-        textClass="text-info"
-        sign="+"
-        maxValue={maxValue}
-      />
-      <FlowRow
-        label="عربونات مستلمة (الفترة)"
-        value={deposits}
-        barClass="bg-info/70"
-        textClass="text-info"
-        sign="+"
-        maxValue={maxValue}
-      />
-      <FlowRow
-        label="إضافات المالك"
-        value={ownerInject}
-        barClass="bg-info/50"
-        textClass="text-info"
-        sign="+"
-        maxValue={maxValue}
-      />
-
-      {/* ── مال خارج ── */}
-      <div className="pt-1">
-        <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wide whitespace-nowrap">
-          مال خارج
-        </span>
-      </div>
-      <FlowRow
-        label="مشتريات"
-        value={purchases}
-        barClass="bg-amber-500"
-        textClass="text-amber-600"
-        sign="−"
-        maxValue={maxValue}
-      />
-      <FlowRow
-        label="مصاريف"
-        value={expenses}
-        barClass="bg-orange-400"
-        textClass="text-amber-600"
-        sign="−"
-        maxValue={maxValue}
-      />
-      <FlowRow
-        label="سحوبات المالك"
-        value={ownerDraw}
-        barClass="bg-amber-300"
-        textClass="text-amber-600"
-        sign="−"
-        maxValue={maxValue}
-      />
 
       {/* = النقد المتاح الآن — الرقم النهائي المميّز = الرصيد الفعلي */}
       <div className="flex items-center justify-between gap-2 pt-3 border-t-2 border-info/30">
@@ -157,13 +135,9 @@ export function LiquidityFlowPanel({
           النقد المتاح الآن
         </span>
         <span className="text-xl font-black text-info font-mono whitespace-nowrap">
-          <AmountText amount={actualBalanceCents} />
+          <AmountText amount={actualBalanceCents} hideCurrency />
         </span>
       </div>
-
-      <p className="text-[10px] text-ink/40 leading-snug">
-        هذا رصيدك الفعلي الآن من الصندوق والبنك. الكاش داخل/خارج — ليس ربحاً.
-      </p>
     </div>
   );
 }

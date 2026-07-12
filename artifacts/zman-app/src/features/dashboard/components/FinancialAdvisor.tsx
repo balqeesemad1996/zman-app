@@ -200,12 +200,12 @@ export function FinancialAdvisor({ data }: { data: AdvisorData }) {
       >
         <div className="flex items-center gap-2 min-w-0">
           <HealthIcon className={`h-5 w-5 ${health.color} shrink-0`} />
-          <div className="text-right min-w-0">
-            <p className="text-sm font-bold text-ink whitespace-nowrap">أخبرني عن وضعي المالي</p>
-            <p className="text-[10px] text-ink/50 truncate">{advice.summary}</p>
-          </div>
+          <span className="text-sm font-bold text-ink">أخبرني عن وضعي المالي</span>
         </div>
-        <ChevronDown className="h-4 w-4 text-info shrink-0" />
+        <span className="flex items-center gap-1.5 shrink-0">
+          <span className={`text-[11px] font-bold ${health.color} whitespace-nowrap`}>{health.label}</span>
+          <ChevronDown className="h-4 w-4 text-info" />
+        </span>
       </button>
 
       <ResponsiveModal
