@@ -15,12 +15,14 @@ function FlowRow({
   barClass,
   textClass,
   maxValue,
+  subtracted,
 }: {
   label: string;
   value: number;
   barClass: string;
   textClass: string;
   maxValue: number;
+  subtracted?: boolean;
 }) {
   const pct = maxValue > 0 ? Math.round((value / maxValue) * 100) : 0;
   return (
@@ -28,7 +30,7 @@ function FlowRow({
       <div className="flex items-baseline justify-between gap-2">
         <span className="text-xs font-semibold text-ink-2 whitespace-nowrap">{label}</span>
         <span className={`text-sm font-black font-mono whitespace-nowrap flex items-baseline gap-0.5 ${textClass}`}>
-          <AmountText amount={value} hideCurrency parenNegative />
+          <AmountText amount={value} hideCurrency alwaysParen={subtracted} parenNegative />
         </span>
       </div>
       <div className="h-2 w-full bg-canvas rounded-full overflow-hidden">
@@ -111,6 +113,7 @@ export function LiquidityFlowPanel({
           barClass="bg-amber-500"
           textClass="text-amber-600"
           maxValue={maxValue}
+          subtracted
         />
         <FlowRow
           label="مصاريف"
@@ -118,6 +121,7 @@ export function LiquidityFlowPanel({
           barClass="bg-orange-400"
           textClass="text-amber-600"
           maxValue={maxValue}
+          subtracted
         />
         <FlowRow
           label="سحوبات المالك"
@@ -125,6 +129,7 @@ export function LiquidityFlowPanel({
           barClass="bg-amber-300"
           textClass="text-amber-600"
           maxValue={maxValue}
+          subtracted
         />
       </div>
 

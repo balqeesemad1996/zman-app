@@ -68,9 +68,9 @@ function FinanceComparePanel({
   ownerDraw: number;
 }) {
   const rows = [
-    { label: "مبيعات", value: actualSales, barClass: "bg-info", textClass: "text-info" },
-    { label: "مشتريات", value: purchases, barClass: "bg-amber-500", textClass: "text-amber-600" },
-    { label: "مصاريف", value: expenses, barClass: "bg-orange-400", textClass: "text-amber-600" },
+    { label: "مبيعات", value: actualSales, barClass: "bg-info", textClass: "text-info", subtracted: false },
+    { label: "مشتريات", value: purchases, barClass: "bg-amber-500", textClass: "text-amber-600", subtracted: true },
+    { label: "مصاريف", value: expenses, barClass: "bg-orange-400", textClass: "text-amber-600", subtracted: true },
   ];
   const maxValue = Math.max(actualSales, purchases, expenses, 1);
   const isProfit = netProfit >= 0;
@@ -95,7 +95,7 @@ function FinanceComparePanel({
               <div className="flex items-baseline justify-between gap-2">
                 <span className="text-xs font-semibold text-ink-2 whitespace-nowrap">{row.label}</span>
                 <span className={`text-sm font-black font-mono whitespace-nowrap flex items-baseline gap-0.5 ${row.textClass}`}>
-                  <AmountText amount={row.value} hideCurrency parenNegative />
+                  <AmountText amount={row.value} hideCurrency alwaysParen={row.subtracted} parenNegative />
                 </span>
               </div>
               <div className="h-2.5 w-full bg-canvas rounded-full overflow-hidden">
