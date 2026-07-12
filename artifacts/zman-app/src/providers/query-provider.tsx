@@ -5,6 +5,12 @@ import { persistQueryClient } from "@tanstack/react-query-persist-client";
 import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
 import { useState, useEffect } from "react";
 
+const CACHE_KEY = "zman-query-cache";
+
+// أي تغيير في شكل البيانات المخزّنة يتطلّب رفع هذه القيمة: persist يتجاهل عندها
+// الكاش القديم ويحذفه بدل أن يفشل في hydrate ويكسر الإقلاع.
+const CACHE_BUSTER = "v2";
+
 export default function QueryProvider({
   children,
 }: {
@@ -31,18 +37,38 @@ export default function QueryProvider({
   // Task 4: persist to localStorage so dashboard renders last cached data instantly
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const localStoragePersister = createSyncStoragePersister({
-      storage: window.localStorage,
-      key: "zman-query-cache",
-      throttleTime: 1000,
-    });
-    const [unsubscribe] = persistQueryClient({
+
+    let localStoragePersister: ReturnType<typeof createSyncStoragePersister>;
+    try {
+      localStoragePersister = createSyncStoragePersister({
+        storage: window.localStorage,
+        key: CACHE_KEY,
+        throttleTime: 1000,
+      });
+    } catch {
+      // التخزين غير متاح (وضع خاص / حصة ممتلئة): التطبيق يعمل بدون كاش
+      return;
+    }
+    const [unsubscribe, restorePromise] = persistQueryClient({
       queryClient,
       persister: localStoragePersister,
+      buster: CACHE_BUSTER,
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
     });
+
+    // persistQueryClientRestore يعيد رمي الخطأ إذا كان الكاش المحفوظ تالفاً أو
+    // بصيغة قديمة. بدون التقاط restorePromise يتحوّل ذلك إلى unhandled rejection
+    // يكسر التطبيق عند الإقلاع. الكاش مجرد تسريع — فشله يجب ألّا يمنع عرض البيانات.
+    restorePromise.catch(() => {
+      try {
+        window.localStorage.removeItem(CACHE_KEY);
+      } catch {
+        // تجاهل: قد يكون التخزين محظوراً (وضع التصفح الخاص)
+      }
+    });
+
     return () => {
-      if (typeof unsubscribe === "function") unsubscribe();
+      unsubscribe();
     };
   }, [queryClient]);
 
